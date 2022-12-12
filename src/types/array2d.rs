@@ -41,6 +41,12 @@ impl<T> Array2d<T> {
             },
         }
     }
+
+    fn index(&self, idx: [usize; 2]) -> Index {
+        let i = idx[0] + idx[1] * self.shape.0;
+        assert!(i < self.size());
+        i
+    }
 }
 
 impl<T> Drop for Array2d<T> {
@@ -56,13 +62,13 @@ impl<T> std::ops::Index<[usize; 2]> for Array2d<T> {
     type Output = T;
 
     fn index(&self, idx: [usize; 2]) -> &T {
-        unsafe { &*self.ptr.as_ptr().add(idx[0] + idx[1] * self.shape.0) }
+        unsafe { &*self.ptr.as_ptr().add(self.index(idx)) }
     }
 }
 
 impl<T> std::ops::IndexMut<[usize; 2]> for Array2d<T> {
     fn index_mut(&mut self, idx: [usize; 2]) -> &mut T {
-        unsafe { &mut *self.ptr.as_ptr().add(idx[0] + idx[1] * self.shape.0) }
+        unsafe { &mut *self.ptr.as_ptr().add(self.index(idx)) }
     }
 }
 
