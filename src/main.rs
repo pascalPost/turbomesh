@@ -1,45 +1,18 @@
 // Copyright (c) 2022 Pascal Post
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
+mod output;
 mod tfi;
 mod types;
 
+use crate::output::write_block_to_legacy_vtk;
 use crate::tfi::tfi_linear_2d;
-use crate::types::{Block2d, Edge, Scalar};
-use std::fs::File;
-use std::io::Write;
-
-fn write_block_to_legacy_vtk(file_name: &str, block: &Block2d) -> Result<(), std::io::Error> {
-    println!("Writing outlut to {file_name}");
-
-    let i_len = block.i_len();
-    let j_len = block.j_len();
-
-    let mut output = File::create(file_name)?;
-    writeln!(output, "# vtk DataFile Version 3.0")?;
-    writeln!(output, "turbomesh")?;
-    writeln!(output, "ASCII")?;
-    writeln!(output, "DATASET STRUCTURED_GRID")?;
-    writeln!(output, "DIMENSIONS {i_len} {j_len} 1")?;
-    writeln!(output, "POINTS {} double", i_len * j_len)?;
-
-    for j in 0..j_len {
-        for i in 0..i_len {
-            writeln!(
-                output,
-                "{} {} 0.0",
-                block.coords[[i, j]].0,
-                block.coords[[i, j]].1
-            )?;
-        }
-    }
-
-    Ok(())
-}
+use crate::types::Vec2d;
+use crate::types::{Block2d, Scalar};
 
 fn main() {
-    let i_len = 10;
-    let j_len = 20;
+    // let i_len = 10;
+    // let j_len = 20;
 
     // let block_0 = Block2d::new(String::from("block_0"), (I, J))
     //     .mod_edge(Edge::IMin, |v| {})
@@ -47,31 +20,45 @@ fn main() {
     //     .mod_edge(Edge::JMin)
     //     .mod_edge(Edge::JMax);
 
-    let mut block_0 = Block2d::new(String::from("block_0"), (i_len, j_len));
+    let mut block_0 = Block2d::new(String::from("block_0"), (10, 20));
 
     let x_min = -1.0;
     let x_max = 1.0;
     let y_min = -1.0;
     let y_max = 1.0;
 
-    for (i, v) in block_0.edge_mut(Edge::IMin).indexed_iter_mut() {
-        v.0 = x_min + (x_max - x_min) * i as Scalar / (i_len - 1) as Scalar;
-        v.1 = y_min;
+    // i min edge
+    for i in 0..block_0.shape().0 {
+        block_0.coords[[i, 0]] = Vec2d(
+            x_min + (x_max - x_min) * i as Scalar / (block_0.shape().0 - 1) as Scalar,
+            y_min,
+        );
     }
 
-    for (i, v) in block_0.edge_mut(Edge::IMax).indexed_iter_mut() {
-        v.0 = x_min + (x_max - x_min) * i as Scalar / (i_len - 1) as Scalar;
-        v.1 = y_max;
+    // i max edge
+    for i in 0..block_0.shape().0 {
+        let j_len = block_0.shape().1;
+        block_0.coords[[i, j_len - 1]] = Vec2d(
+            x_min + (x_max - x_min) * i as Scalar / (block_0.shape().0 - 1) as Scalar,
+            y_max,
+        );
     }
 
-    for (j, v) in block_0.edge_mut(Edge::JMin).indexed_iter_mut() {
-        v.0 = x_min;
-        v.1 = y_min + (y_max - y_min) * j as Scalar / (j_len - 1) as Scalar;
+    // j min edge
+    for j in 0..block_0.shape().1 {
+        block_0.coords[[0, j]] = Vec2d(
+            x_min,
+            y_min + (y_max - y_min) * j as Scalar / (block_0.shape().1 - 1) as Scalar,
+        );
     }
 
-    for (j, v) in block_0.edge_mut(Edge::JMax).indexed_iter_mut() {
-        v.0 = x_max;
-        v.1 = y_min + (y_max - y_min) * j as Scalar / (j_len - 1) as Scalar;
+    // j max edge
+    for j in 0..block_0.shape().1 {
+        let i_len = block_0.shape().0;
+        block_0.coords[[i_len - 1, j]] = Vec2d(
+            x_max,
+            y_min + (y_max - y_min) * j as Scalar / (block_0.shape().1 - 1) as Scalar,
+        );
     }
 
     tfi_linear_2d(&mut block_0);

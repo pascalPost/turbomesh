@@ -1,15 +1,14 @@
 // Copyright (c) 2022 Pascal Post
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
-use crate::types::Block2d;
-use crate::types::Vec2d;
+use crate::types::{Array2d, Block2d, Vec2d};
 
 /// Boundary-Blended Control Functions eq. (3.21) from Thompson et al., Eds.,
 /// Handbook of grid generation. Boca Raton, Fla: CRC Press, 1999.
-fn boundary_blended_control_function(uv: &mut ndarray::Array2<Vec2d>) {
+fn boundary_blended_control_function(uv: &mut Array2d<Vec2d>) {
     // loop over internal block coordinates
-    let i_len = uv.len_of(ndarray::Axis(0));
-    let j_len = uv.len_of(ndarray::Axis(1));
+    let i_len = uv.shape.0;
+    let j_len = uv.shape.1;
 
     for i in 1..i_len - 1 {
         let s1 = uv[[i, 0]].0;
@@ -28,13 +27,13 @@ fn boundary_blended_control_function(uv: &mut ndarray::Array2<Vec2d>) {
 
 /// arclength control function, see section 3.6.4, Thompson et
 /// al., Eds., Handbook of grid generation. Boca Raton, Fla: CRC Press, 1999.
-fn arclength_control_function(uv: &mut ndarray::Array2<Vec2d>, xy: &ndarray::Array2<Vec2d>) {
+fn arclength_control_function(uv: &mut Array2d<Vec2d>, xy: &Array2d<Vec2d>) {
     // loop over boundary nodes
-    let i_len = xy.len_of(ndarray::Axis(0));
-    let j_len = xy.len_of(ndarray::Axis(1));
+    let i_len = xy.shape.0;
+    let j_len = xy.shape.1;
 
-    assert_eq!(i_len, uv.len_of(ndarray::Axis(0)));
-    assert_eq!(j_len, uv.len_of(ndarray::Axis(1)));
+    assert_eq!(i_len, uv.shape.0);
+    assert_eq!(j_len, uv.shape.1);
 
     {
         for i in 1..i_len {
@@ -81,8 +80,8 @@ fn arclength_control_function(uv: &mut ndarray::Array2<Vec2d>, xy: &ndarray::Arr
 
 /// creation of the intermediate control domain, see section 3.6, Thompson et
 /// al., Eds., Handbook of grid generation. Boca Raton, Fla: CRC Press, 1999.
-fn intermediate_control_domain(xy: &ndarray::Array2<Vec2d>) -> ndarray::Array2<Vec2d> {
-    let mut uv = ndarray::Array2::from_shape_simple_fn(xy.raw_dim(), || Vec2d(0.0, 0.0));
+fn intermediate_control_domain(xy: &Array2d<Vec2d>) -> Array2d<Vec2d> {
+    let mut uv = Array2d::new(xy.shape);
 
     arclength_control_function(&mut uv, xy);
     boundary_blended_control_function(&mut uv);
@@ -100,11 +99,9 @@ pub fn tfi_linear_2d(block: &mut Block2d) {
     let uv = intermediate_control_domain(&block.coords);
     let xy = &mut block.coords;
 
-    println!("{:?}", uv);
-
     // loop over internal block coordinates
-    let i_len = xy.len_of(ndarray::Axis(0));
-    let j_len = xy.len_of(ndarray::Axis(1));
+    let i_len = xy.shape.0;
+    let j_len = xy.shape.1;
 
     for i in 1..i_len - 1 {
         for j in 1..j_len - 1 {
