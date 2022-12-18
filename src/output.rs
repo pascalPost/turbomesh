@@ -5,8 +5,7 @@ use std::io::Write;
 pub fn write_block_to_legacy_vtk(file_name: &str, block: &Block2d) -> Result<(), std::io::Error> {
     println!("Writing outlut to {file_name}");
 
-    let i_len = block.shape().0;
-    let j_len = block.shape().1;
+    let [i_len, j_len] = block.points();
 
     let mut output = File::create(file_name)?;
     writeln!(output, "# vtk DataFile Version 3.0")?;

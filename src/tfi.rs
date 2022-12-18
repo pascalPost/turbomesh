@@ -5,10 +5,9 @@ use crate::types::{Array2d, Block2d, Vec2d};
 
 /// Boundary-Blended Control Functions eq. (3.21) from Thompson et al., Eds.,
 /// Handbook of grid generation. Boca Raton, Fla: CRC Press, 1999.
-fn boundary_blended_control_function(uv: &mut Array2d<Vec2d>) {
+pub fn boundary_blended_control_function(uv: &mut Array2d<Vec2d>) {
     // loop over internal block coordinates
-    let i_len = uv.shape.0;
-    let j_len = uv.shape.1;
+    let [i_len, j_len] = uv.shape;
 
     for i in 1..i_len - 1 {
         let s1 = uv[[i, 0]].0;
@@ -29,11 +28,13 @@ fn boundary_blended_control_function(uv: &mut Array2d<Vec2d>) {
 /// al., Eds., Handbook of grid generation. Boca Raton, Fla: CRC Press, 1999.
 fn arclength_control_function(uv: &mut Array2d<Vec2d>, xy: &Array2d<Vec2d>) {
     // loop over boundary nodes
-    let i_len = xy.shape.0;
-    let j_len = xy.shape.1;
+    let [i_len, j_len] = xy.shape;
 
-    assert_eq!(i_len, uv.shape.0);
-    assert_eq!(j_len, uv.shape.1);
+    assert_eq!(
+        [i_len, j_len],
+        uv.shape,
+        "shape mismatch in mapping detected."
+    );
 
     {
         for i in 1..i_len {
@@ -100,8 +101,7 @@ pub fn tfi_linear_2d(block: &mut Block2d) {
     let xy = &mut block.coords;
 
     // loop over internal block coordinates
-    let i_len = xy.shape.0;
-    let j_len = xy.shape.1;
+    let [i_len, j_len] = xy.shape;
 
     for i in 1..i_len - 1 {
         for j in 1..j_len - 1 {

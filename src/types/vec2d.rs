@@ -1,6 +1,6 @@
 use crate::types::Scalar;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vec2d(pub Scalar, pub Scalar);
 
 impl Vec2d {
