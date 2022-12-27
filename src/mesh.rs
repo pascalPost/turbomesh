@@ -23,20 +23,33 @@ impl Mesh {
         for block in &self.blocks {
             let size: Vec<CgSizeT> = vec![
                 block.points()[0] as CgSizeT,
-                block.points()[0] as CgSizeT - 1,
-                0,
                 block.points()[1] as CgSizeT,
+                block.points()[0] as CgSizeT - 1,
                 block.points()[1] as CgSizeT - 1,
+                0,
                 0,
             ];
 
-            let _i_zone = zone_write(
+            let i_zone = zone_write(
                 i_file,
                 i_base,
                 block.name.as_str(),
                 &size,
-                ZoneType::Structured,
+                &ZoneType::Structured,
             )?;
+
+            {
+                let mut coords_x = vec![0.0; block.coords.size()];
+                let mut coords_y = vec![0.0; block.coords.size()];
+
+                for i in 0..block.coords.size() {
+                    coords_x[i] = block.coords.as_slice()[i].0;
+                    coords_y[i] = block.coords.as_slice()[i].1;
+                }
+
+                coord_write(i_file, i_base, i_zone, "CoordinateX", &coords_x.as_slice())?;
+                coord_write(i_file, i_base, i_zone, "CoordinateY", &coords_y.as_slice())?;
+            }
         }
 
         close(&mut i_file)?;

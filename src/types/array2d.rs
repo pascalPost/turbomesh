@@ -47,6 +47,10 @@ impl<T> Array2d<T> {
         assert!(i < self.size());
         i
     }
+
+    pub fn as_slice(&self) -> &[T] {
+        unsafe { std::slice::from_raw_parts(self.ptr.as_ptr(), self.size()) }
+    }
 }
 
 impl<T> Drop for Array2d<T> {

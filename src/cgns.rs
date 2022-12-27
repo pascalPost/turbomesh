@@ -3,7 +3,7 @@ pub mod interface {
     use std::ffi::{CStr, CString};
 
     pub use std::error::Error;
-    pub use std::os::raw::c_int;
+    pub use std::os::raw::{c_int, c_void};
 
     /// rust wrapper for CG_MODE_* (excluding CG_MODE_CLOSED which is not excepted
     /// for the cg_open function)
@@ -118,10 +118,11 @@ pub mod interface {
         Ok(i_base)
     }
 
+    #[allow(dead_code)]
     #[derive(PartialEq)]
     pub enum ZoneType {
-        _Null,
-        _UserDefined,
+        Null,
+        UserDefined,
         Structured,
         Unstructured,
     }
@@ -129,8 +130,8 @@ pub mod interface {
     impl ZoneType {
         fn value(&self) -> ZoneType_t {
             match self {
-                ZoneType::_Null => ZoneType_t_ZoneTypeNull,
-                ZoneType::_UserDefined => ZoneType_t_ZoneTypeUserDefined,
+                ZoneType::Null => ZoneType_t_ZoneTypeNull,
+                ZoneType::UserDefined => ZoneType_t_ZoneTypeUserDefined,
                 ZoneType::Structured => ZoneType_t_Structured,
                 ZoneType::Unstructured => ZoneType_t_Unstructured,
             }
@@ -161,6 +162,7 @@ pub mod interface {
     ///                               NBoundVertexI = 0, NBoundVertexJ = 0
     ///             3D unstructured   NVertex, NCell3D, NBoundVertex
     ///             2D unstructured	  NVertex, NCell2D, NBoundVertex
+    /// * `type_` : 	Type of the zone. The admissible types are Structured and Unstructured.
     ///
     /// returns Zone index number, where 1 ≤ Z ≤ nzones.
     pub fn zone_write(
@@ -168,9 +170,9 @@ pub mod interface {
         i_base: c_int,
         zone_name: &str,
         size: &Vec<CgSizeT>,
-        type_: ZoneType,
+        type_: &ZoneType,
     ) -> Result<c_int, Box<dyn Error>> {
-        assert!(type_ == ZoneType::Structured || type_ == ZoneType::Unstructured);
+        assert!(*type_ == ZoneType::Structured || *type_ == ZoneType::Unstructured);
 
         let mut i_zone: c_int = 0;
 
@@ -186,6 +188,73 @@ pub mod interface {
         }
 
         Ok(i_zone)
+    }
+
+    #[allow(dead_code)]
+    #[derive(PartialEq)]
+    enum DataType {
+        Null,
+        UserDefined,
+        Integer,
+        RealSingle,
+        RealDouble,
+        Character,
+        LongInteger,
+    }
+
+    impl DataType {
+        fn value(&self) -> u32 {
+            match self {
+                DataType::Null => DataType_t_DataTypeNull,
+                DataType::UserDefined => DataType_t_DataTypeUserDefined,
+                DataType::Integer => DataType_t_Integer,
+                DataType::RealSingle => DataType_t_RealSingle,
+                DataType::RealDouble => DataType_t_RealDouble,
+                DataType::Character => DataType_t_Character,
+                DataType::LongInteger => DataType_t_LongInteger,
+            }
+        }
+    }
+
+    /// Write grid coordinates.
+    ///
+    /// Arguments:
+    /// * `i_file` : CGNS file index number.
+    /// * `i_base` : Base index number, where 1 ≤ B ≤ nbases.
+    /// * `i_zone` : Zone index number, where 1 ≤ Z ≤ nzones.
+    /// * `data_type` : Data type of the coordinate array written to the file. Admissible data types for a coordinate array are RealSingle and RealDouble.
+    /// * `coord_name` : Name of the coordinate array. It is strongly advised to use the SIDS nomenclature conventions when naming the coordinate arrays to insure file compatibility.
+    /// * `coord_array` : Array of coordinate values.
+    ///
+    /// returns Coordinate array index number, where 1 ≤ C ≤ ncoords.
+    pub fn coord_write(
+        i_file: c_int,
+        i_base: c_int,
+        i_zone: c_int,
+        coord_name: &str,
+        coord_array: &[f64],
+    ) -> Result<c_int, Box<dyn Error>> {
+        // assert!(*data_type == DataType::RealSingle || *data_type ==
+        // DataType::RealDouble);
+
+        // TODO extend to allow c_float
+
+        let data_type = DataType::RealDouble;
+
+        let mut i_coord: c_int = 0;
+        unsafe {
+            check(cg_coord_write(
+                i_file,
+                i_base,
+                i_zone,
+                data_type.value(),
+                CString::new(coord_name)?.as_ptr(),
+                coord_array.as_ptr() as *const c_void,
+                &mut i_coord,
+            ))?;
+        }
+
+        Ok(i_coord)
     }
 }
 
