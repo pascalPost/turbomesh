@@ -8,3 +8,5 @@ license = "AGPL-3.0-or-newer"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+dierckx-sys = "0.1.0"
+cgns-sys = "0.2.1"

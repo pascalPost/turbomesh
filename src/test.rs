@@ -52,3 +52,32 @@ fn test_block_creation_with_corners() {
     assert_eq!(block.coords[[1, 2]], Vec2d(0.0, 1.0));
     assert_eq!(block.coords[[2, 2]], Vec2d(1.0, 1.0));
 }
+
+/// test linear block creation
+///           x 2
+///         /   \
+///       x 1    x 3
+///         \   /
+///           x 0
+#[test]
+fn test_block_creation_linear() {
+    let block = Block2d::new(String::from("block"), (2, 2)).corners(
+        Vec2d(0.0, -1.0),
+        Vec2d(-1.0, 0.0),
+        Vec2d(0.0, 1.0),
+        Vec2d(1.0, 0.0),
+    );
+
+    // test block coordinates
+    assert_eq!(block.coords[[0, 0]], Vec2d(0.0, -1.0));
+    assert_eq!(block.coords[[1, 0]], Vec2d(-0.5, -0.5));
+    assert_eq!(block.coords[[2, 0]], Vec2d(-1.0, 0.0));
+
+    assert_eq!(block.coords[[0, 1]], Vec2d(0.5, -0.5));
+    assert_eq!(block.coords[[1, 1]], Vec2d(0.0, 0.0));
+    assert_eq!(block.coords[[2, 1]], Vec2d(-0.5, 0.5));
+
+    assert_eq!(block.coords[[0, 2]], Vec2d(1.0, 0.0));
+    assert_eq!(block.coords[[1, 2]], Vec2d(0.5, 0.5));
+    assert_eq!(block.coords[[2, 2]], Vec2d(0.0, 1.0));
+}

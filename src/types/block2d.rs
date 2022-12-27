@@ -42,7 +42,7 @@ impl LinearEdge {
 
 impl EdgeFunction for LinearEdge {
     fn i_min(&self, coords: &mut Array2d<Vec2d>) {
-        let [i_points, j_points] = coords.shape;
+        let [i_points, _] = coords.shape;
 
         let x_0 = coords[[0, 0]];
         let x_1 = coords[[i_points - 1, 0]];
@@ -66,7 +66,7 @@ impl EdgeFunction for LinearEdge {
     }
 
     fn j_min(&self, coords: &mut Array2d<Vec2d>) {
-        let [i_points, j_points] = coords.shape;
+        let [_, j_points] = coords.shape;
 
         let x_0 = coords[[0, 0]];
         let x_1 = coords[[0, j_points - 1]];
