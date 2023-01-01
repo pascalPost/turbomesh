@@ -15,6 +15,10 @@ impl Mesh {
         Self { blocks: vec![] }
     }
 
+    pub fn add_block(&mut self, block: Block2d) {
+        self.blocks.push(block);
+    }
+
     /// writes the mesh to a structured cgns
     pub fn save(&self, file_name: &str) -> Result<(), Box<dyn Error>> {
         let mut i_file = open(file_name, CgMode::Write)?;

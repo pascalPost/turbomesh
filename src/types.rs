@@ -2,7 +2,7 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 mod array2d;
-mod block2d;
+pub mod block2d; // TODO make private and edd re-exports
 mod vec2d;
 
 pub type Scalar = f64;

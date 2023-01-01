@@ -1,6 +1,9 @@
 // Copyright (c) 2022 Pascal Post
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
+use dierckx_sys::curev_;
+use libc::{c_double, c_int};
+
 extern "C" {
     // given the ordered set of m points x(i) in the idim-dimensional space
     // and given also a corresponding set of strictly increasing values u(i)
@@ -40,7 +43,7 @@ extern "C" {
         // preceded by another call with iopt=1 or iopt=0. unchanged on exit.
         iopt: *const c_int,
         // integer flag. on entry ipar must specify whether (ipar=1)
-        // the user will supply the parameter values u(i),ub and ue
+        // the user will supply the parameter values u(i), ub and ue
         // or whether (ipar=0) these values are to be calculated by
         // parcur. unchanged on exit.
         ipar: *const c_int,
@@ -52,7 +55,7 @@ extern "C" {
         m: *const c_int,
         // real array of dimension at least (m). in case ipar=1, before
         // entry, u(i) must be set to the i-th value of the parameter
-        // variable u for i=1,2,...,m. these values must then be
+        // variable u for i=1,2,...,m. These values must then be
         // supplied in strictly ascending order and will be unchanged
         // on exit. in case ipar=0, on exit, array u will contain the
         // values u(i) as determined by parcur.
@@ -249,7 +252,6 @@ impl<const DIM: usize> FittingSpline<DIM> {
         };
 
         unsafe {
-            use libc::{c_double, c_int};
             let iopt: c_int = 0;
             let idim = DIM as c_int;
 
@@ -327,7 +329,6 @@ impl<const DIM: usize> FittingSpline<DIM> {
         let mut res = vec![[f64::NAN; DIM]; u.len()];
 
         unsafe {
-            use libc::{c_double, c_int};
             let idim = DIM as c_int;
             let mut ier: c_int = 0;
             curev_(
