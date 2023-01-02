@@ -1,3 +1,6 @@
+// Copyright (c) 2022 Pascal Post
+// This code is licensed under AGPL license (see LICENSE.txt for details)
+
 pub mod interface {
     use cgns_sys::*;
     use std::ffi::{CStr, CString};

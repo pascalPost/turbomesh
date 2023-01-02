@@ -1,3 +1,6 @@
+// Copyright (c) 2022 Pascal Post
+// This code is licensed under AGPL license (see LICENSE.txt for details)
+
 // use crate::types::Block2d;
 // use crate::Mesh;
 // use std::fs::File;

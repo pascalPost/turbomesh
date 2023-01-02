@@ -1,3 +1,6 @@
+// Copyright (c) 2022 Pascal Post
+// This code is licensed under AGPL license (see LICENSE.txt for details)
+
 use crate::types::Scalar;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -30,5 +33,21 @@ impl std::ops::Mul<Vec2d> for Scalar {
 
     fn mul(self, rhs: Vec2d) -> Self::Output {
         Vec2d(self * rhs.0, self * rhs.1)
+    }
+}
+
+pub trait From<T>: Sized {
+    fn from(value: T) -> Self;
+}
+
+impl From<(Scalar, Scalar)> for Vec2d {
+    fn from(value: (Scalar, Scalar)) -> Self {
+        Vec2d(value.0, value.1)
+    }
+}
+
+impl std::fmt::Display for Vec2d {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {})", self.0, self.1)
     }
 }

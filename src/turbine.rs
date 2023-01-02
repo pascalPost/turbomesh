@@ -163,20 +163,20 @@ fn blocking() {
 
     // in_middle block
 
-    let block_in_middle = Block2d::new(
-        String::from(row_prefix.to_owned() + "block_in_middle"),
-        (num_cells_in_middle_half * 2, num_cells_cut),
-        vec![],
-    )
-    .corners(
-        Vec2d(0.0, 0.0),
-        Vec2d(1.0, 0.0),
-        Vec2d(1.0, 1.0),
-        Vec2d(0.0, 1.0),
-    );
+    // let block_in_middle = Block2d::new(
+    //     String::from(row_prefix.to_owned() + "block_in_middle"),
+    //     (num_cells_in_middle_half * 2, num_cells_cut),
+    //     vec![],
+    // )
+    // .corners(
+    //     Vec2d(0.0, 0.0),
+    //     Vec2d(1.0, 0.0),
+    //     Vec2d(1.0, 1.0),
+    //     Vec2d(0.0, 1.0),
+    // );
 
-    mesh.add_block(block_in_middle);
-
+    // mesh.add_block(block_in_middle);
+    //
     // let x_in_middle_lower_start = x_blade[-(num_cells_in_middle / 2) - 1];
 
     // plt.plot(x_inm_lower_start, y_inm_lower_start, '.r')

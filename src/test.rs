@@ -1,7 +1,7 @@
 // Copyright (c) 2022 Pascal Post
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
-use crate::types::block2d::{Edge, EdgeSegmentProps};
+use crate::types::block2d::{Edge, Mapping};
 use crate::types::{Block2d, Scalar, Vec2d};
 
 fn equidistant_clustering(u: &mut [Scalar]) {
@@ -9,70 +9,78 @@ fn equidistant_clustering(u: &mut [Scalar]) {
     for (i, u) in u.iter_mut().enumerate() {
         *u = i as Scalar / (n - 1) as Scalar
     }
-    // u.iter_mut()
-    //     .enumerate()
-    //     .for_each(|(i, u)| );
 }
 
-// fn linear_edge(start: Vec2d, end: Vec2d) -> Box<dyn Fn(&[Scalar], &[Vec2d])> {
-//     Box::new(|u, v| for (u, v) in u.iter().zip(v.iter_mut()) {
+/// representing a straigt line from x_min to x_max
+struct Line2d {
+    x_min: Vec2d,
+    x_max: Vec2d,
+}
 
-//     })
-// }
+impl Line2d {
+    /// returns a Line2d from x0 to x1
+    fn new(x0: Vec2d, x1: Vec2d) -> Self {
+        Line2d {
+            x_min: x0,
+            x_max: x1,
+        }
+    }
+}
 
-/// test the default block creation (done in computational space equidistant
-/// with values 0<= x,y <=1)
+impl Mapping for Line2d {
+    fn computational_to_physical(&self, u: &[Scalar], x: &mut [Vec2d]) {
+        let dx = self.x_max - self.x_min;
+        for (&u, x) in u.iter().zip(x.iter_mut()) {
+            *x = self.x_min + u * dx;
+        }
+    }
+}
+
+struct Rectangle {
+    origin: Vec2d,
+    size: Vec2d,
+}
+
+impl Rectangle {
+    fn new(origin: Vec2d, size: Vec2d) -> Self {
+        assert!(
+            size.0 > 0.0 && size.1 > 0.0,
+            "Size must be greater than zero"
+        );
+        Rectangle { origin, size }
+    }
+
+    fn i_min(&self) -> Line2d {
+        Line2d::new(self.origin, self.origin + Vec2d(self.size.0, 0.0))
+    }
+
+    fn i_max(&self) -> Line2d {
+        let x0 = self.origin + Vec2d(0.0, self.size.1);
+        Line2d::new(x0, x0 + Vec2d(self.size.0, 0.0))
+    }
+
+    fn j_min(&self) -> Line2d {
+        Line2d::new(self.origin, self.origin + Vec2d(0.0, self.size.1))
+    }
+
+    fn j_max(&self) -> Line2d {
+        let x0 = self.origin + Vec2d(self.size.0, 0.0);
+        Line2d::new(x0, x0 + Vec2d(0.0, self.size.1))
+    }
+}
+
+/// test the block creation with a simple rectangle
 #[test]
 fn test_default_block_creation() {
+    let rect = Rectangle::new(Vec2d(0.0, 0.0), Vec2d(1.0, 1.0));
+
     let block = Block2d::new(
         String::from("block"),
         (2, 2),
-        vec![
-            EdgeSegmentProps {
-                edge: Edge::IMin,
-                start: 0,
-                end: 3,
-                clustering: Box::new(equidistant_clustering),
-                mapping: Box::new(|u, x| {
-                    for (u, x) in u.iter().zip(x.iter_mut()) {
-                        *x = Vec2d(*u, 0.0);
-                    }
-                }),
-            },
-            EdgeSegmentProps {
-                edge: Edge::IMax,
-                start: 0,
-                end: 3,
-                clustering: Box::new(equidistant_clustering),
-                mapping: Box::new(|u, x| {
-                    for (u, x) in u.iter().zip(x.iter_mut()) {
-                        *x = Vec2d(*u, 1.0);
-                    }
-                }),
-            },
-            EdgeSegmentProps {
-                edge: Edge::JMin,
-                start: 0,
-                end: 3,
-                clustering: Box::new(equidistant_clustering),
-                mapping: Box::new(|u, x| {
-                    for (u, x) in u.iter().zip(x.iter_mut()) {
-                        *x = Vec2d(0.0, *u);
-                    }
-                }),
-            },
-            EdgeSegmentProps {
-                edge: Edge::JMax,
-                start: 0,
-                end: 3,
-                clustering: Box::new(equidistant_clustering),
-                mapping: Box::new(|u, x| {
-                    for (u, x) in u.iter().zip(x.iter_mut()) {
-                        *x = Vec2d(1.0, *u);
-                    }
-                }),
-            },
-        ],
+        Edge::new(equidistant_clustering, rect.i_min()),
+        Edge::new(equidistant_clustering, rect.i_max()),
+        Edge::new(equidistant_clustering, rect.j_min()),
+        Edge::new(equidistant_clustering, rect.j_max()),
     );
 
     println!("{:?}", block.coords);
