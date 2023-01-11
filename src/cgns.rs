@@ -142,8 +142,8 @@ pub mod interface {
     }
 
     // TODO add CG_BUILD_64BIT detection
-    pub type CgSizeT = cgsize_t;
-    // pub type CgSizeT = c_int;
+    // pub type CgSizeT = cgsize_t;
+    pub type CgSizeT = c_int;
 
     /// Create and/or write to a zone node.
     ///

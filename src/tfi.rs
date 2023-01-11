@@ -2,6 +2,7 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 use crate::types::{Array2d, Scalar, Vec2d};
+use float_cmp::approx_eq;
 
 // /// Boundary-Blended Control Functions eq. (3.21) from Thompson et al., Eds.,
 // /// Handbook of grid generation. Boca Raton, Fla: CRC Press, 1999.
@@ -126,11 +127,18 @@ fn check_and_get_corners(
     coords_j_min: &[Vec2d],
     coords_j_max: &[Vec2d],
 ) -> (Vec2d, Vec2d, Vec2d, Vec2d) {
+    const ULPS: i64 = 100;
+    const EPSILON: f64 = 1e-10;
+
     // x[0,0]
     let x_0_0 = *coords_i_min.first().unwrap();
-    assert_eq!(
-        x_0_0,
-        *coords_j_min.first().unwrap(),
+    assert!(
+        approx_eq!(
+            &Vec2d,
+            &x_0_0,
+            coords_j_min.first().unwrap(),
+            epsilon = EPSILON // ulps = ULPS
+        ),
         "The corners of edges i_min[0] = {} and 
             j_min[0] = {} bound to constituting x[0, 0] do not match.",
         x_0_0,
@@ -139,10 +147,14 @@ fn check_and_get_corners(
 
     // x[-1, -1]
     let x_1_1 = *coords_i_max.last().unwrap();
-    assert_eq!(
-        x_1_1,
-        *coords_j_max.last().unwrap(),
-        "The corners of edges i_max[-1] = {} and 
+    assert!(
+        approx_eq!(
+            &Vec2d,
+            &x_1_1,
+            coords_j_max.last().unwrap(),
+            epsilon = EPSILON // ulps = ULPS
+        ),
+        "The corners of edges i_max[-1] = {} and
             j_max[-1] = {} bound to constitute x[-1, -1] do not match.",
         x_1_1,
         coords_j_max.last().unwrap()
@@ -150,9 +162,13 @@ fn check_and_get_corners(
 
     // x[-1, 0]
     let x_1_0 = *coords_i_min.last().unwrap();
-    assert_eq!(
-        x_1_0,
-        *coords_j_max.first().unwrap(),
+    assert!(
+        approx_eq!(
+            &Vec2d,
+            &x_1_0,
+            coords_j_max.first().unwrap(),
+            epsilon = EPSILON // ulps = ULPS
+        ),
         "The corners of edges i_min[-1] = {} and 
             j_max[0] = {} bound to constitute x[-1, 0] do not match.",
         x_1_0,
@@ -161,9 +177,13 @@ fn check_and_get_corners(
 
     // x[0, -1]
     let x_0_1 = *coords_i_max.first().unwrap();
-    assert_eq!(
-        x_0_1,
-        *coords_j_min.last().unwrap(),
+    assert!(
+        approx_eq!(
+            &Vec2d,
+            &x_0_1,
+            coords_j_min.last().unwrap(),
+            epsilon = EPSILON // ulps = ULPS
+        ),
         "The corners of edges i_max[0] = {} and 
             j_min[-1] = {} bound to constitute x[0, -1] do not match.",
         x_0_1,

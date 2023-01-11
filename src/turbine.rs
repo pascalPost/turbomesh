@@ -2,16 +2,25 @@
 // Licensed under AGPLv3 license (see LICENSE.txt for details)
 
 #[cfg(test)]
-use crate::clustering::roberts_clustering;
+use crate::clustering::{roberts_clustering, uniform_clustering};
 
 #[cfg(test)]
-use crate::{Block2d, Mesh, Vec2d};
+use crate::{Block2d, Edge, Mesh, Vec2d};
+
+#[cfg(test)]
+use crate::types::Scalar;
+
+#[cfg(test)]
+use crate::geometry::Line2d;
 
 #[cfg(test)]
 use ndarray::Array;
 
 #[cfg(test)]
 use plotters::prelude::*;
+
+#[cfg(test)]
+use std::rc::Rc;
 
 use crate::interpolation::FittingSpline;
 use std::error::Error;
@@ -52,16 +61,22 @@ fn read_profile(file_name: &str) -> Result<Vec<[f64; 2]>, Box<dyn Error>> {
 pub fn blade_profile() -> Result<(FittingSpline<2>, FittingSpline<2>), Box<dyn Error>> {
     // read suction and pressure side coordinates from csv and save into vec
 
-    let ps = read_profile("examples/T106/T106_ps.dat")
+    let mut ps = read_profile("examples/T106/T106_ps.dat")
         .expect("error in reading pressure side coordinates");
 
-    let ss = read_profile("examples/T106/T106_ss.dat")
+    // TODO add automatic detection of the direction from leading to trailing
+    // edge
+
+    if ps.first().unwrap()[0] > ps.last().unwrap()[0] {
+        ps.reverse();
+    }
+
+    let mut ss = read_profile("examples/T106/T106_ss.dat")
         .expect("Error in reading suction side coordinates");
 
-    // println!("ps[0]: {:?}", ps[0]);
-    // println!("ps[-1]: {:?}", ps[ps.len() - 1]);
-    // println!("ss[0]: {:?}", ss[0]);
-    // println!("ss[-1]: {:?}", ss[ss.len() - 1]);
+    if ss.first().unwrap()[0] > ss.last().unwrap()[0] {
+        ss.reverse();
+    }
 
     assert!(
         ps[0] == ss[0] || ps[0] == ss[ss.len() - 1],
@@ -151,7 +166,7 @@ fn blocking() {
     let (ps_spline, ss_spline) = blade_profile().expect("Error in profile input and interpolation");
 
     // clustering around the blade
-    let blade_clustering = roberts_clustering(num_cells_blade, 0.5, 1.01);
+    let blade_clustering = Rc::<[Scalar]>::from(roberts_clustering(num_cells_blade, 0.5, 1.01));
 
     // TODO add approximation of the leading and trailing edge by approximating
     // the chamber line and computing its intersection with the profile.
@@ -163,48 +178,86 @@ fn blocking() {
 
     // in_middle block
 
-    // let block_in_middle = Block2d::new(
-    //     String::from(row_prefix.to_owned() + "block_in_middle"),
-    //     (num_cells_in_middle_half * 2, num_cells_cut),
-    //     vec![],
-    // )
-    // .corners(
-    //     Vec2d(0.0, 0.0),
-    //     Vec2d(1.0, 0.0),
-    //     Vec2d(1.0, 1.0),
-    //     Vec2d(0.0, 1.0),
-    // );
+    {
+        // x_01
+        // |---------- x_00
+        // |         |
+        // |        |           |
+        // |       < LE       i_min
+        // |        |           |
+        // |         |          V
+        // |---------- x_10
+        // x_11
 
-    // mesh.add_block(block_in_middle);
-    //
-    // let x_in_middle_lower_start = x_blade[-(num_cells_in_middle / 2) - 1];
+        let u_on_blade = blade_clustering[num_cells_in_middle_half];
 
-    // plt.plot(x_inm_lower_start, y_inm_lower_start, '.r')
+        // TODO insert function to convert [Scalar; 2] to Vec2d
 
-    // x_inm_upper_start = x_blade[ninm // 2]
-    // y_inm_upper_start = y_blade[ninm // 2]
+        let x_00 = ss_spline.interpolate(&[u_on_blade])[0];
+        let x_00 = Vec2d(x_00[0], x_00[1]);
 
-    // plt.plot(x_inm_upper_start, y_inm_upper_start, '.r')
+        // TODO remove hard coded position for block
+        let x_01 = x_00 - Vec2d(0.007, -0.025);
 
-    // x_inm_lower_end = x_blade[-(ninm // 2) - 1] - 0.01
-    // y_inm_lower_end = y_blade[-(ninm // 2) - 1] - 0.01
+        let x_10 = ps_spline.interpolate(&[u_on_blade])[0];
+        let x_10 = Vec2d(x_10[0], x_10[1]);
 
-    // x_inm_upper_end = x_blade[ninm // 2] - 0.01
-    // y_inm_upper_end = y_blade[ninm // 2] + 0.01
+        // TODO remove hard coded position for block
+        let x_11 = x_10 - Vec2d(0.007, 0.001);
 
-    // plt.plot([x_inm_lower_start, x_inm_lower_end], [
-    //          y_inm_lower_start, y_inm_lower_end], 'r')
-    // plt.plot([x_inm_upper_start, x_inm_upper_end], [
-    //          y_inm_upper_start, y_inm_upper_end], 'r')
-    // plt.plot([x_inm_lower_end, x_inm_upper_end], [
-    //          y_inm_lower_end, y_inm_upper_end], 'r')
+        println!("{x_01} {x_11}");
+
+        let i_min_clustering = {
+            let blade_clustering = blade_clustering.clone();
+            move |u: &mut [Scalar]| {
+                // add 0 at beginning for cum sum at the end
+                u[0] = 0.0;
+
+                // set the initial clustering for the first half as the
+                // difference of the blade clustering
+                blade_clustering[0..num_cells_in_middle_half + 1]
+                    .windows(2)
+                    .rev()
+                    .zip(u[1..].iter_mut())
+                    .for_each(|(x, u)| *u = x[1] - x[0]);
+
+                // set the second half from the already computed half as the
+                // clustering is symmetric around the leading edge
+                let (u_lower, u_upper) = u.split_at_mut(num_cells_in_middle_half + 1);
+                u_upper
+                    .iter_mut()
+                    .zip(u_lower.iter().rev())
+                    .for_each(|(u, val)| *u = *val);
+
+                // cum sum
+                let u_max = u.iter_mut().fold(0.0, |acc, x| {
+                    *x += acc;
+                    *x
+                });
+
+                // renormalization to 0<=u<=1
+                u.iter_mut().for_each(|u| *u /= u_max);
+            }
+        };
+
+        let block_in_middle = Block2d::new(
+            row_prefix.to_owned() + "in_middle",
+            (num_cells_in_middle_half * 2, num_cells_cut),
+            Edge::new(i_min_clustering, Line2d::new(x_00, x_10)),
+            Edge::new(uniform_clustering, Line2d::new(x_01, x_11)),
+            Edge::new(uniform_clustering, Line2d::new(x_00, x_01)),
+            Edge::new(uniform_clustering, Line2d::new(x_10, x_11)),
+        );
+
+        mesh.add_block(block_in_middle);
+    }
 
     // plot blocking
     let ps_spline_int = ps_spline.interpolate(Array::linspace(0., 1., 1000).as_slice().unwrap());
     let ss_spline_int = ss_spline.interpolate(Array::linspace(0., 1., 1000).as_slice().unwrap());
 
-    let ps_clustering_int = ps_spline.interpolate(blade_clustering.as_slice().unwrap());
-    let ss_clustering_int = ss_spline.interpolate(blade_clustering.as_slice().unwrap());
+    let ps_clustering_int = ps_spline.interpolate(blade_clustering.as_ref());
+    let ss_clustering_int = ss_spline.interpolate(blade_clustering.as_ref());
 
     let root = BitMapBackend::new("blocking.png", (1900, 1200)).into_drawing_area();
     root.fill(&WHITE).unwrap();
@@ -213,7 +266,7 @@ fn blocking() {
         .margin(5)
         .x_label_area_size(30)
         .y_label_area_size(30)
-        .build_cartesian_2d(1.04f32..1.13f32, -0.05f32..0.02f32)
+        .build_cartesian_2d(1.00f32..1.13f32, -0.05f32..0.02f32)
         .unwrap();
 
     chart.configure_mesh().draw().unwrap();
@@ -247,6 +300,19 @@ fn blocking() {
                 .map(|v| Circle::new((v[0] as f32, v[1] as f32), 3, BLACK.filled())),
         )
         .unwrap();
+
+    for block in mesh.blocks {
+        println!("{:#?}", block.coords);
+        chart
+            .draw_series(
+                block
+                    .coords
+                    .as_slice()
+                    .iter()
+                    .map(|v| Circle::new((v.0 as f32, v.1 as f32), 3, BLUE.filled())),
+            )
+            .unwrap();
+    }
 
     chart
         .configure_series_labels()

@@ -2,10 +2,11 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 pub use mesh::Mesh;
-pub use types::{Block2d, Vec2d};
+pub use types::{Block2d, Edge, Mapping, Vec2d};
 
 mod cgns;
 pub mod clustering;
+pub mod geometry;
 pub mod interpolation;
 pub mod mesh;
 mod output;

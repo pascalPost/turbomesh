@@ -3,13 +3,19 @@
 
 use crate::types::{Index, Scalar};
 
-pub fn uniform_clustering(n: Index) -> ndarray::Array1<Scalar> {
-    ndarray::Array::linspace(0.0, 1.0, n)
+pub fn uniform_clustering(u: &mut [Scalar]) {
+    let n = u.len();
+    for (i, u) in u.iter_mut().enumerate() {
+        *u = i as Scalar / (n - 1) as Scalar
+    }
 }
 
-pub fn single_exponential_clustering(n: Index, a: Scalar) -> ndarray::Array1<Scalar> {
-    let x = ndarray::Array::linspace(0.0, 1.0, n);
-    x.mapv_into(|v| ((a * v).exp() - 1.0) / (a.exp() - 1.0))
+pub fn single_exponential_clustering(n: Index, a: Scalar) -> Box<[Scalar]> {
+    let mut x: Vec<Scalar> = (0..n).map(|x| x as Scalar / (n - 1) as Scalar).collect();
+    for v in x.iter_mut() {
+        *v = ((a * *v).exp() - 1.0) / (a.exp() - 1.0);
+    }
+    x.into_boxed_slice()
 }
 
 /// Roberts cluster function, see
@@ -17,17 +23,14 @@ pub fn single_exponential_clustering(n: Index, a: Scalar) -> ndarray::Array1<Sca
 /// alpha = 0.5 cluster at both ends
 /// alpha = 0.0 cluster toward t=1.0
 /// stretching factor 1.0 < beta < +inf, closer to 1.0 gives stronger clustering
-pub fn roberts_clustering(n: Index, alpha: Scalar, beta: Scalar) -> ndarray::Array1<Scalar> {
-    let x = ndarray::Array::linspace(0.0, 1.0, n);
-    x.mapv_into(|v| {
-        let tmp = ((beta + 1.0) / (beta - 1.0)).powf((v - alpha) / (1.0 - alpha));
+pub fn roberts_clustering(n: Index, alpha: Scalar, beta: Scalar) -> Box<[Scalar]> {
+    let mut x: Vec<Scalar> = (0..n).map(|x| x as Scalar / (n - 1) as Scalar).collect();
+
+    for v in x.iter_mut() {
+        let tmp = ((beta + 1.0) / (beta - 1.0)).powf((*v - alpha) / (1.0 - alpha));
         let tbar = (beta + 2.0 * alpha) * tmp - beta + 2.0 * alpha;
-        tbar / ((2.0 * alpha + 1.0) * (1.0 + tmp))
-    })
-}
+        *v = tbar / ((2.0 * alpha + 1.0) * (1.0 + tmp))
+    }
 
-pub fn uniform_distribution(start: Scalar, end: Scalar, n: Index) -> ndarray::Array1<Scalar> {
-    ndarray::Array::linspace(start, end, n)
+    x.into_boxed_slice()
 }
-
-// fn uniform_distribution
