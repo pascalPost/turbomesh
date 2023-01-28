@@ -19,3 +19,5 @@ egui = "0.20"
 egui_glow = "0.20"
 glow = "0.11"
 eframe = { version = "0.20" , features = [ "__screenshot" ] }
+num-traits = "0.2"
+rfd = "0.10.0"
