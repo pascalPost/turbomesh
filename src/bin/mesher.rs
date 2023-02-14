@@ -199,18 +199,53 @@ impl MeshViewRenderer {
         let mut gl_data = Vec::<(glow::VertexArray, glow::Buffer, usize)>::new();
         gl_data.reserve(mesh.blocks.len());
 
+        // TODO for now a fast hack is used to show the lines. Create a better
+        // solution based on elements and shaders.
+
         for block in mesh.blocks.iter() {
-            let mut coords = Vec::<[f32; 2]>::new();
-            coords.reserve(block.coords.size());
-            block
-                .coords
-                .as_slice()
-                .iter()
-                .for_each(|v| coords.push([v.0 as f32, v.1 as f32]));
+            let [i_len, j_len] = block.coords.shape;
 
-            let (vao, vbo) = create_vao_vbo(gl_program.gl.as_ref(), coords.as_slice());
+            // i lines
+            for i in 0..i_len {
+                let mut coords = Vec::<[f32; 2]>::new();
+                coords.reserve(j_len);
 
-            gl_data.push((vao, vbo, coords.len()));
+                for j in 0..j_len {
+                    let x = block.coords[[i, j]];
+                    coords.push([x.0 as f32, x.1 as f32]);
+                }
+
+                let (vao, vbo) = create_vao_vbo(gl_program.gl.as_ref(), coords.as_slice());
+
+                gl_data.push((vao, vbo, coords.len()));
+            }
+
+            // j lines
+            for j in 0..j_len {
+                let mut coords = Vec::<[f32; 2]>::new();
+                coords.reserve(i_len);
+
+                for i in 0..i_len {
+                    let x = block.coords[[i, j]];
+                    coords.push([x.0 as f32, x.1 as f32]);
+                }
+
+                let (vao, vbo) = create_vao_vbo(gl_program.gl.as_ref(), coords.as_slice());
+
+                gl_data.push((vao, vbo, coords.len()));
+            }
+
+            // let mut coords = Vec::<[f32; 2]>::new();
+            // coords.reserve(block.coords.size());
+            // block
+            //     .coords
+            //     .as_slice()
+            //     .iter()
+            //     .for_each(|v| coords.push([v.0 as f32, v.1 as f32]));
+
+            // let (vao, vbo) = create_vao_vbo(gl_program.gl.as_ref(), coords.as_slice());
+
+            // gl_data.push((vao, vbo, coords.len()));
         }
 
         // let block_visibility = vec![true; mesh.blocks.len()];
@@ -249,7 +284,7 @@ impl MeshViewRenderer {
                 self.gl_program.gl.bind_vertex_array(Some(*vao));
                 self.gl_program
                     .gl
-                    .draw_arrays(glow::POINTS, 0, *count as i32);
+                    .draw_arrays(glow::LINE_STRIP, 0, *count as i32);
             }
         }
     }
@@ -340,9 +375,7 @@ impl TurbomeshApp {
         ));
 
         Self {
-            // gl: gl.clone(),
             program: program.clone(),
-            // point_rendering: Arc::new(Mutex::new(PointRendering::new(gl.as_ref()))),
             offset: Vec2::new(0.0, 0.0),
             scale: Vec2::new(1.0, 1.0),
             points_views: vec![],
@@ -478,24 +511,24 @@ impl eframe::App for TurbomeshApp {
                                     .ss_csv_path
                                     .is_some()
                             {
-                                let (_, mesh) = turbomesh::turbine::run_turbine_template(
-                                    self.turbine_template_data
-                                        .as_ref()
-                                        .unwrap()
-                                        .ps_csv_path
-                                        .as_ref()
-                                        .unwrap()
-                                        .as_str(),
-                                    self.turbine_template_data
-                                        .as_ref()
-                                        .unwrap()
-                                        .ss_csv_path
-                                        .as_ref()
-                                        .unwrap()
-                                        .as_str(),
-                                );
+                                // let (_, mesh) = turbomesh::turbine::run_turbine_template(
+                                //     self.turbine_template_data
+                                //         .as_ref()
+                                //         .unwrap()
+                                //         .ps_csv_path
+                                //         .as_ref()
+                                //         .unwrap()
+                                //         .as_str(),
+                                //     self.turbine_template_data
+                                //         .as_ref()
+                                //         .unwrap()
+                                //         .ss_csv_path
+                                //         .as_ref()
+                                //         .unwrap()
+                                //         .as_str(),
+                                // );
 
-                                self.mesh_view = MeshView::new(&self.program, mesh);
+                                // self.mesh_view = MeshView::new(&self.program, mesh);
 
                                 self.show_turbine_template = false;
                             }

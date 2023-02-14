@@ -3,7 +3,7 @@
 
 pub use geometry::Geometry;
 pub use mesh::Mesh;
-pub use types::{Block2d, Edge, Mapping, Scalar, Vec2d};
+pub use types::{Block2d, Scalar, Segment, Vec2d};
 
 mod cgns;
 pub mod clustering;

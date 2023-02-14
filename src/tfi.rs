@@ -127,7 +127,7 @@ fn check_and_get_corners(
     coords_j_min: &[Vec2d],
     coords_j_max: &[Vec2d],
 ) -> (Vec2d, Vec2d, Vec2d, Vec2d) {
-    const ULPS: i64 = 100;
+    // const ULPS: i64 = 100;
     const EPSILON: f64 = 1e-10;
 
     // x[0,0]

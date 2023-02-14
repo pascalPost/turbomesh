@@ -195,6 +195,7 @@ extern "C" {
     );
 }
 
+#[derive(Clone)]
 pub struct FittingSpline<const DIM: usize> {
     /// knots
     t: Box<[f64]>,
@@ -327,6 +328,12 @@ impl<const DIM: usize> FittingSpline<DIM> {
 
     pub fn interpolate(&self, u: &[f64]) -> Box<[[f64; DIM]]> {
         let mut res = vec![[f64::NAN; DIM]; u.len()];
+        self.interpolate_into(u, res.as_mut_slice());
+        res.into_boxed_slice()
+    }
+
+    pub fn interpolate_into(&self, u: &[f64], res: &mut [[f64; DIM]]) {
+        assert!(u.len() == res.len());
 
         unsafe {
             let idim = DIM as c_int;
@@ -347,7 +354,5 @@ impl<const DIM: usize> FittingSpline<DIM> {
 
             assert!(ier == 0);
         }
-
-        res.into_boxed_slice()
     }
 }

@@ -1,14 +1,14 @@
 // Copyright (c) Pascal Post. All Rights Reserved.
 // Licensed under AGPLv3 license (see LICENSE.txt for details)
 
-use crate::clustering::{roberts_clustering, uniform_clustering};
-use crate::geometry::Line2d;
+use crate::clustering::{RobertsClustering, UniformClustering};
+use crate::geometry::{Line2d, Spline};
 use crate::interpolation::FittingSpline;
-use crate::{Block2d, Edge, Geometry, Mesh, Scalar, Vec2d};
+use crate::types::{ClusteringFunction, Edge, EdgeView, MappingFunction};
+use crate::{Block2d, Geometry, Mesh, Scalar, Segment, Vec2d};
 use ndarray::Array;
 use plotters::prelude::*;
 use std::error::Error;
-use std::rc::Rc;
 
 /// read the profile coordinates from given file and returns them as a vec
 pub fn read_profile<T>(file_name: &str) -> Result<Vec<[T; 2]>, Box<dyn Error>>
@@ -51,7 +51,7 @@ where
 pub fn blade_profile(
     ps_csv_path: &str,
     ss_csv_path: &str,
-) -> Result<(FittingSpline<2>, FittingSpline<2>), Box<dyn Error>> {
+) -> Result<(Spline, Spline), Box<dyn Error>> {
     // read suction and pressure side coordinates from csv and save into vec
 
     let mut ps = read_profile(ps_csv_path).expect("error in reading pressure side coordinates");
@@ -83,27 +83,52 @@ pub fn blade_profile(
 
     // TODO enhance interpolation by enforcing matching derivatives at the boundaries
 
-    Ok((ps_spline, ss_spline))
+    Ok((Spline::new(ps_spline), Spline::new(ss_spline)))
 }
 
 pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, Mesh) {
-    let mut geometry = Geometry {};
-    // use plotters::style::full_palette::ORANGE;
+    // let mut geometry = Geometry {};
 
+    // TODO move all of these parameters to function input
+    let pitch = 88.36 * 1e-3; //m
     let num_cells_blade: usize = 60;
     let num_cells_in_middle_half: usize = 5;
-    let scut: usize = 20;
+    let num_cells_scut: usize = 20;
     let num_cells_cut: usize = 10;
 
     let (ps_spline, ss_spline) =
         blade_profile(ps_csv_path, ss_csv_path).expect("Error in profile input and interpolation");
 
-    // clustering around the blade
-    let blade_clustering = Rc::<[Scalar]>::from(roberts_clustering(num_cells_blade, 0.5, 1.01));
+    // blade discretization on which the 2d blocking is based
+    let blade_clustering_function = RobertsClustering::new(0.5, 1.01);
+
+    let ps_edge = EdgeView::new(Edge::new(
+        "Pressure_Side_Edge".to_string(),
+        &vec![Segment::new(
+            num_cells_blade + 1,
+            blade_clustering_function,
+            ps_spline.clone(),
+        )],
+    ));
+
+    let ss_edge = EdgeView::new(Edge::new(
+        "Suction_Side_Edge".to_string(),
+        &vec![Segment::new(
+            num_cells_blade + 1,
+            blade_clustering_function,
+            ss_spline.clone(),
+        )],
+    ));
+
+    // split blade distribution
+
+    let (ps_edge_in_middle, ps_edge_rest) = ps_edge.split_at(num_cells_in_middle_half);
+    let (ss_edge_in_middle, ss_edge_rest) = ss_edge.split_at(num_cells_in_middle_half);
 
     // TODO add approximation of the leading and trailing edge by approximating
     // the chamber line and computing its intersection with the profile.
     // For now, the values of the given profiles are used.
+    // let leading_edge = ps_spline.interpolate_val(0.0);
 
     let mut mesh = Mesh::new();
 
@@ -122,75 +147,121 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         // |---------- x_10
         // x_11
 
-        let u_on_blade = blade_clustering[num_cells_in_middle_half];
-
-        // TODO insert function to convert [Scalar; 2] to Vec2d
-
-        let x_00 = ss_spline.interpolate(&[u_on_blade])[0];
-        let x_00 = Vec2d(x_00[0], x_00[1]);
+        let x_00 = ss_edge_in_middle.point_coord(ss_edge_in_middle.end);
+        let x_10 = ps_edge_in_middle.point_coord(ps_edge_in_middle.end);
 
         // TODO remove hard coded position for block
         let x_01 = x_00 - Vec2d(0.007, -0.025);
 
-        let x_10 = ps_spline.interpolate(&[u_on_blade])[0];
-        let x_10 = Vec2d(x_10[0], x_10[1]);
-
         // TODO remove hard coded position for block
         let x_11 = x_10 - Vec2d(0.007, 0.001);
 
-        println!("{x_01} {x_11}");
-
-        let i_min_clustering = {
-            let blade_clustering = blade_clustering.clone();
-            move |u: &mut [Scalar]| {
-                // add 0 at beginning for cum sum at the end
-                u[0] = 0.0;
-
-                // set the initial clustering for the first half as the
-                // difference of the blade clustering
-                blade_clustering[0..num_cells_in_middle_half + 1]
-                    .windows(2)
-                    .rev()
-                    .zip(u[1..].iter_mut())
-                    .for_each(|(x, u)| *u = x[1] - x[0]);
-
-                // set the second half from the already computed half as the
-                // clustering is symmetric around the leading edge
-                let (u_lower, u_upper) = u.split_at_mut(num_cells_in_middle_half + 1);
-                u_upper
-                    .iter_mut()
-                    .zip(u_lower.iter().rev())
-                    .for_each(|(u, val)| *u = *val);
-
-                // cum sum
-                let u_max = u.iter_mut().fold(0.0, |acc, x| {
-                    *x += acc;
-                    *x
-                });
-
-                // renormalization to 0<=u<=1
-                u.iter_mut().for_each(|u| *u /= u_max);
-            }
-        };
-
         let block_in_middle = Block2d::new(
             row_prefix.to_owned() + "in_middle",
-            (num_cells_in_middle_half * 2, num_cells_cut),
-            Edge::new(i_min_clustering, Line2d::new(x_00, x_10)),
-            Edge::new(uniform_clustering, Line2d::new(x_01, x_11)),
-            Edge::new(uniform_clustering, Line2d::new(x_00, x_01)),
-            Edge::new(uniform_clustering, Line2d::new(x_10, x_11)),
+            // (num_cells_in_middle_half * 2, num_cells_cut),
+            vec![
+                Box::new(ss_edge_in_middle.rev()),
+                Box::new(ps_edge_in_middle),
+            ],
+            vec![Box::new(Segment::new(
+                num_cells_in_middle_half * 2 + 1,
+                UniformClustering::new(),
+                Line2d::new(x_01, x_11),
+            ))],
+            vec![Box::new(Segment::new(
+                num_cells_cut + 1,
+                UniformClustering::new(),
+                Line2d::new(x_00, x_01),
+            ))],
+            vec![Box::new(Segment::new(
+                num_cells_cut + 1,
+                UniformClustering::new(),
+                Line2d::new(x_10, x_11),
+            ))],
         );
 
         mesh.add_block(block_in_middle);
     }
 
+    // // in_lower block
+
+    // {
+    //     // on blade start
+    //     let x_00 = mesh.blocks[0].edge_j_max[0]
+    //         .mapping
+    //         .computational_to_physical_val(0.0);
+
+    //     let x_01 = mesh.blocks[0].edge_j_max[0]
+    //         .mapping
+    //         .computational_to_physical_val(1.0);
+
+    //     // on blade end
+    //     let x_10 = ps_spline
+    //         .interpolate(&[blade_clustering[num_cells_in_middle_half + num_cells_scut]])[0];
+    //     let x_10 = Vec2d(x_10[0], x_10[1]);
+
+    //     // on periodic bc
+    //     let x_leading_edge = ss_spline.interpolate(&[0.0]);
+    //     let x_leading_edge = Vec2d(x_leading_edge[0][0], x_leading_edge[0][1]);
+    //     let x_11 = x_leading_edge + Vec2d(0.0, -0.5 * pitch);
+
+    //     let i_min_clustering = {
+    //         let blade_clustering = blade_clustering.clone();
+    //         move |u: &mut [Scalar]| {
+    //             u[0] = 0.0;
+
+    //             let idx_start = num_cells_in_middle_half + 1;
+    //             let idx_end = idx_start + num_cells_scut + 1;
+
+    //             blade_clustering[idx_start..idx_end]
+    //                 .windows(2)
+    //                 .zip(u[1..].iter_mut())
+    //                 .for_each(|(x, u)| *u = x[1] - x[0]);
+
+    //             // cum sum
+    //             let u_max = u.iter_mut().fold(0.0, |acc, x| {
+    //                 *x += acc;
+    //                 *x
+    //             });
+
+    //             // renormalization to 0<=u<=1
+    //             u.iter_mut().for_each(|u| *u /= u_max);
+    //         }
+    //     };
+
+    //     let idx_start = num_cells_in_middle_half;
+    //     let idx_end = idx_start + num_cells_scut;
+
+    //     let v_start = blade_clustering[idx_start];
+    //     let v_end = blade_clustering[idx_end];
+
+    //     let i_min_curve = SplineSegment::new(&ps_spline, v_start, v_end);
+
+    //     println!("{}", x_00);
+    //     println!(
+    //         "{:?}",
+    //         ps_spline.interpolate(&[blade_clustering[num_cells_in_middle_half]])[0]
+    //     );
+    //     println!("{}", i_min_curve.computational_to_physical_val(0.0));
+
+    //     let block_in_lower = Block2d::new(
+    //         row_prefix.to_owned() + "in_lower",
+    //         (num_cells_scut, num_cells_cut),
+    //         vec![EdgeSegment::new(i_min_clustering, i_min_curve).into()],
+    //         vec![EdgeSegment::new(uniform_clustering, Line2d::new(x_01, x_11)).into()],
+    //         vec![EdgeSegment::new(uniform_clustering, Line2d::new(x_00, x_01)).into()],
+    //         vec![EdgeSegment::new(uniform_clustering, Line2d::new(x_10, x_11)).into()],
+    //     );
+
+    //     mesh.add_block(block_in_lower);
+    // }
+
     // plot blocking
     let ps_spline_int = ps_spline.interpolate(Array::linspace(0., 1., 1000).as_slice().unwrap());
     let ss_spline_int = ss_spline.interpolate(Array::linspace(0., 1., 1000).as_slice().unwrap());
 
-    let ps_clustering_int = ps_spline.interpolate(blade_clustering.as_ref());
-    let ss_clustering_int = ss_spline.interpolate(blade_clustering.as_ref());
+    let ps_clustering_int = &ps_edge.edge().coords;
+    let ss_clustering_int = &ss_edge.edge().coords;
 
     let root = BitMapBackend::new("blocking.png", (1900, 1200)).into_drawing_area();
     root.fill(&WHITE).unwrap();
@@ -223,19 +294,18 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         .draw_series(
             ps_clustering_int
                 .iter()
-                .map(|v| Circle::new((v[0] as f32, v[1] as f32), 3, BLACK.filled())),
+                .map(|v| Circle::new((v.0 as f32, v.1 as f32), 3, BLACK.filled())),
         )
         .unwrap();
     chart
         .draw_series(
             ss_clustering_int
                 .iter()
-                .map(|v| Circle::new((v[0] as f32, v[1] as f32), 3, BLACK.filled())),
+                .map(|v| Circle::new((v.0 as f32, v.1 as f32), 3, BLACK.filled())),
         )
         .unwrap();
 
     for block in mesh.blocks.iter() {
-        println!("{:#?}", block.coords);
         chart
             .draw_series(
                 block
@@ -266,5 +336,5 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
     // mesh.save("turbomesh.cgns").unwrap();
 
-    (geometry, mesh)
+    (Geometry {}, mesh)
 }
