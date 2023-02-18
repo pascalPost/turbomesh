@@ -98,11 +98,11 @@ impl EdgeView {
             Self {
                 edge: self.edge.clone(),
                 start: self.start,
-                end: point,
+                end: self.start + point,
             },
             Self {
                 edge: self.edge.clone(),
-                start: point,
+                start: self.start + point,
                 end: self.end,
             },
         )
@@ -194,6 +194,60 @@ impl MappingFunction for EdgeView {
 }
 
 impl SegmentFunction for EdgeView {
+    fn len(&self) -> usize {
+        self.len()
+    }
+}
+
+pub struct BlockEdgeData {
+    pub u: Vec<Scalar>,
+    pub x: Vec<Vec2d>,
+}
+
+impl BlockEdgeData {
+    pub fn new(u: Vec<Scalar>, x: Vec<Vec2d>) -> Self {
+        Self { u, x }
+    }
+
+    pub fn len(&self) -> usize {
+        assert!(self.u.len() == self.x.len());
+        self.u.len()
+    }
+}
+
+impl ClusteringFunction for BlockEdgeData {
+    fn apply_clustering(&self, u: &mut [Scalar]) {
+        assert!(
+            u.len() == self.u.len(),
+            "BlockEdgeData of length {} cannot be applied to edge of length {}",
+            self.len(),
+            u.len()
+        );
+
+        self.u
+            .iter()
+            .zip(u.iter_mut())
+            .for_each(|(u_ref, u)| *u = *u_ref);
+    }
+}
+
+impl MappingFunction for BlockEdgeData {
+    fn computational_to_physical(&self, _u: &[Scalar], x: &mut [Vec2d]) {
+        assert!(
+            self.len() == x.len(),
+            "BlockEdgeData of length {} cannot be applied to edge of length {}",
+            self.len(),
+            x.len()
+        );
+
+        self.x
+            .iter()
+            .zip(x.iter_mut())
+            .for_each(|(x_ref, x)| *x = *x_ref);
+    }
+}
+
+impl SegmentFunction for BlockEdgeData {
     fn len(&self) -> usize {
         self.len()
     }

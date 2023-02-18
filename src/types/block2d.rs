@@ -1,10 +1,16 @@
 // Copyright (c) 2022 Pascal Post
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
-use crate::tfi::tfi_linear_2d;
-use crate::types::{Array2d, Index, Scalar, Vec2d};
-
 use super::segment::SegmentFunction;
+use crate::tfi::tfi_linear_2d;
+use crate::types::{Array2d, BlockEdgeData, Index, Scalar, Vec2d};
+
+pub enum EdgeIndex {
+    IMin,
+    IMax,
+    JMin,
+    JMax,
+}
 
 /// block corner and edge order:
 ///        2
@@ -92,6 +98,36 @@ impl Block2d {
             edge_i_max,
             edge_j_min,
             edge_j_max,
+        }
+    }
+
+    pub fn edge(&self, edge: EdgeIndex) -> BlockEdgeData {
+        let n_points = self.points();
+        match edge {
+            EdgeIndex::IMin => {
+                let mut s1 = vec![Scalar::NAN; n_points[0]];
+                let mut x_i_min = vec![Vec2d(Scalar::NAN, Scalar::NAN); n_points[0]];
+                Self::apply_clustering_and_mapping(&self.edge_i_min, &mut s1, &mut x_i_min);
+                BlockEdgeData::new(s1, x_i_min)
+            }
+            EdgeIndex::IMax => {
+                let mut s2 = vec![Scalar::NAN; n_points[0]];
+                let mut x_i_max = vec![Vec2d(Scalar::NAN, Scalar::NAN); n_points[0]];
+                Self::apply_clustering_and_mapping(&self.edge_i_max, &mut s2, &mut x_i_max);
+                BlockEdgeData::new(s2, x_i_max)
+            }
+            EdgeIndex::JMin => {
+                let mut t1 = vec![Scalar::NAN; n_points[1]];
+                let mut x_j_min = vec![Vec2d(Scalar::NAN, Scalar::NAN); n_points[1]];
+                Self::apply_clustering_and_mapping(&self.edge_j_min, &mut t1, &mut x_j_min);
+                BlockEdgeData::new(t1, x_j_min)
+            }
+            EdgeIndex::JMax => {
+                let mut t2 = vec![Scalar::NAN; n_points[1]];
+                let mut x_j_max = vec![Vec2d(Scalar::NAN, Scalar::NAN); n_points[1]];
+                Self::apply_clustering_and_mapping(&self.edge_j_max, &mut t2, &mut x_j_max);
+                BlockEdgeData::new(t2, x_j_max)
+            }
         }
     }
 
