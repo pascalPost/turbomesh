@@ -5,69 +5,48 @@ use crate::types::{Scalar, Vec2d};
 
 /// trait representing the function that performs the clustering on an edge segment
 pub trait ClusteringFunction {
-    fn apply_clustering(&self, u: &mut [Scalar]);
+    fn get_clustering(&self, points: usize) -> Vec<Scalar>;
 }
 
-/// trait representing the function to map the computational 0<=u<=1 to the
-/// physical space
-pub trait MappingFunction {
-    fn computational_to_physical(&self, u: &[Scalar], x: &mut [Vec2d]);
+pub trait DiscretizableCurve {
+    fn discretize_curve(
+        &self,
+        clustering: &impl ClusteringFunction,
+        u: &mut [Scalar],
+        x: &mut [Vec2d],
+    );
 
-    fn computational_to_physical_vec(&self, u: &[Scalar]) -> Vec<Vec2d> {
-        let mut x = vec![Vec2d(0.0, 0.0); u.len()];
-        self.computational_to_physical(u, x.as_mut_slice());
-        x
-    }
-
-    fn computational_to_physical_val(&self, u: Scalar) -> Vec2d {
-        let mut x = [Vec2d(0.0, 0.0); 1];
-        self.computational_to_physical(&[u], &mut x);
-        x[0]
-    }
+    fn arclength(&self) -> Scalar;
 }
 
-pub trait SegmentFunction: ClusteringFunction + MappingFunction {
+// TODO rename to EdgeSegment
+pub trait SegmentFunction {
+    fn add_segment_to_edge(&self, u: &mut [Scalar], x: &mut [Vec2d]);
     fn len(&self) -> usize;
 }
 
 /// representing needed edge properties for tfi
-pub struct Segment<C: ClusteringFunction, M: MappingFunction> {
+pub struct Segment<CF: ClusteringFunction, DC: DiscretizableCurve> {
     points: usize,
-    pub clustering: C,
-    pub mapping: M,
+    pub clustering: CF,
+    pub curve: DC,
 }
 
-impl<C: ClusteringFunction, M: MappingFunction> Segment<C, M> {
-    pub fn new(points: usize, clustering: C, mapping: M) -> Self {
+impl<CF: ClusteringFunction, DC: DiscretizableCurve> Segment<CF, DC> {
+    pub fn new(points: usize, clustering: CF, curve: DC) -> Self {
         Self {
             points,
             clustering,
-            mapping,
+            curve,
         }
     }
-
-    pub fn apply_clustering(&self, u: &mut [Scalar]) {
-        self.clustering.apply_clustering(u);
-    }
-
-    pub fn apply_mapping(&self, u: &[Scalar], x: &mut [Vec2d]) {
-        self.mapping.computational_to_physical(&u, x);
-    }
 }
 
-impl<C: ClusteringFunction, M: MappingFunction> ClusteringFunction for Segment<C, M> {
-    fn apply_clustering(&self, u: &mut [Scalar]) {
-        self.clustering.apply_clustering(u);
+impl<CF: ClusteringFunction, DC: DiscretizableCurve> SegmentFunction for Segment<CF, DC> {
+    fn add_segment_to_edge(&self, u: &mut [Scalar], x: &mut [Vec2d]) {
+        self.curve.discretize_curve(&self.clustering, u, x);
     }
-}
 
-impl<C: ClusteringFunction, M: MappingFunction> MappingFunction for Segment<C, M> {
-    fn computational_to_physical(&self, u: &[Scalar], x: &mut [Vec2d]) {
-        self.mapping.computational_to_physical(u, x);
-    }
-}
-
-impl<C: ClusteringFunction, M: MappingFunction> SegmentFunction for Segment<C, M> {
     fn len(&self) -> usize {
         self.points
     }

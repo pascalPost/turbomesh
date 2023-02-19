@@ -139,18 +139,7 @@ impl Block2d {
         let mut start = 0;
         edge.iter().for_each(|segment| {
             let end = start + segment.len();
-            segment.apply_clustering(&mut u[start..end]);
-            start = end - 1;
-        });
-
-        // renormalization to 0<=u<=1
-        let u_max = *u.last().unwrap();
-        u.iter_mut().for_each(|u| *u /= u_max);
-
-        let mut start = 0;
-        edge.iter().for_each(|segment| {
-            let end = start + segment.len();
-            segment.computational_to_physical(&u[start..end], &mut x[start..end]);
+            segment.add_segment_to_edge(&mut u[start..end], &mut x[start..end]);
             start = end - 1;
         });
     }

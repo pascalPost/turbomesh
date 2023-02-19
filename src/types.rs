@@ -14,6 +14,6 @@ pub use super::types::array2d::Array2d;
 pub use crate::types::block2d::{Block2d, EdgeIndex};
 pub use crate::types::edge::{BlockEdgeData, Edge, EdgeView};
 pub use crate::types::segment::ClusteringFunction;
-pub use crate::types::segment::MappingFunction;
+pub use crate::types::segment::DiscretizableCurve;
 pub use crate::types::segment::Segment;
 pub use crate::types::vec2d::Vec2d;

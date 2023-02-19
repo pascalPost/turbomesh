@@ -104,20 +104,20 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
     let ps_edge = EdgeView::new(Edge::new(
         "Pressure_Side_Edge".to_string(),
-        &vec![Segment::new(
+        &vec![Box::new(Segment::new(
             num_cells_blade + 1,
             blade_clustering_function,
             ps_spline.clone(),
-        )],
+        ))],
     ));
 
     let ss_edge = EdgeView::new(Edge::new(
         "Suction_Side_Edge".to_string(),
-        &vec![Segment::new(
+        &vec![Box::new(Segment::new(
             num_cells_blade + 1,
             blade_clustering_function,
             ss_spline.clone(),
-        )],
+        ))],
     ));
 
     // split blade distribution
@@ -229,7 +229,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         let x_blade_end = ps_edge_pll1.point_coord(ps_edge_pll1.end);
 
         // TODO remove hard coded coordinate
-        let x_10 = x_blade_end + Vec2d(0.007, 0.025);
+        let x_10 = x_blade_end + Vec2d(0.007, -0.025);
 
         // on periodic bc
         let x_11 = trailing_edge + Vec2d(0.0, -0.5 * pitch);
@@ -276,7 +276,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         .margin(5)
         .x_label_area_size(30)
         .y_label_area_size(30)
-        .build_cartesian_2d(1.00f32..1.13f32, -0.05f32..0.02f32)
+        .build_cartesian_2d(1.0f32..1.15f32, -0.1f32..0.04f32)
         .unwrap();
 
     chart.configure_mesh().draw().unwrap();

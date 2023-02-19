@@ -210,6 +210,11 @@ pub fn tfi_linear_2d(
     x_j_max: &[Vec2d],
     x: &mut Array2d<Vec2d>,
 ) {
+    let s1 = copy_and_rescale(s1);
+    let s2 = copy_and_rescale(s2);
+    let t1 = copy_and_rescale(t1);
+    let t2 = copy_and_rescale(t2);
+
     check_edge_clustering(&s1, "i_min");
     check_edge_clustering(&s2, "i_max");
     check_edge_clustering(&t1, "j_min");
@@ -256,26 +261,14 @@ pub fn tfi_linear_2d(
         }
     }
 
-    // let uv = intermediate_control_domain(&block.coords);
-    // let xy = &mut block.coords;
+    /// helper function for tfi_linear_2d.
+    /// returns a Vec containing the given clustering in computational space
+    /// (u in [0,1]).
+    fn copy_and_rescale(u: &[Scalar]) -> Vec<Scalar> {
+        let mut u = u.to_vec();
 
-    // // loop over internal block coordinates
-    // let [i_len, j_len] = xy.shape;
-
-    // for i in 1..i_len - 1 {
-    //     for j in 1..j_len - 1 {
-    //         let Vec2d(xi, eta) = uv[[i, j]];
-
-    //         // TODO can be optimized by reducing memory accesses
-
-    //         let u_ij = (1.0 - xi) * xy[[0, j]] + xi * xy[[i_len - 1, j]];
-    //         let v_ij = (1.0 - eta) * xy[[i, 0]] + eta * xy[[i, j_len - 1]];
-    //         let uv_ij = xi * eta * xy[[i_len - 1, j_len - 1]]
-    //             + xi * (1.0 - eta) * xy[[i_len - 1, 0]]
-    //             + (1.0 - xi) * eta * xy[[0, j_len - 1]]
-    //             + (1.0 - xi) * (1.0 - eta) * xy[[0, 0]];
-
-    //         xy[[i, j]] = u_ij + v_ij - uv_ij
-    //     }
-    // }
+        let scale = *u.last().unwrap();
+        u.iter_mut().for_each(|u| *u /= scale);
+        u
+    }
 }
