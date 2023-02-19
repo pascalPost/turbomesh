@@ -124,6 +124,8 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
     let (ps_edge_in_middle, ps_edge_rest) = ps_edge.split_at(num_cells_in_middle_half);
     let (ps_edge_in_lower, ps_edge_rest) = ps_edge_rest.split_at(num_cells_scut);
+    let (ps_edge_pll1, ps_edge_ex_middle) =
+        ps_edge_rest.split_at(ps_edge_rest.len() - 1 - num_cells_in_middle_half);
 
     let (ss_edge_in_middle, ss_edge_rest) = ss_edge.split_at(num_cells_in_middle_half);
 
@@ -131,6 +133,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
     // the chamber line and computing its intersection with the profile.
     // For now, the values of the given profiles are used.
     let leading_edge = ps_spline.interpolate_val(0.0);
+    let trailing_edge = ps_spline.interpolate_val(1.0);
 
     let mut mesh = Mesh::new();
 
@@ -158,7 +161,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         // TODO remove hard coded position for block
         let x_11 = x_10 - Vec2d(0.007, 0.001);
 
-        let block_in_middle = Block2d::new(
+        let block = Block2d::new(
             row_prefix.to_owned() + "in_middle",
             vec![
                 Box::new(ss_edge_in_middle.rev()),
@@ -181,13 +184,13 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
             ))],
         );
 
-        mesh.add_block(block_in_middle);
+        mesh.add_block(block);
     }
 
     // in_lower block
 
     {
-        // copy j max edge of in_middle block [0]
+        // copy j max edge of in_middle block (id: 0)
         let edge_j_min = mesh.blocks[0].edge(EdgeIndex::JMax);
 
         let x_01 = *edge_j_min.x.last().unwrap();
@@ -196,7 +199,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         // on periodic bc
         let x_11 = leading_edge + Vec2d(0.0, -0.5 * pitch);
 
-        let block_in_lower = Block2d::new(
+        let block = Block2d::new(
             row_prefix.to_owned() + "in_lower",
             vec![Box::new(ps_edge_in_lower)],
             vec![Box::new(Segment::new(
@@ -212,7 +215,51 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
             ))],
         );
 
-        mesh.add_block(block_in_lower);
+        mesh.add_block(block);
+    }
+
+    // pll1 block
+    // TODO give a better name for the block
+
+    {
+        // copy j max edge of in_lower block (id: 1)
+        let edge_j_min = mesh.blocks[1].edge(EdgeIndex::JMax);
+
+        let x_01 = *edge_j_min.x.last().unwrap();
+        let x_blade_end = ps_edge_pll1.point_coord(ps_edge_pll1.end);
+
+        // TODO remove hard coded coordinate
+        let x_10 = x_blade_end + Vec2d(0.007, 0.025);
+
+        // on periodic bc
+        let x_11 = trailing_edge + Vec2d(0.0, -0.5 * pitch);
+
+        let len_i_max = ps_edge_pll1.len() + num_cells_cut;
+
+        let block = Block2d::new(
+            row_prefix.to_owned() + "pll1",
+            vec![
+                Box::new(ps_edge_pll1),
+                Box::new(Segment::new(
+                    num_cells_cut + 1,
+                    UniformClustering::new(),
+                    Line2d::new(x_blade_end, x_10),
+                )),
+            ],
+            vec![Box::new(Segment::new(
+                len_i_max,
+                UniformClustering::new(),
+                Line2d::new(x_01, x_11),
+            ))],
+            vec![Box::new(edge_j_min)],
+            vec![Box::new(Segment::new(
+                num_cells_cut + 1,
+                UniformClustering::new(),
+                Line2d::new(x_10, x_11),
+            ))],
+        );
+
+        mesh.add_block(block);
     }
 
     // plot blocking

@@ -193,6 +193,29 @@ extern "C" {
         //           case there is no approximation returned.
         ier: *mut c_int,
     );
+
+    // function splint calculates the integral of a spline function s(x)
+    // of degree k, which is given in its normalized b-spline representation
+    pub fn splint_(
+        // array,length n,which contains the position of the knots
+        // of s(x).
+        t: *const c_double,
+        // integer, giving the total number of knots of s(x).
+        n: *const c_int,
+        // array,length n, containing the b-spline coefficients.
+        c: *const c_double,
+        // integer, giving the degree of s(x).
+        k: *const c_int,
+        // a,b: real values, containing the end points of the integration
+        // interval. s(x) is considered to be identically zero outside
+        // the interval (t(k+1),t(n-k)).
+        a: *const c_double,
+        b: *const c_double,
+        // real array, length n.  used as working space
+        // on output, wrk will contain the integrals of the normalized
+        // b-splines defined on the set of knots.
+        wrk: *mut c_double,
+    ) -> c_double;
 }
 
 #[derive(Clone)]
@@ -353,6 +376,22 @@ impl<const DIM: usize> FittingSpline<DIM> {
             );
 
             assert!(ier == 0);
+        }
+    }
+
+    pub fn integrate(&self, start: f64, end: f64) -> f64 {
+        let mut wrk = vec![0.0; self.t.len()];
+
+        unsafe {
+            splint_(
+                self.t.as_ptr(),
+                &(self.t.len() as c_int),
+                self.c.as_ptr(),
+                &(self.k as c_int),
+                &start as *const c_double,
+                &end as *const c_double,
+                wrk.as_mut_ptr(),
+            )
         }
     }
 }

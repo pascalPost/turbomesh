@@ -88,10 +88,10 @@ impl EdgeView {
 
     pub fn split_at(&self, point: Index) -> (Self, Self) {
         assert!(
-            point > self.start && point < self.end,
+            point > 0 && self.start + point < self.end,
             "Point must be with in range ({},{})",
-            self.start,
-            self.end
+            0,
+            self.len() - 1
         );
 
         (
