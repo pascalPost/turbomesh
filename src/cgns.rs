@@ -153,11 +153,8 @@ pub mod interface {
     /// * `zone_name` : Name of the zone.
     /// * `size` : 	Number of vertices, cells, and boundary vertices in each (index)-dimension. For structured grids, the dimensions have unit stride in the array (e.g., [NVertexI, NVertexJ, NVertexK, NCellI, NCellJ, NCellK, NBoundVertexI, NBoundVertexJ, NBoundVertexK]).
     ///             Note that for unstructured grids, the number of cells is the number of highest order elements. Thus, in three dimensions it's the number of 3-D cells, and in two dimensions it's the number of 2-D cells.
-    ///
     ///             Also for unstructured grids, if the nodes are sorted between internal nodes and boundary nodes, the optional parameter NBoundVertex must be set equal to the number of boundary nodes. By default, NBoundVertex equals zero, meaning that the nodes are unsorted.
-    ///
     ///             Note that a non-zero value for NBoundVertex only applies to unstructured grids. For structured grids, the NBoundVertex parameter always equals 0 in all directions.
-    ///
     ///             Mesh Type         Size
     ///             3D structured     NVertexI, NVertexJ, NVertexK
     ///                               NCellI, NCellJ, NCellK
