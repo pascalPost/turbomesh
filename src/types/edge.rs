@@ -65,18 +65,21 @@ impl Edge {
     // }
 }
 
+// TODO rename to EdgeSpan
+
 /// represents a view into an edge
 #[derive(Debug)]
 pub struct EdgeView {
     edge: Rc<Edge>,
     pub start: Index,
+
+    /// end index is included in the range to allow easy reverse
     pub end: Index,
-    // pub arclength: Scalar,
 }
 
 impl EdgeView {
     pub fn new(edge: Edge) -> Self {
-        let end = edge.coords.len();
+        let end = edge.coords.len() - 1;
         Self {
             edge: Rc::new(edge),
             start: 0,
@@ -163,12 +166,12 @@ impl EdgeView {
                 .windows(2)
                 .rev()
                 .zip(u[1..].iter_mut())
-                .for_each(|(u_ref, u)| *u = u_ref[1] - u_ref[0]);
+                .for_each(|(u_ref, u)| *u = (u_ref[1] - u_ref[0]).abs());
         } else {
             self.edge.u[self.start..=self.end]
                 .windows(2)
                 .zip(u[1..].iter_mut())
-                .for_each(|(u_ref, u)| *u = u_ref[1] - u_ref[0]);
+                .for_each(|(u_ref, u)| *u = (u_ref[1] - u_ref[0]).abs());
         };
 
         // cum sum
@@ -227,6 +230,13 @@ impl BlockEdgeData {
         }
     }
 
+    /// return a reversed version of the given EdgeView
+    pub fn reverse(mut self) -> Self {
+        self.u.reverse();
+        self.x.reverse();
+        self
+    }
+
     pub fn len(&self) -> usize {
         assert!(self.u.len() == self.x.len());
         self.u.len()
@@ -240,10 +250,27 @@ impl BlockEdgeData {
             u.len()
         );
 
+        // let mut start = 0.0;
+
+        if u[0].is_nan() {
+            u[0] = 0.0;
+        }
+
         self.u
-            .iter()
-            .zip(u.iter_mut())
-            .for_each(|(u_ref, u)| *u = *u_ref);
+            .windows(2)
+            .zip(u[1..].iter_mut())
+            .for_each(|(u_ref, u)| *u = (u_ref[1] - u_ref[0]).abs());
+
+        // cum sum
+        u.iter_mut().fold(0.0, |acc, x| {
+            *x += acc;
+            *x
+        });
+
+        // self.u
+        //     .iter()
+        //     .zip(u.iter_mut())
+        //     .for_each(|(u_ref, u)| *u = *u_ref);
     }
 
     fn apply_coords(&self, x: &mut [Vec2d]) {

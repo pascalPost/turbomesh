@@ -8,6 +8,9 @@ pub trait ClusteringFunction {
     fn get_clustering(&self, points: usize) -> Vec<Scalar>;
 }
 
+// TODO change this trait to return Vectors to decrease necessary code in trait
+// implementation to work for multiple segments
+
 pub trait DiscretizableCurve {
     fn discretize_curve(
         &self,

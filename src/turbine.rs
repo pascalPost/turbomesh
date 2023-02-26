@@ -96,6 +96,10 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
     let num_cells_scut: usize = 20;
     let num_cells_cut: usize = 10;
 
+    // TODO can be computed automatically based on the average size
+    let num_cells_inlet = 20;
+    let num_cells_outlet = 20;
+
     let (ps_spline, ss_spline) =
         blade_profile(ps_csv_path, ss_csv_path).expect("Error in profile input and interpolation");
 
@@ -128,6 +132,10 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         ps_edge_rest.split_at(ps_edge_rest.len() - 1 - num_cells_in_middle_half);
 
     let (ss_edge_in_middle, ss_edge_rest) = ss_edge.split_at(num_cells_in_middle_half);
+    let (ss_edge_in_ss, ss_edge_rest) =
+        ss_edge_rest.split_at(ss_edge_rest.len() - 1 - num_cells_in_middle_half - num_cells_scut);
+    let (ss_edge_ex_ss, ss_edge_ex_middle) =
+        ss_edge_rest.split_at(ss_edge_rest.len() - 1 - num_cells_in_middle_half);
 
     // TODO add approximation of the leading and trailing edge by approximating
     // the chamber line and computing its intersection with the profile.
@@ -138,8 +146,6 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
     let mut mesh = Mesh::new();
 
     let row_prefix = "row_01_";
-
-    // in_middle block
 
     {
         // x_01
@@ -152,6 +158,8 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         // |---------- x_10
         // x_11
 
+        let block_name = "in_middle";
+
         let x_00 = ss_edge_in_middle.point_coord(ss_edge_in_middle.end);
         let x_10 = ps_edge_in_middle.point_coord(ps_edge_in_middle.end);
 
@@ -162,7 +170,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         let x_11 = x_10 - Vec2d(0.007, 0.001);
 
         let block = Block2d::new(
-            row_prefix.to_owned() + "in_middle",
+            row_prefix.to_owned() + block_name,
             vec![
                 Box::new(ss_edge_in_middle.rev()),
                 Box::new(ps_edge_in_middle),
@@ -187,9 +195,9 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         mesh.add_block(block);
     }
 
-    // in_lower block
-
     {
+        let block_name = "in_lower";
+
         // copy j max edge of in_middle block (id: 0)
         let edge_j_min = mesh.blocks[0].edge(EdgeIndex::JMax);
 
@@ -200,7 +208,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         let x_11 = leading_edge + Vec2d(0.0, -0.5 * pitch);
 
         let block = Block2d::new(
-            row_prefix.to_owned() + "in_lower",
+            row_prefix.to_owned() + block_name,
             vec![Box::new(ps_edge_in_lower)],
             vec![Box::new(Segment::new(
                 num_cells_scut + 1,
@@ -218,10 +226,10 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         mesh.add_block(block);
     }
 
-    // pll1 block
-    // TODO give a better name for the block
-
     {
+        // TODO give a better name for the block
+        let block_name = "pll1";
+
         // copy j max edge of in_lower block (id: 1)
         let edge_j_min = mesh.blocks[1].edge(EdgeIndex::JMax);
 
@@ -237,7 +245,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         let len_i_max = ps_edge_pll1.len() + num_cells_cut;
 
         let block = Block2d::new(
-            row_prefix.to_owned() + "pll1",
+            row_prefix.to_owned() + block_name,
             vec![
                 Box::new(ps_edge_pll1),
                 Box::new(Segment::new(
@@ -262,6 +270,192 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         mesh.add_block(block);
     }
 
+    {
+        let block_name = "ex_middle";
+
+        // copy last segment of i min edge of pll1 block (id: 2)
+        let edge_j_min = mesh.blocks[2].edge_segment(EdgeIndex::IMin, 1);
+
+        let x_01 = *edge_j_min.x.last().unwrap();
+        let x_10 = ss_edge_ex_middle.point_coord(ss_edge_ex_middle.start);
+
+        // TODO remove hard coded coordinate
+        let x_11 = x_10 + Vec2d(0.007, 0.001);
+
+        let block = Block2d::new(
+            row_prefix.to_owned() + block_name,
+            vec![
+                Box::new(ps_edge_ex_middle),
+                Box::new(ss_edge_ex_middle.rev()),
+            ],
+            vec![Box::new(Segment::new(
+                num_cells_in_middle_half * 2 + 1,
+                UniformClustering::new(),
+                Line2d::new(x_01, x_11),
+            ))],
+            vec![Box::new(edge_j_min)],
+            vec![Box::new(Segment::new(
+                num_cells_cut + 1,
+                UniformClustering::new(),
+                Line2d::new(x_10, x_11),
+            ))],
+        );
+
+        mesh.add_block(block);
+    }
+
+    {
+        let block_name = "exit_ss";
+
+        let edge_j_min = mesh.blocks.last().unwrap().edge(EdgeIndex::JMax);
+
+        let x_01 = *edge_j_min.x.last().unwrap();
+        let x_10 = ss_edge_ex_ss.point_coord(ss_edge_ex_ss.start);
+        let x_11 = trailing_edge + Vec2d(0.0, 0.5 * pitch);
+
+        let block = Block2d::new(
+            row_prefix.to_owned() + block_name,
+            vec![Box::new(ss_edge_ex_ss.rev())],
+            vec![Box::new(Segment::new(
+                ss_edge_ex_ss.len(),
+                UniformClustering::new(),
+                Line2d::new(x_01, x_11),
+            ))],
+            vec![Box::new(edge_j_min)],
+            vec![Box::new(Segment::new(
+                num_cells_cut + 1,
+                UniformClustering::new(),
+                Line2d::new(x_10, x_11),
+            ))],
+        );
+
+        mesh.add_block(block);
+    }
+
+    {
+        let block_name = "inlet_ss";
+
+        let edge_j_min = mesh.blocks.last().unwrap().edge(EdgeIndex::JMax);
+        let edge_i_min_last_segment = mesh.blocks[0].edge(EdgeIndex::JMin);
+
+        let x_11 = leading_edge + Vec2d(0.0, 0.5 * pitch);
+        let x_10 = *edge_i_min_last_segment.x.last().unwrap();
+        let x_01 = *edge_j_min.x.last().unwrap();
+
+        let num_points_i_max = edge_i_min_last_segment.len() + ss_edge_in_ss.len() - 1;
+
+        let block = Block2d::new(
+            row_prefix.to_owned() + block_name,
+            vec![
+                Box::new(ss_edge_in_ss.rev()),
+                Box::new(edge_i_min_last_segment),
+            ],
+            vec![Box::new(Segment::new(
+                num_points_i_max,
+                UniformClustering::new(),
+                Line2d::new(x_01, x_11),
+            ))],
+            vec![Box::new(edge_j_min)],
+            vec![Box::new(Segment::new(
+                num_cells_cut + 1,
+                UniformClustering::new(),
+                Line2d::new(x_10, x_11),
+            ))],
+        );
+
+        mesh.add_block(block);
+    }
+
+    {
+        let block_name = "inlet";
+
+        // copy from inlet_lower
+        let edge_j_max_seg_0 = mesh.blocks[1].edge(EdgeIndex::IMax);
+        // copy from inlet_middle
+        let edge_j_max_seg_1 = mesh.blocks[0].edge(EdgeIndex::IMax);
+        // copy from inlet_ss
+        let edge_j_max_seg_2 = mesh.blocks[5].edge(EdgeIndex::JMax);
+
+        let num_points_j =
+            edge_j_max_seg_0.len() + edge_j_max_seg_1.len() + edge_j_max_seg_2.len() - 2;
+
+        let x_10 = *edge_j_max_seg_0.x.last().unwrap();
+        let x_11 = *edge_j_max_seg_2.x.last().unwrap();
+        let x_00 = x_10 + Vec2d(-0.05, 0.0);
+        let x_01 = x_00 + Vec2d(0.0, pitch);
+
+        let block = Block2d::new(
+            row_prefix.to_owned() + block_name,
+            vec![Box::new(Segment::new(
+                num_cells_inlet + 1,
+                UniformClustering::new(),
+                Line2d::new(x_00, x_10),
+            ))],
+            vec![Box::new(Segment::new(
+                num_cells_inlet + 1,
+                UniformClustering::new(),
+                Line2d::new(x_01, x_11),
+            ))],
+            vec![Box::new(Segment::new(
+                num_points_j,
+                UniformClustering::new(),
+                Line2d::new(x_00, x_01),
+            ))],
+            vec![
+                Box::new(edge_j_max_seg_0.reverse()),
+                Box::new(edge_j_max_seg_1.reverse()),
+                Box::new(edge_j_max_seg_2),
+            ],
+        );
+
+        mesh.add_block(block);
+    }
+
+    {
+        let block_name = "exit";
+
+        // copy from exit_lower
+        let edge_j_min_seg_0 = mesh.blocks[2].edge(EdgeIndex::JMax);
+        // copy from exit_middle
+        let edge_j_min_seg_1 = mesh.blocks[3].edge(EdgeIndex::IMax);
+        // copy from exit_ss
+        let edge_j_min_seg_2 = mesh.blocks[4].edge(EdgeIndex::IMax);
+
+        let num_points_j =
+            edge_j_min_seg_0.len() + edge_j_min_seg_1.len() + edge_j_min_seg_2.len() - 2;
+
+        let x_00 = *edge_j_min_seg_0.x.last().unwrap();
+        let x_01 = *edge_j_min_seg_2.x.last().unwrap();
+        let x_10 = x_00 + Vec2d(0.05, 0.0);
+        let x_11 = x_10 + Vec2d(0.0, pitch);
+
+        let block = Block2d::new(
+            row_prefix.to_owned() + block_name,
+            vec![Box::new(Segment::new(
+                num_cells_outlet + 1,
+                UniformClustering::new(),
+                Line2d::new(x_00, x_10),
+            ))],
+            vec![Box::new(Segment::new(
+                num_cells_outlet + 1,
+                UniformClustering::new(),
+                Line2d::new(x_01, x_11),
+            ))],
+            vec![
+                Box::new(edge_j_min_seg_0.reverse()),
+                Box::new(edge_j_min_seg_1),
+                Box::new(edge_j_min_seg_2),
+            ],
+            vec![Box::new(Segment::new(
+                num_points_j,
+                UniformClustering::new(),
+                Line2d::new(x_10, x_11),
+            ))],
+        );
+
+        mesh.add_block(block);
+    }
+
     // plot blocking
     let ps_spline_int = ps_spline.interpolate(Array::linspace(0., 1., 1000).as_slice().unwrap());
     let ss_spline_int = ss_spline.interpolate(Array::linspace(0., 1., 1000).as_slice().unwrap());
@@ -276,7 +470,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         .margin(5)
         .x_label_area_size(30)
         .y_label_area_size(30)
-        .build_cartesian_2d(1.0f32..1.15f32, -0.1f32..0.04f32)
+        .build_cartesian_2d(0.98f32..1.2f32, -0.1f32..0.1f32)
         .unwrap();
 
     chart.configure_mesh().draw().unwrap();

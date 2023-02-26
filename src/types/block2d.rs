@@ -24,6 +24,8 @@ pub enum EdgeIndex {
 pub struct Block2d {
     pub name: String,
     pub coords: Array2d<Vec2d>,
+
+    // TODO change the edge data to array of size 4
     pub edge_i_min: Vec<Box<dyn SegmentFunction>>,
     pub edge_i_max: Vec<Box<dyn SegmentFunction>>,
     pub edge_j_min: Vec<Box<dyn SegmentFunction>>,
@@ -101,6 +103,15 @@ impl Block2d {
         }
     }
 
+    pub fn segments(&self, edge: EdgeIndex) -> &Vec<Box<dyn SegmentFunction>> {
+        match edge {
+            EdgeIndex::IMin => &self.edge_i_min,
+            EdgeIndex::IMax => &self.edge_i_max,
+            EdgeIndex::JMin => &self.edge_j_min,
+            EdgeIndex::JMax => &self.edge_j_max,
+        }
+    }
+
     pub fn edge(&self, edge: EdgeIndex) -> BlockEdgeData {
         let n_points = self.points();
         match edge {
@@ -131,8 +142,35 @@ impl Block2d {
         }
     }
 
+    // pub fn edge_segment_range<
+    //     I: SliceIndex<[Box<dyn SegmentFunction>], Output = Box<dyn SegmentFunction>>,
+    // >(
+    //     &self,
+    //     edge: EdgeIndex,
+    //     segments_range: I,
+    // ) -> BlockEdgeData {
+    //     // let segments: &[Box<dyn SegmentFunction>] = &self.segments(edge)[segments_range];
+    //     let segments = &self.segments(edge)[segments_range];
+
+    //     let n_points = segments.iter().map(|seg| seg.len()).sum::<usize>() - segments.len() - 1;
+    //     let mut u = vec![Scalar::NAN; n_points];
+    //     let mut x = vec![Vec2d(Scalar::NAN, Scalar::NAN); n_points];
+    //     Self::apply_clustering_and_mapping(&segments, &mut u, &mut x);
+    //     BlockEdgeData::new(u, x)
+    // }
+
+    pub fn edge_segment(&self, edge: EdgeIndex, segment_index: usize) -> BlockEdgeData {
+        let segment = &self.segments(edge)[segment_index];
+
+        let n_points = segment.len();
+        let mut u = vec![Scalar::NAN; n_points];
+        let mut x = vec![Vec2d(Scalar::NAN, Scalar::NAN); n_points];
+        Self::apply_clustering_and_mapping(std::slice::from_ref(segment), &mut u, &mut x);
+        BlockEdgeData::new(u, x)
+    }
+
     fn apply_clustering_and_mapping(
-        edge: &Vec<Box<dyn SegmentFunction>>,
+        edge: &[Box<dyn SegmentFunction>],
         u: &mut Vec<Scalar>,
         x: &mut Vec<Vec2d>,
     ) {
