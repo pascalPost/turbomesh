@@ -51,6 +51,18 @@ impl<T> Array2d<T> {
     pub fn as_slice(&self) -> &[T] {
         unsafe { std::slice::from_raw_parts(self.ptr.as_ptr(), self.size()) }
     }
+
+    pub fn as_slice_mut(&mut self) -> &mut [T] {
+        unsafe { std::slice::from_raw_parts_mut(self.ptr.as_ptr(), self.size()) }
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, T> {
+        self.as_slice().iter()
+    }
+
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
+        self.as_slice_mut().iter_mut()
+    }
 }
 
 impl<T> Drop for Array2d<T> {

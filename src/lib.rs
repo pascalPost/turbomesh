@@ -12,6 +12,7 @@ pub mod gl;
 pub mod interpolation;
 pub mod mesh;
 mod output;
+pub mod smoothing;
 mod tfi;
 pub mod turbine;
 mod types;

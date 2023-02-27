@@ -4,6 +4,7 @@
 use crate::clustering::{RobertsClustering, UniformClustering};
 use crate::geometry::{Line2d, Spline};
 use crate::interpolation::FittingSpline;
+use crate::smoothing::smooth_block;
 use crate::types::{Edge, EdgeIndex, EdgeView};
 use crate::{Block2d, Geometry, Mesh, Segment, Vec2d};
 use ndarray::Array;
@@ -455,6 +456,11 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
         mesh.add_block(block);
     }
+
+    mesh.blocks.iter_mut().for_each(|block| {
+        println!("block: {}", block.name);
+        smooth_block(block, 100).unwrap()
+    });
 
     // plot blocking
     let ps_spline_int = ps_spline.interpolate(Array::linspace(0., 1., 1000).as_slice().unwrap());
