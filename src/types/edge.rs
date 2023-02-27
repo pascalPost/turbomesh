@@ -2,12 +2,9 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 use super::segment::SegmentFunction;
-use super::{ClusteringFunction, DiscretizableCurve};
 use crate::types::{Index, Scalar};
-use crate::{Segment, Vec2d};
+use crate::Vec2d;
 use std::rc::Rc;
-
-// struct EdgeConstructor {}
 
 /// descritzed edge (1D block)
 ///   0 ------- 1
@@ -20,7 +17,6 @@ pub struct Edge {
 
     /// physical coordinates corresponding to clustering u
     pub coords: Vec<Vec2d>,
-    // arclength: Scalar,
 }
 
 impl Edge {
@@ -42,27 +38,8 @@ impl Edge {
 
         // let arclength = segments.iter().map(|seg| seg.arclength()).sum();
 
-        Edge {
-            name,
-            coords: x,
-            u,
-            // arclength,
-        }
+        Edge { name, coords: x, u }
     }
-
-    /// returns the number of cells
-    pub fn cells(&self) -> Index {
-        self.points() + 1
-    }
-
-    /// returns the number of points
-    pub fn points(&self) -> Index {
-        self.coords.len()
-    }
-
-    // pub fn arclength(&self) -> Scalar {
-    //     self.arclength
-    // }
 }
 
 // TODO rename to EdgeSpan
