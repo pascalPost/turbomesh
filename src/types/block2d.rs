@@ -142,23 +142,6 @@ impl Block2d {
         }
     }
 
-    // pub fn edge_segment_range<
-    //     I: SliceIndex<[Box<dyn SegmentFunction>], Output = Box<dyn SegmentFunction>>,
-    // >(
-    //     &self,
-    //     edge: EdgeIndex,
-    //     segments_range: I,
-    // ) -> BlockEdgeData {
-    //     // let segments: &[Box<dyn SegmentFunction>] = &self.segments(edge)[segments_range];
-    //     let segments = &self.segments(edge)[segments_range];
-
-    //     let n_points = segments.iter().map(|seg| seg.len()).sum::<usize>() - segments.len() - 1;
-    //     let mut u = vec![Scalar::NAN; n_points];
-    //     let mut x = vec![Vec2d(Scalar::NAN, Scalar::NAN); n_points];
-    //     Self::apply_clustering_and_mapping(&segments, &mut u, &mut x);
-    //     BlockEdgeData::new(u, x)
-    // }
-
     pub fn edge_segment(&self, edge: EdgeIndex, segment_index: usize) -> BlockEdgeData {
         let segment = &self.segments(edge)[segment_index];
 
@@ -169,6 +152,7 @@ impl Block2d {
         BlockEdgeData::new(u, x)
     }
 
+    /// apply segment clustering and mapping to the given edga data
     fn apply_clustering_and_mapping(
         edge: &[Box<dyn SegmentFunction>],
         u: &mut Vec<Scalar>,
@@ -188,6 +172,7 @@ impl Block2d {
         [i_points - 1, j_points - 1]
     }
 
+    /// returns the numnber of points in every direction
     pub fn points(&self) -> [Index; 2] {
         self.coords.shape
     }

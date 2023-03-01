@@ -1,3 +1,6 @@
+// Copyright (c) 2023 Pascal Post
+// This code is licensed under AGPL license (see LICENSE.txt for details)
+
 use glow::HasContext;
 use std::mem::size_of;
 
