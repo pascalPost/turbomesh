@@ -2682,6 +2682,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "subslice_index"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3a3b5568149c755397b365f81b2c1a384e445bd3b6384e2231b318d5e399688"
+
+[[package]]
 name = "syn"
 version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2864,6 +2870,7 @@ dependencies = [
  "rfd",
  "russell_lab",
  "russell_sparse",
+ "subslice_index",
 ]
 
 [[package]]

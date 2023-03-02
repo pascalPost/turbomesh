@@ -23,3 +23,4 @@ num-traits = "0.2"
 rfd = "0.10.0"
 russell_sparse = { path = "../russell/russell_sparse" }
 russell_lab = { path = "../russell/russell_lab" }
+subslice_index = "0.5.0"

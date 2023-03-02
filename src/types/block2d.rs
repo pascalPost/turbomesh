@@ -5,6 +5,7 @@ use super::segment::SegmentFunction;
 use crate::tfi::tfi_linear_2d;
 use crate::types::{Array2d, BlockEdgeData, Index, Scalar, Vec2d};
 
+#[derive(Clone, Copy)]
 pub enum EdgeIndex {
     IMin,
     IMax,
@@ -112,7 +113,8 @@ impl Block2d {
         }
     }
 
-    pub fn edge(&self, edge: EdgeIndex) -> BlockEdgeData {
+    /// returns the discrete edge data
+    pub fn edge_data(&self, edge: EdgeIndex) -> BlockEdgeData {
         let n_points = self.points();
         match edge {
             EdgeIndex::IMin => {
@@ -149,6 +151,25 @@ impl Block2d {
         let mut u = vec![Scalar::NAN; n_points];
         let mut x = vec![Vec2d(Scalar::NAN, Scalar::NAN); n_points];
         Self::apply_clustering_and_mapping(std::slice::from_ref(segment), &mut u, &mut x);
+        BlockEdgeData::new(u, x)
+    }
+
+    pub fn edge_segments<Idx>(
+        &self,
+        edge: EdgeIndex,
+        segments: impl std::slice::SliceIndex<
+            [std::boxed::Box<(dyn SegmentFunction + 'static)>],
+            Output = [Box<dyn SegmentFunction>],
+        >,
+    ) -> BlockEdgeData {
+        let segments = &self.segments(edge)[segments];
+
+        let n_points = segments.iter().map(|seg| seg.len()).sum();
+
+        let mut u = vec![Scalar::NAN; n_points];
+        let mut x = vec![Vec2d(Scalar::NAN, Scalar::NAN); n_points];
+
+        Self::apply_clustering_and_mapping(segments, &mut u, &mut x);
         BlockEdgeData::new(u, x)
     }
 

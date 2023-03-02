@@ -2,22 +2,42 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 use crate::cgns::interface::*;
-use crate::types::Block2d;
+use crate::types::{Block2d, BlockBoundary};
 
 /// mesh data structure
 pub struct Mesh {
     pub blocks: Vec<Block2d>,
+    pub boundaries: Vec<BlockBoundary>,
 }
 
 impl Mesh {
     /// creates a new mesh instance
     pub fn new() -> Self {
-        Self { blocks: vec![] }
+        Self {
+            blocks: vec![],
+            boundaries: vec![],
+        }
     }
 
+    /// add the given block to the mesh
     pub fn add_block(&mut self, block: Block2d) {
         self.blocks.push(block);
     }
+
+    /// returns the index of the block w/ given name if found
+    pub fn block_id(&self, name: &str) -> Option<usize> {
+        self.blocks.iter().position(|block| block.name == name)
+    }
+
+    // pub fn add_connection(&mut self, connection: (ConnectionData, ConnectionData)) {
+    //     self.boundaries
+    //         .push(BlockBoundary::Connection(connection.0, connection.1));
+    // }
+
+    // pub fn add_boundary(&mut self, boundary: BlockBoundary) {
+    //     self.boundaries
+    //         .push(BlockBoundary::);
+    // }
 
     /// writes the mesh to a structured cgns
     pub fn save(&self, file_name: &str) -> Result<(), Box<dyn Error>> {

@@ -4,8 +4,8 @@
 use crate::clustering::{RobertsClustering, UniformClustering};
 use crate::geometry::{Line2d, Spline};
 use crate::interpolation::FittingSpline;
-use crate::smoothing::smooth_block;
-use crate::types::{Edge, EdgeIndex, EdgeView};
+use crate::smoothing::{compute_derivatives, smooth_block};
+use crate::types::{BlockBoundary, BlockBoundaryRange, Edge, EdgeIndex, EdgeView};
 use crate::{Block2d, Geometry, Mesh, Segment, Vec2d};
 use ndarray::Array;
 use plotters::prelude::*;
@@ -194,13 +194,21 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         );
 
         mesh.add_block(block);
+
+        mesh.boundaries
+            .push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                &mesh,
+                0,
+                EdgeIndex::IMin,
+                0..=1,
+            )));
     }
 
     {
         let block_name = "in_lower";
 
         // copy j max edge of in_middle block (id: 0)
-        let edge_j_min = mesh.blocks[0].edge(EdgeIndex::JMax);
+        let edge_j_min = mesh.blocks[0].edge_data(EdgeIndex::JMax);
 
         let x_01 = *edge_j_min.x.last().unwrap();
         let x_10 = ps_edge_in_lower.point_coord(ps_edge_in_lower.end);
@@ -225,6 +233,18 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         );
 
         mesh.add_block(block);
+
+        mesh.boundaries
+            .push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                &mesh,
+                1,
+                EdgeIndex::IMin,
+                0..1,
+            )));
+        mesh.boundaries.push(BlockBoundary::Connection(
+            BlockBoundaryRange::new(&mesh, 0, EdgeIndex::JMax, 0..1),
+            BlockBoundaryRange::new(&mesh, 1, EdgeIndex::JMin, 0..1),
+        ));
     }
 
     {
@@ -232,7 +252,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         let block_name = "pll1";
 
         // copy j max edge of in_lower block (id: 1)
-        let edge_j_min = mesh.blocks[1].edge(EdgeIndex::JMax);
+        let edge_j_min = mesh.blocks[1].edge_data(EdgeIndex::JMax);
 
         let x_01 = *edge_j_min.x.last().unwrap();
         let x_blade_end = ps_edge_pll1.point_coord(ps_edge_pll1.end);
@@ -269,6 +289,18 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         );
 
         mesh.add_block(block);
+
+        mesh.boundaries
+            .push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                &mesh,
+                2,
+                EdgeIndex::IMin,
+                0..1,
+            )));
+        mesh.boundaries.push(BlockBoundary::Connection(
+            BlockBoundaryRange::new(&mesh, 1, EdgeIndex::JMax, 0..1),
+            BlockBoundaryRange::new(&mesh, 2, EdgeIndex::JMin, 0..1),
+        ));
     }
 
     {
@@ -303,12 +335,24 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         );
 
         mesh.add_block(block);
+
+        mesh.boundaries
+            .push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                &mesh,
+                3,
+                EdgeIndex::IMin,
+                0..2,
+            )));
+        mesh.boundaries.push(BlockBoundary::Connection(
+            BlockBoundaryRange::new(&mesh, 2, EdgeIndex::IMin, 1..2),
+            BlockBoundaryRange::new(&mesh, 3, EdgeIndex::JMin, 0..1),
+        ));
     }
 
     {
         let block_name = "exit_ss";
 
-        let edge_j_min = mesh.blocks.last().unwrap().edge(EdgeIndex::JMax);
+        let edge_j_min = mesh.blocks.last().unwrap().edge_data(EdgeIndex::JMax);
 
         let x_01 = *edge_j_min.x.last().unwrap();
         let x_10 = ss_edge_ex_ss.point_coord(ss_edge_ex_ss.start);
@@ -331,13 +375,25 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         );
 
         mesh.add_block(block);
+
+        mesh.boundaries
+            .push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                &mesh,
+                4,
+                EdgeIndex::IMin,
+                0..1,
+            )));
+        mesh.boundaries.push(BlockBoundary::Connection(
+            BlockBoundaryRange::new(&mesh, 3, EdgeIndex::JMax, 0..1),
+            BlockBoundaryRange::new(&mesh, 4, EdgeIndex::JMin, 0..1),
+        ));
     }
 
     {
         let block_name = "inlet_ss";
 
-        let edge_j_min = mesh.blocks.last().unwrap().edge(EdgeIndex::JMax);
-        let edge_i_min_last_segment = mesh.blocks[0].edge(EdgeIndex::JMin);
+        let edge_j_min = mesh.blocks.last().unwrap().edge_data(EdgeIndex::JMax);
+        let edge_i_min_last_segment = mesh.blocks[0].edge_data(EdgeIndex::JMin);
 
         let x_11 = leading_edge + Vec2d(0.0, 0.5 * pitch);
         let x_10 = *edge_i_min_last_segment.x.last().unwrap();
@@ -365,17 +421,40 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         );
 
         mesh.add_block(block);
+
+        mesh.boundaries
+            .push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                &mesh,
+                5,
+                EdgeIndex::IMin,
+                0..1,
+            )));
+        mesh.boundaries.push(BlockBoundary::Connection(
+            BlockBoundaryRange::new(&mesh, 4, EdgeIndex::JMax, 0..1),
+            BlockBoundaryRange::new(&mesh, 5, EdgeIndex::JMin, 0..1),
+        ));
+        mesh.boundaries.push(BlockBoundary::PeriodicConnection {
+            connection: (
+                BlockBoundaryRange::new(&mesh, 2, EdgeIndex::IMax, 0..1),
+                BlockBoundaryRange::new(&mesh, 5, EdgeIndex::IMax, 0..1),
+            ),
+            translation: pitch,
+        });
+        mesh.boundaries.push(BlockBoundary::Connection(
+            BlockBoundaryRange::new(&mesh, 0, EdgeIndex::JMin, 0..1),
+            BlockBoundaryRange::new(&mesh, 5, EdgeIndex::IMin, 1..2),
+        ));
     }
 
     {
         let block_name = "inlet";
 
         // copy from inlet_lower
-        let edge_j_max_seg_0 = mesh.blocks[1].edge(EdgeIndex::IMax);
+        let edge_j_max_seg_0 = mesh.blocks[1].edge_data(EdgeIndex::IMax);
         // copy from inlet_middle
-        let edge_j_max_seg_1 = mesh.blocks[0].edge(EdgeIndex::IMax);
+        let edge_j_max_seg_1 = mesh.blocks[0].edge_data(EdgeIndex::IMax);
         // copy from inlet_ss
-        let edge_j_max_seg_2 = mesh.blocks[5].edge(EdgeIndex::JMax);
+        let edge_j_max_seg_2 = mesh.blocks[5].edge_data(EdgeIndex::JMax);
 
         let num_points_j =
             edge_j_max_seg_0.len() + edge_j_max_seg_1.len() + edge_j_max_seg_2.len() - 2;
@@ -410,17 +489,44 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         );
 
         mesh.add_block(block);
+
+        mesh.boundaries
+            .push(BlockBoundary::Inlet(BlockBoundaryRange::new(
+                &mesh,
+                6,
+                EdgeIndex::JMin,
+                0..1,
+            )));
+        mesh.boundaries.push(BlockBoundary::PeriodicConnection {
+            connection: (
+                BlockBoundaryRange::new(&mesh, 6, EdgeIndex::IMin, 0..1),
+                BlockBoundaryRange::new(&mesh, 6, EdgeIndex::IMax, 0..1),
+            ),
+            translation: pitch,
+        });
+        mesh.boundaries.push(BlockBoundary::Connection(
+            BlockBoundaryRange::new(&mesh, 1, EdgeIndex::IMax, 0..1),
+            BlockBoundaryRange::new(&mesh, 6, EdgeIndex::JMax, 0..1),
+        ));
+        mesh.boundaries.push(BlockBoundary::Connection(
+            BlockBoundaryRange::new(&mesh, 0, EdgeIndex::IMax, 0..1),
+            BlockBoundaryRange::new(&mesh, 6, EdgeIndex::JMax, 1..2),
+        ));
+        mesh.boundaries.push(BlockBoundary::Connection(
+            BlockBoundaryRange::new(&mesh, 5, EdgeIndex::JMax, 0..1),
+            BlockBoundaryRange::new(&mesh, 6, EdgeIndex::JMax, 2..3),
+        ));
     }
 
     {
         let block_name = "exit";
 
         // copy from exit_lower
-        let edge_j_min_seg_0 = mesh.blocks[2].edge(EdgeIndex::JMax);
+        let edge_j_min_seg_0 = mesh.blocks[2].edge_data(EdgeIndex::JMax);
         // copy from exit_middle
-        let edge_j_min_seg_1 = mesh.blocks[3].edge(EdgeIndex::IMax);
+        let edge_j_min_seg_1 = mesh.blocks[3].edge_data(EdgeIndex::IMax);
         // copy from exit_ss
-        let edge_j_min_seg_2 = mesh.blocks[4].edge(EdgeIndex::IMax);
+        let edge_j_min_seg_2 = mesh.blocks[4].edge_data(EdgeIndex::IMax);
 
         let num_points_j =
             edge_j_min_seg_0.len() + edge_j_min_seg_1.len() + edge_j_min_seg_2.len() - 2;
@@ -455,12 +561,41 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         );
 
         mesh.add_block(block);
+
+        mesh.boundaries
+            .push(BlockBoundary::Outlet(BlockBoundaryRange::new(
+                &mesh,
+                7,
+                EdgeIndex::JMax,
+                0..1,
+            )));
+        mesh.boundaries.push(BlockBoundary::PeriodicConnection {
+            connection: (
+                BlockBoundaryRange::new(&mesh, 7, EdgeIndex::IMin, 0..1),
+                BlockBoundaryRange::new(&mesh, 7, EdgeIndex::IMax, 0..1),
+            ),
+            translation: pitch,
+        });
+        mesh.boundaries.push(BlockBoundary::Connection(
+            BlockBoundaryRange::new(&mesh, 2, EdgeIndex::JMax, 0..1),
+            BlockBoundaryRange::new(&mesh, 7, EdgeIndex::JMin, 0..1),
+        ));
+        mesh.boundaries.push(BlockBoundary::Connection(
+            BlockBoundaryRange::new(&mesh, 3, EdgeIndex::IMax, 0..1),
+            BlockBoundaryRange::new(&mesh, 7, EdgeIndex::JMin, 1..2),
+        ));
+        mesh.boundaries.push(BlockBoundary::Connection(
+            BlockBoundaryRange::new(&mesh, 4, EdgeIndex::IMax, 0..1),
+            BlockBoundaryRange::new(&mesh, 7, EdgeIndex::JMin, 2..3),
+        ));
     }
 
-    mesh.blocks.iter_mut().for_each(|block| {
-        println!("block: {}", block.name);
-        smooth_block(block, 100).unwrap()
-    });
+    compute_derivatives(&mesh);
+
+    // mesh.blocks.iter_mut().for_each(|block| {
+    //     println!("block: {}", block.name);
+    //     smooth_block(block, 100).unwrap()
+    // });
 
     // plot blocking
     let ps_spline_int = ps_spline.interpolate(Array::linspace(0., 1., 1000).as_slice().unwrap());
