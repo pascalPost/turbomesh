@@ -43,8 +43,8 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
     let config = ConfigSolver::new();
 
     // let [I, J] = X.shape;
-    let shape = coords.shape;
-    let [i_size, j_size] = shape;
+    let shape = coords.dim();
+    let (i_size, j_size) = shape;
 
     // // copy x and y coordinate into seperate fields to allow for more effective
     // // computation. To reduce memory footprint, might be done sequentially.
@@ -58,7 +58,7 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
     // let y_eta = Array2d::<Scalar>::new(shape);
 
     // DOF
-    let dof = (shape[0] - 2) * (shape[1] - 2);
+    let dof = (shape.0 - 2) * (shape.1 - 2);
 
     // allocate solution vectors
     let mut x_new = Vector::new(dof);
@@ -71,18 +71,6 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
     // allocate left hand side as square matrix
     let mut lhs = SparseTriplet::new(dof, dof, dof * 9, Symmetry::No)?;
 
-    // // initialize the solution for iteration
-    // for j in 1..shape[1] - 1 {
-    //     for i in 1..shape[0] - 1 {
-    //         let idx = matrix_index(i, j, i_size);
-
-    //         let Vec2d(x, y) = coords[[i, j]];
-
-    //         x_new[idx] = x;
-    //         y_new[idx] = y;
-    //     }
-    // }
-
     for n in 0..iterations {
         print!("  iteration\t{n}");
 
@@ -91,8 +79,10 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
         rhs_y.fill(0.0);
 
         // fill lhs & rhs
-        for j in 1..shape[1] - 1 {
-            for i in 1..shape[0] - 1 {
+
+        // TODO refactor looping for higher efficiency
+        for j in 1..shape.1 - 1 {
+            for i in 1..shape.0 - 1 {
                 // laplace conditions (zero intialization)
                 let s = 0.0;
                 let t = 0.0;
@@ -206,8 +196,8 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
 
         // copy into coordinate field
         // TODO consider different memory layout for higher efficiency
-        for j in 1..shape[1] - 1 {
-            for i in 1..shape[0] - 1 {
+        for j in 1..shape.1 - 1 {
+            for i in 1..shape.0 - 1 {
                 let idx = matrix_index(i, j, i_size);
                 coords[[i, j]] = Vec2d(x_new[idx], y_new[idx]);
             }

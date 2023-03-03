@@ -43,13 +43,8 @@ impl Mesh {
             )?;
 
             {
-                let mut coords_x = vec![0.0; block.coords.size()];
-                let mut coords_y = vec![0.0; block.coords.size()];
-
-                for i in 0..block.coords.size() {
-                    coords_x[i] = block.coords.as_slice()[i].0;
-                    coords_y[i] = block.coords.as_slice()[i].1;
-                }
+                let coords_x: Vec<f64> = block.coords.iter().map(|x| x.0).collect();
+                let coords_y: Vec<f64> = block.coords.iter().map(|x| x.1).collect();
 
                 coord_write(i_file, i_base, i_zone, "CoordinateX", &coords_x.as_slice())?;
                 coord_write(i_file, i_base, i_zone, "CoordinateY", &coords_y.as_slice())?;

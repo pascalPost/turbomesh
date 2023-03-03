@@ -516,7 +516,6 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
             .draw_series(
                 block
                     .coords
-                    .as_slice()
                     .iter()
                     .map(|v| Circle::new((v.0 as f32, v.1 as f32), 3, BLUE.filled())),
             )
