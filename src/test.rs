@@ -42,10 +42,10 @@ fn test_default_block_creation() {
     assert_eq!(block.name, String::from("block"));
 
     // test contained number of points in i and j directions
-    assert_eq!(block.coords.shape, [3, 3]);
+    assert_eq!(block.coords.dim(), (3, 3));
 
     // test total number of contained points
-    assert_eq!(block.coords.size(), 9);
+    assert_eq!(block.coords.len(), 9);
 
     // test defaultly set block coordinates
     assert_eq!(block.coords[[0, 0]], Vec2d(0., 0.));
