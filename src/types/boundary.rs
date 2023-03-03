@@ -6,6 +6,7 @@ use crate::{Mesh, Scalar};
 use std::slice::SliceIndex;
 use subslice_index::subslice_index;
 
+#[derive(Debug)]
 pub struct BlockBoundaryRange {
     pub block: usize,
     pub edge: EdgeIndex,
@@ -44,6 +45,7 @@ impl BlockBoundaryRange {
 }
 
 // TODO implement non-fixed inlet and outlet BCs
+#[derive(Debug)]
 pub enum BlockBoundary {
     Connection(BlockConnection),
     PeriodicConnection {
@@ -55,12 +57,13 @@ pub enum BlockBoundary {
     Wall(BlockBoundaryRange),
 }
 
-struct BlockConnection(BlockBoundaryRange, BlockBoundaryRange);
+#[derive(Debug)]
+pub struct BlockConnection(pub BlockBoundaryRange, pub BlockBoundaryRange);
 
 impl BlockConnection {
-    fn new(mesh: &Mesh, ranges: (BlockBoundaryRange, BlockBoundaryRange)) -> Self {
+    pub fn new(mesh: &Mesh, ranges: (BlockBoundaryRange, BlockBoundaryRange)) -> Self {
         // check input
-        mesh[ranges.0.block];
+        &mesh.blocks[ranges.0.block];
 
         Self(ranges.0, ranges.1)
     }

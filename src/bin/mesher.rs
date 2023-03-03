@@ -203,7 +203,7 @@ impl MeshViewRenderer {
         // solution based on elements and shaders.
 
         for block in mesh.blocks.iter() {
-            let [i_len, j_len] = block.coords.shape;
+            let (i_len, j_len) = block.coords.dim();
 
             // i lines
             for i in 0..i_len {

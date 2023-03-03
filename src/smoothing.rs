@@ -6,9 +6,10 @@
 // runs based on slightly modified repo https://github.com/cpmech/russell
 
 use crate::{
-    types::{Array2d, BlockBoundary, EdgeIndex},
+    types::{BlockBoundary, BlockConnection, EdgeIndex},
     Block2d, Mesh, Scalar, Vec2d,
 };
+use ndarray::Array2;
 use russell_lab::{vector_norm, NormVec, Vector};
 use russell_sparse::{ConfigSolver, Solver, SparseTriplet, Symmetry};
 use std::error;
@@ -46,8 +47,8 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
     let config = ConfigSolver::new();
 
     // let [I, J] = X.shape;
-    let shape = coords.shape;
-    let [i_size, j_size] = shape;
+    let shape = coords.dim();
+    let (i_size, j_size) = shape;
 
     // // copy x and y coordinate into seperate fields to allow for more effective
     // // computation. To reduce memory footprint, might be done sequentially.
@@ -61,7 +62,7 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
     // let y_eta = Array2d::<Scalar>::new(shape);
 
     // DOF
-    let dof = (shape[0] - 2) * (shape[1] - 2);
+    let dof = (shape.0 - 2) * (shape.1 - 2);
 
     // allocate solution vectors
     let mut x_new = Vector::new(dof);
@@ -74,18 +75,6 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
     // allocate left hand side as square matrix
     let mut lhs = SparseTriplet::new(dof, dof, dof * 9, Symmetry::No)?;
 
-    // // initialize the solution for iteration
-    // for j in 1..shape[1] - 1 {
-    //     for i in 1..shape[0] - 1 {
-    //         let idx = matrix_index(i, j, i_size);
-
-    //         let Vec2d(x, y) = coords[[i, j]];
-
-    //         x_new[idx] = x;
-    //         y_new[idx] = y;
-    //     }
-    // }
-
     for n in 0..iterations {
         print!("  iteration\t{n}");
 
@@ -94,8 +83,10 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
         rhs_y.fill(0.0);
 
         // fill lhs & rhs
-        for j in 1..shape[1] - 1 {
-            for i in 1..shape[0] - 1 {
+
+        // TODO refactor looping for higher efficiency
+        for j in 1..shape.1 - 1 {
+            for i in 1..shape.0 - 1 {
                 // laplace conditions (zero intialization)
                 let s = 0.0;
                 let t = 0.0;
@@ -209,8 +200,8 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
 
         // copy into coordinate field
         // TODO consider different memory layout for higher efficiency
-        for j in 1..shape[1] - 1 {
-            for i in 1..shape[0] - 1 {
+        for j in 1..shape.1 - 1 {
+            for i in 1..shape.0 - 1 {
                 let idx = matrix_index(i, j, i_size);
                 coords[[i, j]] = Vec2d(x_new[idx], y_new[idx]);
             }
@@ -224,23 +215,23 @@ pub fn compute_derivatives(mesh: &Mesh) {
     // allocate derivative fields
     let n = mesh.blocks.len();
 
-    let mut x_xi_mesh: Vec<Array2d<Scalar>> = Vec::with_capacity(n);
-    let mut x_eta_mesh: Vec<Array2d<Scalar>> = Vec::with_capacity(n);
-    let mut y_xi_mesh: Vec<Array2d<Scalar>> = Vec::with_capacity(n);
-    let mut y_eta_mesh: Vec<Array2d<Scalar>> = Vec::with_capacity(n);
+    let mut x_xi_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
+    let mut x_eta_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
+    let mut y_xi_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
+    let mut y_eta_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
 
     mesh.blocks.iter().for_each(|block| {
-        let shape = block.points();
+        let shape = block.coords.dim();
         let x = &block.coords;
 
-        let mut x_xi = Array2d::<Scalar>::new(shape);
-        let mut x_eta = Array2d::<Scalar>::new(shape);
-        let mut y_xi = Array2d::<Scalar>::new(shape);
-        let mut y_eta = Array2d::<Scalar>::new(shape);
+        let mut x_xi = Array2::<Scalar>::zeros(shape);
+        let mut x_eta = Array2::<Scalar>::zeros(shape);
+        let mut y_xi = Array2::<Scalar>::zeros(shape);
+        let mut y_eta = Array2::<Scalar>::zeros(shape);
 
         // loop internal points
-        for j in 1..shape[1] - 1 {
-            for i in 1..shape[0] - 1 {
+        for j in 1..shape.1 - 1 {
+            for i in 1..shape.0 - 1 {
                 let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
                 let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
                 let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
@@ -268,8 +259,8 @@ pub fn compute_derivatives(mesh: &Mesh) {
         }
 
         {
-            let j = shape[1] - 1;
-            let i = shape[0] - 1;
+            let j = shape.1 - 1;
+            let i = shape.0 - 1;
 
             let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
             let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
@@ -281,7 +272,7 @@ pub fn compute_derivatives(mesh: &Mesh) {
         }
 
         {
-            let j = shape[1] - 1;
+            let j = shape.1 - 1;
             let i = 0;
 
             let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
@@ -295,7 +286,7 @@ pub fn compute_derivatives(mesh: &Mesh) {
 
         {
             let j = 0;
-            let i = shape[0] - 1;
+            let i = shape.0 - 1;
 
             let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
             let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
@@ -309,7 +300,7 @@ pub fn compute_derivatives(mesh: &Mesh) {
         // add own contributions on edges excluding corners
 
         // edge i min & i max
-        for j in 1..shape[1] - 1 {
+        for j in 1..shape.1 - 1 {
             {
                 // edge i min
                 let i = 0;
@@ -326,7 +317,7 @@ pub fn compute_derivatives(mesh: &Mesh) {
 
             {
                 // edge i max
-                let i = shape[0] - 1;
+                let i = shape.0 - 1;
 
                 let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
                 let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
@@ -340,7 +331,7 @@ pub fn compute_derivatives(mesh: &Mesh) {
         }
 
         // edge j min & j max
-        for i in 1..shape[0] - 1 {
+        for i in 1..shape.0 - 1 {
             {
                 // edge j min
                 let j = 0;
@@ -357,7 +348,7 @@ pub fn compute_derivatives(mesh: &Mesh) {
 
             {
                 // edge j max
-                let j = shape[1] - 1;
+                let j = shape.1 - 1;
 
                 let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
                 let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
@@ -379,8 +370,9 @@ pub fn compute_derivatives(mesh: &Mesh) {
     // add contribution from non-owned connected points
     mesh.boundaries.iter().for_each(|boundary| {
         match boundary {
-            BlockBoundary::Connection(own_range, other_range) => {
+            BlockBoundary::Connection(ranges) => {
                 let mut data: Vec<Scalar> = vec![];
+                let BlockConnection(own_range, other_range) = ranges;
 
                 {
                     let x_xi = &x_xi_mesh[other_range.block];
@@ -392,13 +384,13 @@ pub fn compute_derivatives(mesh: &Mesh) {
                     let (range_i, range_j) = match other_range.edge {
                         EdgeIndex::IMin => (0..1, other_range.start..other_range.end + 1),
                         EdgeIndex::IMax => (
-                            x_xi.shape[0] - 1..x_xi.shape[0],
+                            x_xi.dim().0 - 1..x_xi.dim().0,
                             other_range.start..other_range.end + 1,
                         ),
                         EdgeIndex::JMin => (other_range.start..other_range.end + 1, 0..1),
                         EdgeIndex::JMax => (
                             other_range.start..other_range.end + 1,
-                            x_xi.shape[1] - 1..x_xi.shape[1],
+                            x_xi.dim().1 - 1..x_xi.dim().1,
                         ),
                     };
 
@@ -421,13 +413,13 @@ pub fn compute_derivatives(mesh: &Mesh) {
                     let (range_i, range_j) = match own_range.edge {
                         EdgeIndex::IMin => (0..1, own_range.start..own_range.end + 1),
                         EdgeIndex::IMax => (
-                            x_xi.shape[0] - 1..x_xi.shape[0],
+                            x_xi.dim().0 - 1..x_xi.dim().0,
                             own_range.start..own_range.end + 1,
                         ),
                         EdgeIndex::JMin => (own_range.start..own_range.end + 1, 0..1),
                         EdgeIndex::JMax => (
                             own_range.start..own_range.end + 1,
-                            x_xi.shape[1] - 1..x_xi.shape[1],
+                            x_xi.dim().1 - 1..x_xi.dim().1,
                         ),
                     };
 

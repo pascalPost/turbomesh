@@ -3,9 +3,10 @@
 
 use super::segment::SegmentFunction;
 use crate::tfi::tfi_linear_2d;
-use crate::types::{Array2d, BlockEdgeData, Index, Scalar, Vec2d};
+use crate::types::{BlockEdgeData, Index, Scalar, Vec2d};
+use ndarray::Array2;
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum EdgeIndex {
     IMin,
     IMax,
@@ -24,7 +25,7 @@ pub enum EdgeIndex {
 // #[derive(Debug)]
 pub struct Block2d {
     pub name: String,
-    pub coords: Array2d<Vec2d>,
+    pub coords: Array2<Vec2d>,
 
     // TODO change the edge data to array of size 4
     pub edge_i_min: Vec<Box<dyn SegmentFunction>>,
@@ -89,7 +90,7 @@ impl Block2d {
         Self::apply_clustering_and_mapping(&edge_j_max, &mut t2, &mut x_j_max);
 
         // allocate 2d array and run tfi on it
-        let mut x = Array2d::<Vec2d>::new([n_points.0, n_points.1]);
+        let mut x = Array2::<Vec2d>::zeros((n_points.0, n_points.1));
         tfi_linear_2d(
             &s1, &s2, &t1, &t2, &x_i_min, &x_i_max, &x_j_min, &x_j_max, &mut x,
         );
@@ -195,6 +196,7 @@ impl Block2d {
 
     /// returns the numnber of points in every direction
     pub fn points(&self) -> [Index; 2] {
-        self.coords.shape
+        let shape = self.coords.shape();
+        [shape[0], shape[1]]
     }
 }

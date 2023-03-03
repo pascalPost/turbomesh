@@ -1,8 +1,9 @@
 // Copyright (c) 2022 Pascal Post
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
-use crate::types::{Array2d, Scalar, Vec2d};
+use crate::types::{Scalar, Vec2d};
 use float_cmp::approx_eq;
+use ndarray::Array2;
 
 // /// Boundary-Blended Control Functions eq. (3.21) from Thompson et al., Eds.,
 // /// Handbook of grid generation. Boca Raton, Fla: CRC Press, 1999.
@@ -208,7 +209,7 @@ pub fn tfi_linear_2d(
     x_i_max: &[Vec2d],
     x_j_min: &[Vec2d],
     x_j_max: &[Vec2d],
-    x: &mut Array2d<Vec2d>,
+    x: &mut Array2<Vec2d>,
 ) {
     let s1 = copy_and_rescale(s1);
     let s2 = copy_and_rescale(s2);
@@ -231,8 +232,9 @@ pub fn tfi_linear_2d(
     // TODO switch to iterator syntax to get independent from mem layout and
     // better suited for parallel exec
 
-    let [i_len, j_len] = x.shape;
+    let (i_len, j_len) = x.dim();
 
+    // TODO refactor looping for higher efficiency
     for j in 0..j_len {
         let t1 = t1[j];
         let t2 = t2[j];
