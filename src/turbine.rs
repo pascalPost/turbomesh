@@ -4,7 +4,6 @@
 use crate::clustering::{RobertsClustering, UniformClustering};
 use crate::geometry::{Line2d, Spline};
 use crate::interpolation::FittingSpline;
-use crate::smoothing::{compute_derivatives, smooth_block};
 use crate::types::{BlockBoundary, BlockBoundaryRange, BlockConnection, Edge, EdgeIndex, EdgeView};
 use crate::{Block2d, Geometry, Mesh, Segment, Vec2d};
 use ndarray::Array;
@@ -92,10 +91,10 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
     // TODO move all of these parameters to function input
     let pitch = 88.36 * 1e-3; //m
-    let num_cells_blade: usize = 60;
-    let num_cells_in_middle_half: usize = 5;
-    let num_cells_scut: usize = 20;
-    let num_cells_cut: usize = 10;
+    let num_cells_blade_half: usize = 60;
+    let num_cells_middle_blocks_on_blade_half: usize = 5;
+    let num_cells_next_to_middle_blocks_on_blade: usize = 20;
+    let num_cells_away_from_blade: usize = 10;
 
     // TODO can be computed automatically based on the average size
     let num_cells_inlet = 20;
@@ -110,7 +109,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
     let ps_edge = EdgeView::new(Edge::new(
         "Pressure_Side_Edge".to_string(),
         &vec![Box::new(Segment::new(
-            num_cells_blade + 1,
+            num_cells_blade_half + 1,
             blade_clustering_function,
             ps_spline.clone(),
         ))],
@@ -119,7 +118,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
     let ss_edge = EdgeView::new(Edge::new(
         "Suction_Side_Edge".to_string(),
         &vec![Box::new(Segment::new(
-            num_cells_blade + 1,
+            num_cells_blade_half + 1,
             blade_clustering_function,
             ss_spline.clone(),
         ))],
@@ -127,16 +126,21 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
     // split blade distribution
 
-    let (ps_edge_in_middle, ps_edge_rest) = ps_edge.split_at(num_cells_in_middle_half);
-    let (ps_edge_in_lower, ps_edge_rest) = ps_edge_rest.split_at(num_cells_scut);
+    let (ps_edge_in_middle, ps_edge_rest) = ps_edge.split_at(num_cells_middle_blocks_on_blade_half);
+    let (ps_edge_in_lower, ps_edge_rest) =
+        ps_edge_rest.split_at(num_cells_next_to_middle_blocks_on_blade);
     let (ps_edge_pll1, ps_edge_ex_middle) =
-        ps_edge_rest.split_at(ps_edge_rest.len() - 1 - num_cells_in_middle_half);
+        ps_edge_rest.split_at(ps_edge_rest.len() - 1 - num_cells_middle_blocks_on_blade_half);
 
-    let (ss_edge_in_middle, ss_edge_rest) = ss_edge.split_at(num_cells_in_middle_half);
-    let (ss_edge_in_ss, ss_edge_rest) =
-        ss_edge_rest.split_at(ss_edge_rest.len() - 1 - num_cells_in_middle_half - num_cells_scut);
+    let (ss_edge_in_middle, ss_edge_rest) = ss_edge.split_at(num_cells_middle_blocks_on_blade_half);
+    let (ss_edge_in_ss, ss_edge_rest) = ss_edge_rest.split_at(
+        ss_edge_rest.len()
+            - 1
+            - num_cells_middle_blocks_on_blade_half
+            - num_cells_next_to_middle_blocks_on_blade,
+    );
     let (ss_edge_ex_ss, ss_edge_ex_middle) =
-        ss_edge_rest.split_at(ss_edge_rest.len() - 1 - num_cells_in_middle_half);
+        ss_edge_rest.split_at(ss_edge_rest.len() - 1 - num_cells_middle_blocks_on_blade_half);
 
     // TODO add approximation of the leading and trailing edge by approximating
     // the chamber line and computing its intersection with the profile.
@@ -159,7 +163,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         // |---------- x_10
         // x_11
 
-        let block_name = "in_middle";
+        let block_name = "inlet_middle";
 
         let x_00 = ss_edge_in_middle.point_coord(ss_edge_in_middle.end);
         let x_10 = ps_edge_in_middle.point_coord(ps_edge_in_middle.end);
@@ -177,17 +181,17 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
                 Box::new(ps_edge_in_middle),
             ],
             vec![Box::new(Segment::new(
-                num_cells_in_middle_half * 2 + 1,
+                num_cells_middle_blocks_on_blade_half * 2 + 1,
                 UniformClustering::new(),
                 Line2d::new(x_01, x_11),
             ))],
             vec![Box::new(Segment::new(
-                num_cells_cut + 1,
+                num_cells_away_from_blade + 1,
                 UniformClustering::new(),
                 Line2d::new(x_00, x_01),
             ))],
             vec![Box::new(Segment::new(
-                num_cells_cut + 1,
+                num_cells_away_from_blade + 1,
                 UniformClustering::new(),
                 Line2d::new(x_10, x_11),
             ))],
@@ -205,7 +209,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
     }
 
     {
-        let block_name = "in_lower";
+        let block_name = "inlet_ps";
 
         // copy j max edge of in_middle block (id: 0)
         let edge_j_min = mesh.blocks[0].edge_data(EdgeIndex::JMax);
@@ -220,13 +224,13 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
             row_prefix.to_owned() + block_name,
             vec![Box::new(ps_edge_in_lower)],
             vec![Box::new(Segment::new(
-                num_cells_scut + 1,
+                num_cells_next_to_middle_blocks_on_blade + 1,
                 UniformClustering::new(),
                 Line2d::new(x_01, x_11),
             ))],
             vec![Box::new(edge_j_min)],
             vec![Box::new(Segment::new(
-                num_cells_cut + 1,
+                num_cells_away_from_blade + 1,
                 UniformClustering::new(),
                 Line2d::new(x_10, x_11),
             ))],
@@ -252,8 +256,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
     }
 
     {
-        // TODO give a better name for the block
-        let block_name = "pll1";
+        let block_name = "exit_ss";
 
         // copy j max edge of in_lower block (id: 1)
         let edge_j_min = mesh.blocks[1].edge_data(EdgeIndex::JMax);
@@ -267,14 +270,14 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         // on periodic bc
         let x_11 = trailing_edge + Vec2d(0.0, -0.5 * pitch);
 
-        let len_i_max = ps_edge_pll1.len() + num_cells_cut;
+        let len_i_max = ps_edge_pll1.len() + num_cells_away_from_blade;
 
         let block = Block2d::new(
             row_prefix.to_owned() + block_name,
             vec![
                 Box::new(ps_edge_pll1),
                 Box::new(Segment::new(
-                    num_cells_cut + 1,
+                    num_cells_away_from_blade + 1,
                     UniformClustering::new(),
                     Line2d::new(x_blade_end, x_10),
                 )),
@@ -286,7 +289,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
             ))],
             vec![Box::new(edge_j_min)],
             vec![Box::new(Segment::new(
-                num_cells_cut + 1,
+                num_cells_away_from_blade + 1,
                 UniformClustering::new(),
                 Line2d::new(x_10, x_11),
             ))],
@@ -312,7 +315,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
     }
 
     {
-        let block_name = "ex_middle";
+        let block_name = "exit_middle";
 
         // copy last segment of i min edge of pll1 block (id: 2)
         let edge_j_min = mesh.blocks[2].edge_segment(EdgeIndex::IMin, 1);
@@ -330,13 +333,13 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
                 Box::new(ss_edge_ex_middle.rev()),
             ],
             vec![Box::new(Segment::new(
-                num_cells_in_middle_half * 2 + 1,
+                num_cells_middle_blocks_on_blade_half * 2 + 1,
                 UniformClustering::new(),
                 Line2d::new(x_01, x_11),
             ))],
             vec![Box::new(edge_j_min)],
             vec![Box::new(Segment::new(
-                num_cells_cut + 1,
+                num_cells_away_from_blade + 1,
                 UniformClustering::new(),
                 Line2d::new(x_10, x_11),
             ))],
@@ -380,7 +383,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
             ))],
             vec![Box::new(edge_j_min)],
             vec![Box::new(Segment::new(
-                num_cells_cut + 1,
+                num_cells_away_from_blade + 1,
                 UniformClustering::new(),
                 Line2d::new(x_10, x_11),
             ))],
@@ -430,7 +433,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
             ))],
             vec![Box::new(edge_j_min)],
             vec![Box::new(Segment::new(
-                num_cells_cut + 1,
+                num_cells_away_from_blade + 1,
                 UniformClustering::new(),
                 Line2d::new(x_10, x_11),
             ))],
@@ -532,7 +535,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
-                    BlockBoundaryRange::new(&mesh, 1, EdgeIndex::IMax, 0..1),
+                    BlockBoundaryRange::new(&mesh, 1, EdgeIndex::IMax, 0..1).reverse(),
                     BlockBoundaryRange::new(&mesh, 6, EdgeIndex::JMax, 0..1),
                 ),
             )));
@@ -540,7 +543,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
-                    BlockBoundaryRange::new(&mesh, 0, EdgeIndex::IMax, 0..1),
+                    BlockBoundaryRange::new(&mesh, 0, EdgeIndex::IMax, 0..1).reverse(),
                     BlockBoundaryRange::new(&mesh, 6, EdgeIndex::JMax, 1..2),
                 ),
             )));
@@ -616,7 +619,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
-                    BlockBoundaryRange::new(&mesh, 2, EdgeIndex::JMax, 0..1),
+                    BlockBoundaryRange::new(&mesh, 2, EdgeIndex::JMax, 0..1).reverse(),
                     BlockBoundaryRange::new(&mesh, 7, EdgeIndex::JMin, 0..1),
                 ),
             )));
@@ -638,9 +641,17 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
             )));
     }
 
-    println!("{:#?}", mesh.boundaries);
+    // mesh.blocks
+    //     .iter()
+    //     .for_each(|block| println!("{:#?}", block.coords.dim()));
 
-    compute_derivatives(&mesh);
+    // println!("{:#?}", mesh.boundaries);
+
+    mesh.smooth();
+
+    // smooth_mesh(&mut mesh);
+
+    // compute_derivatives(&mesh);
 
     // mesh.blocks.iter_mut().for_each(|block| {
     //     println!("block: {}", block.name);

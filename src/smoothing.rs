@@ -211,7 +211,7 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
     Ok(())
 }
 
-pub fn compute_derivatives(mesh: &Mesh) {
+fn compute_derivatives(mesh: &Mesh) {
     // allocate derivative fields
     let n = mesh.blocks.len();
 
@@ -371,64 +371,10 @@ pub fn compute_derivatives(mesh: &Mesh) {
     mesh.boundaries.iter().for_each(|boundary| {
         match boundary {
             BlockBoundary::Connection(ranges) => {
-                let mut data: Vec<Scalar> = vec![];
-                let BlockConnection(own_range, other_range) = ranges;
-
-                {
-                    let x_xi = &x_xi_mesh[other_range.block];
-
-                    assert!(other_range.end > other_range.start);
-
-                    data.reserve(other_range.end - other_range.start);
-
-                    let (range_i, range_j) = match other_range.edge {
-                        EdgeIndex::IMin => (0..1, other_range.start..other_range.end + 1),
-                        EdgeIndex::IMax => (
-                            x_xi.dim().0 - 1..x_xi.dim().0,
-                            other_range.start..other_range.end + 1,
-                        ),
-                        EdgeIndex::JMin => (other_range.start..other_range.end + 1, 0..1),
-                        EdgeIndex::JMax => (
-                            other_range.start..other_range.end + 1,
-                            x_xi.dim().1 - 1..x_xi.dim().1,
-                        ),
-                    };
-
-                    for j in range_j {
-                        for i in range_i.clone() {
-                            data.push(x_xi[[i, j]]);
-                        }
-                    }
-                }
-
-                data.reverse();
-
-                {
-                    let x_xi = &mut x_xi_mesh[own_range.block];
-
-                    assert!(own_range.end > own_range.start);
-
-                    assert!(own_range.end - own_range.start + 1 == data.len());
-
-                    let (range_i, range_j) = match own_range.edge {
-                        EdgeIndex::IMin => (0..1, own_range.start..own_range.end + 1),
-                        EdgeIndex::IMax => (
-                            x_xi.dim().0 - 1..x_xi.dim().0,
-                            own_range.start..own_range.end + 1,
-                        ),
-                        EdgeIndex::JMin => (own_range.start..own_range.end + 1, 0..1),
-                        EdgeIndex::JMax => (
-                            own_range.start..own_range.end + 1,
-                            x_xi.dim().1 - 1..x_xi.dim().1,
-                        ),
-                    };
-
-                    for j in range_j {
-                        for i in range_i.clone() {
-                            x_xi[[i, j]] += data.pop().unwrap();
-                        }
-                    }
-                }
+                add_non_owned(&mut x_xi_mesh, ranges);
+                add_non_owned(&mut x_eta_mesh, ranges);
+                add_non_owned(&mut y_xi_mesh, ranges);
+                add_non_owned(&mut y_eta_mesh, ranges);
             }
             // BlockBoundary::PeriodicConnection { connection, translation },
             _ => (),
@@ -436,4 +382,49 @@ pub fn compute_derivatives(mesh: &Mesh) {
     });
 
     // copy data to non-owned connected points
+    mesh.boundaries.iter().for_each(|boundary| {
+        match boundary {
+            BlockBoundary::Connection(ranges) => {
+                copy_to_non_owned(&mut x_xi_mesh, ranges);
+                copy_to_non_owned(&mut x_eta_mesh, ranges);
+                copy_to_non_owned(&mut y_xi_mesh, ranges);
+                copy_to_non_owned(&mut y_eta_mesh, ranges);
+            }
+            // BlockBoundary::PeriodicConnection { connection, translation },
+            _ => (),
+        }
+    });
+}
+
+fn add_non_owned(fields: &mut Vec<Array2<Scalar>>, ranges: &BlockConnection) {
+    let BlockConnection(own_range, other_range) = ranges;
+
+    let edge_view_other = crate::types::edge_view(&fields, other_range);
+
+    let data: Vec<Scalar> = edge_view_other.iter().cloned().collect();
+
+    let mut edge_view_own = crate::types::edge_view_mut(fields, own_range);
+
+    edge_view_own
+        .iter_mut()
+        .zip(data.iter())
+        .for_each(|(target, source)| *target += *source);
+}
+
+fn copy_to_non_owned(fields: &mut Vec<Array2<Scalar>>, ranges: &BlockConnection) {
+    let BlockConnection(own_range, other_range) = ranges;
+
+    let edge_view_own = crate::types::edge_view(fields, own_range);
+    let data: Vec<Scalar> = edge_view_own.iter().cloned().collect();
+
+    let mut edge_view_other = crate::types::edge_view_mut(fields, other_range);
+
+    edge_view_other
+        .iter_mut()
+        .zip(data.iter())
+        .for_each(|(target, source)| *target = *source);
+}
+
+pub fn smooth_mesh(mesh: &mut Mesh) {
+    compute_derivatives(mesh);
 }

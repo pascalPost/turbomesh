@@ -29,15 +29,9 @@ impl Mesh {
         self.blocks.iter().position(|block| block.name == name)
     }
 
-    // pub fn add_connection(&mut self, connection: (ConnectionData, ConnectionData)) {
-    //     self.boundaries
-    //         .push(BlockBoundary::Connection(connection.0, connection.1));
-    // }
-
-    // pub fn add_boundary(&mut self, boundary: BlockBoundary) {
-    //     self.boundaries
-    //         .push(BlockBoundary::);
-    // }
+    pub fn smooth(&mut self) {
+        crate::smoothing::smooth_mesh(self);
+    }
 
     /// writes the mesh to a structured cgns
     pub fn save(&self, file_name: &str) -> Result<(), Box<dyn Error>> {
