@@ -50,6 +50,22 @@ impl BlockBoundaryRange {
         std::mem::swap(&mut self.start, &mut self.end);
         self
     }
+
+    pub fn iter(&self) -> Box<dyn Iterator<Item = usize>> {
+        if self.end > self.start {
+            Box::new((self.start..=self.end).into_iter())
+        } else {
+            Box::new((self.end..=self.start).rev().into_iter())
+        }
+    }
+
+    pub fn iter_inner(&self) -> Box<dyn Iterator<Item = usize>> {
+        if self.end > self.start {
+            Box::new((self.start + 1..=self.end - 1).into_iter())
+        } else {
+            Box::new((self.end + 1..=self.start - 1).rev().into_iter())
+        }
+    }
 }
 
 // TODO implement non-fixed inlet and outlet BCs

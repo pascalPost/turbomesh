@@ -7,7 +7,7 @@ use crate::types::{Block2d, BlockBoundary};
 /// mesh data structure
 pub struct Mesh {
     pub blocks: Vec<Block2d>,
-    pub boundaries: Vec<BlockBoundary>,
+    pub edges: Vec<BlockBoundary>,
 }
 
 impl Mesh {
@@ -15,7 +15,7 @@ impl Mesh {
     pub fn new() -> Self {
         Self {
             blocks: vec![],
-            boundaries: vec![],
+            edges: vec![],
         }
     }
 
@@ -31,6 +31,11 @@ impl Mesh {
 
     pub fn smooth(&mut self) {
         crate::smoothing::smooth_mesh(self);
+    }
+
+    /// returns the total number of points of the mesh
+    pub fn points(&self) -> usize {
+        self.blocks.iter().map(|b| b.coords.len()).sum()
     }
 
     /// writes the mesh to a structured cgns

@@ -199,13 +199,12 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
         mesh.add_block(block);
 
-        mesh.boundaries
-            .push(BlockBoundary::Wall(BlockBoundaryRange::new(
-                &mesh,
-                0,
-                EdgeIndex::IMin,
-                0..=1,
-            )));
+        mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+            &mesh,
+            0,
+            EdgeIndex::IMin,
+            0..=1,
+        )));
     }
 
     {
@@ -238,14 +237,13 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
         mesh.add_block(block);
 
-        mesh.boundaries
-            .push(BlockBoundary::Wall(BlockBoundaryRange::new(
-                &mesh,
-                1,
-                EdgeIndex::IMin,
-                0..1,
-            )));
-        mesh.boundaries
+        mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+            &mesh,
+            1,
+            EdgeIndex::IMin,
+            0..1,
+        )));
+        mesh.edges
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
@@ -297,14 +295,13 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
         mesh.add_block(block);
 
-        mesh.boundaries
-            .push(BlockBoundary::Wall(BlockBoundaryRange::new(
-                &mesh,
-                2,
-                EdgeIndex::IMin,
-                0..1,
-            )));
-        mesh.boundaries
+        mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+            &mesh,
+            2,
+            EdgeIndex::IMin,
+            0..1,
+        )));
+        mesh.edges
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
@@ -347,14 +344,13 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
         mesh.add_block(block);
 
-        mesh.boundaries
-            .push(BlockBoundary::Wall(BlockBoundaryRange::new(
-                &mesh,
-                3,
-                EdgeIndex::IMin,
-                0..2,
-            )));
-        mesh.boundaries
+        mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+            &mesh,
+            3,
+            EdgeIndex::IMin,
+            0..2,
+        )));
+        mesh.edges
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
@@ -391,14 +387,13 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
         mesh.add_block(block);
 
-        mesh.boundaries
-            .push(BlockBoundary::Wall(BlockBoundaryRange::new(
-                &mesh,
-                4,
-                EdgeIndex::IMin,
-                0..1,
-            )));
-        mesh.boundaries
+        mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+            &mesh,
+            4,
+            EdgeIndex::IMin,
+            0..1,
+        )));
+        mesh.edges
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
@@ -441,14 +436,13 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
         mesh.add_block(block);
 
-        mesh.boundaries
-            .push(BlockBoundary::Wall(BlockBoundaryRange::new(
-                &mesh,
-                5,
-                EdgeIndex::IMin,
-                0..1,
-            )));
-        mesh.boundaries
+        mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+            &mesh,
+            5,
+            EdgeIndex::IMin,
+            0..1,
+        )));
+        mesh.edges
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
@@ -456,14 +450,14 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
                     BlockBoundaryRange::new(&mesh, 5, EdgeIndex::JMin, 0..1),
                 ),
             )));
-        mesh.boundaries.push(BlockBoundary::PeriodicConnection {
+        mesh.edges.push(BlockBoundary::PeriodicConnection {
             connection: (
                 BlockBoundaryRange::new(&mesh, 2, EdgeIndex::IMax, 0..1),
                 BlockBoundaryRange::new(&mesh, 5, EdgeIndex::IMax, 0..1),
             ),
             translation: pitch,
         });
-        mesh.boundaries
+        mesh.edges
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
@@ -517,21 +511,21 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
         mesh.add_block(block);
 
-        mesh.boundaries
+        mesh.edges
             .push(BlockBoundary::Inlet(BlockBoundaryRange::new(
                 &mesh,
                 6,
                 EdgeIndex::JMin,
                 0..1,
             )));
-        mesh.boundaries.push(BlockBoundary::PeriodicConnection {
+        mesh.edges.push(BlockBoundary::PeriodicConnection {
             connection: (
                 BlockBoundaryRange::new(&mesh, 6, EdgeIndex::IMin, 0..1),
                 BlockBoundaryRange::new(&mesh, 6, EdgeIndex::IMax, 0..1),
             ),
             translation: pitch,
         });
-        mesh.boundaries
+        mesh.edges
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
@@ -539,7 +533,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
                     BlockBoundaryRange::new(&mesh, 6, EdgeIndex::JMax, 0..1),
                 ),
             )));
-        mesh.boundaries
+        mesh.edges
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
@@ -547,7 +541,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
                     BlockBoundaryRange::new(&mesh, 6, EdgeIndex::JMax, 1..2),
                 ),
             )));
-        mesh.boundaries
+        mesh.edges
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
@@ -601,21 +595,21 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
         mesh.add_block(block);
 
-        mesh.boundaries
+        mesh.edges
             .push(BlockBoundary::Outlet(BlockBoundaryRange::new(
                 &mesh,
                 7,
                 EdgeIndex::JMax,
                 0..1,
             )));
-        mesh.boundaries.push(BlockBoundary::PeriodicConnection {
+        mesh.edges.push(BlockBoundary::PeriodicConnection {
             connection: (
                 BlockBoundaryRange::new(&mesh, 7, EdgeIndex::IMin, 0..1),
                 BlockBoundaryRange::new(&mesh, 7, EdgeIndex::IMax, 0..1),
             ),
             translation: pitch,
         });
-        mesh.boundaries
+        mesh.edges
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
@@ -623,7 +617,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
                     BlockBoundaryRange::new(&mesh, 7, EdgeIndex::JMin, 0..1),
                 ),
             )));
-        mesh.boundaries
+        mesh.edges
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
@@ -631,7 +625,7 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
                     BlockBoundaryRange::new(&mesh, 7, EdgeIndex::JMin, 1..2),
                 ),
             )));
-        mesh.boundaries
+        mesh.edges
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
                 (
