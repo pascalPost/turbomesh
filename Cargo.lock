@@ -2404,6 +2404,7 @@ dependencies = [
 [[package]]
 name = "russell_chk"
 version = "0.4.1"
+source = "git+https://github.com/pascalPost/russell.git?branch=feature/enhanced_build#b204d96c2f4d8d5da6a4c53a70c60d7c9bbef641"
 dependencies = [
  "num-complex",
 ]
@@ -2411,6 +2412,7 @@ dependencies = [
 [[package]]
 name = "russell_lab"
 version = "0.4.1"
+source = "git+https://github.com/pascalPost/russell.git?branch=feature/enhanced_build#b204d96c2f4d8d5da6a4c53a70c60d7c9bbef641"
 dependencies = [
  "criterion",
  "num-complex",
@@ -2423,6 +2425,7 @@ dependencies = [
 [[package]]
 name = "russell_openblas"
 version = "0.4.1"
+source = "git+https://github.com/pascalPost/russell.git?branch=feature/enhanced_build#b204d96c2f4d8d5da6a4c53a70c60d7c9bbef641"
 dependencies = [
  "criterion",
  "num-complex",
@@ -2432,6 +2435,7 @@ dependencies = [
 [[package]]
 name = "russell_sparse"
 version = "0.4.1"
+source = "git+https://github.com/pascalPost/russell.git?branch=feature/enhanced_build#b204d96c2f4d8d5da6a4c53a70c60d7c9bbef641"
 dependencies = [
  "cc",
  "russell_chk",
