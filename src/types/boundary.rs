@@ -8,7 +8,7 @@ use ndarray::{s, Array2, ArrayView1, ArrayViewMut1};
 use std::slice::SliceIndex;
 use subslice_index::subslice_index;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BlockBoundaryRange {
     pub block: usize,
     pub edge: EdgeIndex,
@@ -61,7 +61,7 @@ impl BlockBoundaryRange {
 
     pub fn iter_inner(&self) -> Box<dyn Iterator<Item = usize>> {
         if self.end > self.start {
-            Box::new((self.start + 1..=self.end - 1).into_iter())
+            Box::new(self.start + 1..=self.end - 1)
         } else {
             Box::new((self.end + 1..=self.start - 1).rev().into_iter())
         }
@@ -82,38 +82,208 @@ pub enum BlockBoundary {
 }
 
 #[derive(Debug)]
-pub struct BlockConnection(pub BlockBoundaryRange, pub BlockBoundaryRange);
+pub struct BlockBoundaryRangeNew {
+    pub block: usize,
+    pub start: Array2<isize>,
+    pub end: Array2<isize>,
+}
+
+impl BlockBoundaryRangeNew {
+    pub fn new(mesh: &Mesh, range: BlockBoundaryRange) -> Self {
+        let block = range.block;
+
+        let mut start = Array2::<isize>::zeros((2, 1));
+        let mut end = Array2::<isize>::zeros((2, 1));
+
+        match range.edge {
+            EdgeIndex::IMin => {
+                // j = 0, set i for start and end
+                start[[0, 0]] = range.start as isize;
+                end[[0, 0]] = range.end as isize;
+            }
+            EdgeIndex::IMax => {
+                // j = max , set i for start and end
+                start[[0, 0]] = range.start as isize;
+                start[[1, 0]] = (mesh.blocks[block].points()[1] - 1) as isize;
+
+                end[[0, 0]] = range.end as isize;
+                end[[1, 0]] = (mesh.blocks[block].points()[1] - 1) as isize;
+            }
+            EdgeIndex::JMin => {
+                // i = 0, set j for start and end
+                start[[1, 0]] = range.start as isize;
+                end[[1, 0]] = range.end as isize;
+            }
+            EdgeIndex::JMax => {
+                // i = max , set j for start and end
+                start[[0, 0]] = (mesh.blocks[block].points()[0] - 1) as isize;
+                start[[1, 0]] = range.start as isize;
+
+                end[[0, 0]] = (mesh.blocks[block].points()[0] - 1) as isize;
+                end[[1, 0]] = range.end as isize;
+            }
+        }
+
+        Self { block, start, end }
+    }
+
+    pub fn iter(&self) -> BlockBoundaryRangeNewIter {
+        BlockBoundaryRangeNewIter::new(self)
+    }
+}
+
+pub struct BlockBoundaryRangeNewIter<'a> {
+    range: &'a BlockBoundaryRangeNew,
+    dim: usize,
+    step: isize,
+    steps: usize,
+    count: usize,
+}
+
+impl<'a> BlockBoundaryRangeNewIter<'a> {
+    fn new(range: &'a BlockBoundaryRangeNew) -> Self {
+        let mut dim = 1;
+
+        if range.start.first().unwrap() == range.end.first().unwrap() {
+            dim = 0;
+        }
+
+        let mut step = 1;
+
+        if range.start[[dim, 0]] > range.end[[dim, 0]] {
+            step = -1;
+        }
+
+        let steps = if step < 0 {
+            (range.start[[dim, 0]] - range.end[[dim, 0]]) as usize
+        } else {
+            (range.end[[dim, 0]] - range.start[[dim, 0]]) as usize
+        };
+
+        Self {
+            range,
+            dim,
+            step,
+            steps,
+            count: 0,
+        }
+    }
+}
+
+impl<'a> Iterator for BlockBoundaryRangeNewIter<'a> {
+    type Item = (usize, usize);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.count += 1;
+
+        if self.count <= self.steps {
+            let mut index = self.range.start.clone();
+            index[[self.dim, 0]] += self.step;
+
+            Some((index[[0, 0]] as usize, index[[1, 0]] as usize))
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct BlockConnection {
+    donor: BlockBoundaryRangeNew,
+    receiver: BlockBoundaryRangeNew,
+
+    // 2x2 transformation matrix, see
+    // https://cgns.github.io/CGNS_docs_current/sids/cnct.html#Transform
+    transform: ndarray::Array2<isize>,
+}
 
 impl BlockConnection {
     pub fn new(mesh: &Mesh, ranges: (BlockBoundaryRange, BlockBoundaryRange)) -> Self {
         const EPSILON: f64 = 1e-10;
 
-        // check input
+        let donor = BlockBoundaryRangeNew::new(mesh, ranges.0.clone());
+        let receiver = BlockBoundaryRangeNew::new(mesh, ranges.1.clone());
+
+        // create transformation matrix
+        let mut transform = Array2::<isize>::zeros((2, 2));
+
+        let donor_parallel_sign = if ranges.0.start > ranges.0.end { -1 } else { 1 };
+        let rec_parallel_sign = if ranges.1.start > ranges.1.end { -1 } else { 1 };
+
+        let parallel_sign = donor_parallel_sign * rec_parallel_sign;
+
+        let donor_orth_sign = match ranges.0.edge {
+            EdgeIndex::IMin => -1,
+            EdgeIndex::IMax => 1,
+            EdgeIndex::JMin => -1,
+            EdgeIndex::JMax => 1,
+        };
+
+        let rec_orth_sign = match ranges.1.edge {
+            EdgeIndex::IMin => -1,
+            EdgeIndex::IMax => 1,
+            EdgeIndex::JMin => -1,
+            EdgeIndex::JMax => 1,
+        };
+
+        let orth_sign = donor_orth_sign * rec_orth_sign;
+
+        if ranges.1.edge == EdgeIndex::IMin || ranges.1.edge == EdgeIndex::IMax {
+            transform[[0, 0]] = parallel_sign;
+            transform[[1, 1]] = orth_sign;
+        } else {
+            transform[[0, 1]] = orth_sign;
+            transform[[1, 0]] = parallel_sign;
+        }
+
+        let connection = Self {
+            donor,
+            receiver,
+            transform,
+        };
+
+        // check overlap
+
         let block_0 = &mesh.blocks[ranges.0.block].coords;
         let block_1 = &mesh.blocks[ranges.1.block].coords;
 
-        let edge_0 = edge_to_view(block_0, ranges.0.edge, ranges.0.start, ranges.0.end);
-        let edge_1 = edge_to_view(block_1, ranges.1.edge, ranges.1.start, ranges.1.end);
-
-        edge_0
-            .indexed_iter()
-            .zip(edge_1.indexed_iter())
-            .for_each(|((i_0, x_0), (i_1, x_1))| {
+        connection
+            .donor
+            .iter()
+            .zip(connection.receiver.iter())
+            .for_each(|(donor_idx, rec_idx)| {
+                let x_0 = block_0[[donor_idx.0, donor_idx.1]];
+                let x_1 = block_1[[rec_idx.0, rec_idx.1]];
                 assert!(
-                    approx_eq!(&Vec2d, x_0, x_1, epsilon = EPSILON),
+                    approx_eq!(&Vec2d, &x_0, &x_1, epsilon = EPSILON),
                     "Non-matching Coordinates for Connection:\n
-                    {:?} at index {} with {}\n
-                    {:?} at index {} with {}",
+                    {:?} at index {:?} with {}\n
+                    {:?} at index {:?} with {}",
                     ranges.0,
-                    i_0,
+                    donor_idx,
                     x_0,
                     ranges.1,
-                    i_1,
+                    rec_idx,
                     x_1
                 )
             });
 
-        Self(ranges.0, ranges.1)
+        // check transform from donor to receiver
+
+        // check for adjacent internal layer
+
+        // check for adjacent external layer
+
+        connection
+    }
+
+    pub fn get_index_in_receiver_block(&self, donor_index: &[isize; 2]) -> (isize, isize) {
+        let donor_index = Array2::from_shape_vec((2, 1), donor_index.to_vec()).unwrap();
+
+        let receiver_index = self.transform.clone() * (donor_index - self.donor.start.clone())
+            + self.receiver.start.clone();
+
+        (receiver_index[[0, 0]], receiver_index[[1, 0]])
     }
 }
 

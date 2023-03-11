@@ -200,219 +200,219 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
     Ok(())
 }
 
-fn compute_derivatives(mesh: &Mesh) {
-    // allocate derivative fields
-    let n = mesh.blocks.len();
+// fn compute_derivatives(mesh: &Mesh) {
+//     // allocate derivative fields
+//     let n = mesh.blocks.len();
 
-    let mut x_xi_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
-    let mut x_eta_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
-    let mut y_xi_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
-    let mut y_eta_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
+//     let mut x_xi_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
+//     let mut x_eta_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
+//     let mut y_xi_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
+//     let mut y_eta_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
 
-    mesh.blocks.iter().for_each(|block| {
-        let shape = block.coords.dim();
-        let x = &block.coords;
+//     mesh.blocks.iter().for_each(|block| {
+//         let shape = block.coords.dim();
+//         let x = &block.coords;
 
-        let mut x_xi = Array2::<Scalar>::zeros(shape);
-        let mut x_eta = Array2::<Scalar>::zeros(shape);
-        let mut y_xi = Array2::<Scalar>::zeros(shape);
-        let mut y_eta = Array2::<Scalar>::zeros(shape);
+//         let mut x_xi = Array2::<Scalar>::zeros(shape);
+//         let mut x_eta = Array2::<Scalar>::zeros(shape);
+//         let mut y_xi = Array2::<Scalar>::zeros(shape);
+//         let mut y_eta = Array2::<Scalar>::zeros(shape);
 
-        // loop internal points
-        for j in 1..shape.1 - 1 {
-            for i in 1..shape.0 - 1 {
-                let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
-                let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
-                let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
-                let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
+//         // loop internal points
+//         for j in 1..shape.1 - 1 {
+//             for i in 1..shape.0 - 1 {
+//                 let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
+//                 let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
+//                 let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
+//                 let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
 
-                x_xi[[i, j]] = 0.5 * (x_ip1_j - x_im1_j);
-                x_eta[[i, j]] = 0.5 * (x_i_jp1 - x_i_jm1);
-                y_xi[[i, j]] = 0.5 * (y_ip1_j - y_im1_j);
-                y_eta[[i, j]] = 0.5 * (y_i_jp1 - y_i_jm1);
-            }
-        }
+//                 x_xi[[i, j]] = 0.5 * (x_ip1_j - x_im1_j);
+//                 x_eta[[i, j]] = 0.5 * (x_i_jp1 - x_i_jm1);
+//                 y_xi[[i, j]] = 0.5 * (y_ip1_j - y_im1_j);
+//                 y_eta[[i, j]] = 0.5 * (y_i_jp1 - y_i_jm1);
+//             }
+//         }
 
-        // add own contributions on corners
-        {
-            let j = 0;
-            let i = 0;
+//         // add own contributions on corners
+//         {
+//             let j = 0;
+//             let i = 0;
 
-            let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
-            let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
+//             let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
+//             let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
 
-            x_xi[[i, j]] = 0.5 * x_ip1_j;
-            x_eta[[i, j]] = 0.5 * x_i_jp1;
-            y_xi[[i, j]] = 0.5 * y_ip1_j;
-            y_eta[[i, j]] = 0.5 * y_i_jp1;
-        }
+//             x_xi[[i, j]] = 0.5 * x_ip1_j;
+//             x_eta[[i, j]] = 0.5 * x_i_jp1;
+//             y_xi[[i, j]] = 0.5 * y_ip1_j;
+//             y_eta[[i, j]] = 0.5 * y_i_jp1;
+//         }
 
-        {
-            let j = shape.1 - 1;
-            let i = shape.0 - 1;
+//         {
+//             let j = shape.1 - 1;
+//             let i = shape.0 - 1;
 
-            let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
-            let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
+//             let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
+//             let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
 
-            x_xi[[i, j]] = -0.5 * x_im1_j;
-            x_eta[[i, j]] = -0.5 * x_i_jm1;
-            y_xi[[i, j]] = -0.5 * y_im1_j;
-            y_eta[[i, j]] = -0.5 * y_i_jm1;
-        }
+//             x_xi[[i, j]] = -0.5 * x_im1_j;
+//             x_eta[[i, j]] = -0.5 * x_i_jm1;
+//             y_xi[[i, j]] = -0.5 * y_im1_j;
+//             y_eta[[i, j]] = -0.5 * y_i_jm1;
+//         }
 
-        {
-            let j = shape.1 - 1;
-            let i = 0;
+//         {
+//             let j = shape.1 - 1;
+//             let i = 0;
 
-            let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
-            let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
+//             let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
+//             let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
 
-            x_xi[[i, j]] = 0.5 * x_ip1_j;
-            x_eta[[i, j]] = -0.5 * x_i_jm1;
-            y_xi[[i, j]] = 0.5 * y_ip1_j;
-            y_eta[[i, j]] = -0.5 * y_i_jm1;
-        }
+//             x_xi[[i, j]] = 0.5 * x_ip1_j;
+//             x_eta[[i, j]] = -0.5 * x_i_jm1;
+//             y_xi[[i, j]] = 0.5 * y_ip1_j;
+//             y_eta[[i, j]] = -0.5 * y_i_jm1;
+//         }
 
-        {
-            let j = 0;
-            let i = shape.0 - 1;
+//         {
+//             let j = 0;
+//             let i = shape.0 - 1;
 
-            let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
-            let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
+//             let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
+//             let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
 
-            x_xi[[i, j]] = -0.5 * x_im1_j;
-            x_eta[[i, j]] = 0.5 * x_i_jp1;
-            y_xi[[i, j]] = -0.5 * y_im1_j;
-            y_eta[[i, j]] = 0.5 * y_i_jp1;
-        }
+//             x_xi[[i, j]] = -0.5 * x_im1_j;
+//             x_eta[[i, j]] = 0.5 * x_i_jp1;
+//             y_xi[[i, j]] = -0.5 * y_im1_j;
+//             y_eta[[i, j]] = 0.5 * y_i_jp1;
+//         }
 
-        // add own contributions on edges excluding corners
+//         // add own contributions on edges excluding corners
 
-        // edge i min & i max
-        for j in 1..shape.1 - 1 {
-            {
-                // edge i min
-                let i = 0;
+//         // edge i min & i max
+//         for j in 1..shape.1 - 1 {
+//             {
+//                 // edge i min
+//                 let i = 0;
 
-                let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
-                let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
-                let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
+//                 let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
+//                 let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
+//                 let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
 
-                x_xi[[i, j]] = 0.5 * x_ip1_j;
-                x_eta[[i, j]] = 0.5 * (x_i_jp1 - x_i_jm1);
-                y_xi[[i, j]] = 0.5 * y_ip1_j;
-                y_eta[[i, j]] = 0.5 * (y_i_jp1 - y_i_jm1);
-            }
+//                 x_xi[[i, j]] = 0.5 * x_ip1_j;
+//                 x_eta[[i, j]] = 0.5 * (x_i_jp1 - x_i_jm1);
+//                 y_xi[[i, j]] = 0.5 * y_ip1_j;
+//                 y_eta[[i, j]] = 0.5 * (y_i_jp1 - y_i_jm1);
+//             }
 
-            {
-                // edge i max
-                let i = shape.0 - 1;
+//             {
+//                 // edge i max
+//                 let i = shape.0 - 1;
 
-                let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
-                let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
-                let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
+//                 let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
+//                 let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
+//                 let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
 
-                x_xi[[i, j]] = -0.5 * x_im1_j;
-                x_eta[[i, j]] = 0.5 * (x_i_jp1 - x_i_jm1);
-                y_xi[[i, j]] = -0.5 * y_im1_j;
-                y_eta[[i, j]] = 0.5 * (y_i_jp1 - y_i_jm1);
-            }
-        }
+//                 x_xi[[i, j]] = -0.5 * x_im1_j;
+//                 x_eta[[i, j]] = 0.5 * (x_i_jp1 - x_i_jm1);
+//                 y_xi[[i, j]] = -0.5 * y_im1_j;
+//                 y_eta[[i, j]] = 0.5 * (y_i_jp1 - y_i_jm1);
+//             }
+//         }
 
-        // edge j min & j max
-        for i in 1..shape.0 - 1 {
-            {
-                // edge j min
-                let j = 0;
+//         // edge j min & j max
+//         for i in 1..shape.0 - 1 {
+//             {
+//                 // edge j min
+//                 let j = 0;
 
-                let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
-                let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
-                let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
+//                 let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
+//                 let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
+//                 let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
 
-                x_xi[[i, j]] = 0.5 * (x_ip1_j - x_im1_j);
-                x_eta[[i, j]] = 0.5 * x_i_jp1;
-                y_xi[[i, j]] = 0.5 * (y_ip1_j - y_im1_j);
-                y_eta[[i, j]] = 0.5 * y_i_jp1;
-            }
+//                 x_xi[[i, j]] = 0.5 * (x_ip1_j - x_im1_j);
+//                 x_eta[[i, j]] = 0.5 * x_i_jp1;
+//                 y_xi[[i, j]] = 0.5 * (y_ip1_j - y_im1_j);
+//                 y_eta[[i, j]] = 0.5 * y_i_jp1;
+//             }
 
-            {
-                // edge j max
-                let j = shape.1 - 1;
+//             {
+//                 // edge j max
+//                 let j = shape.1 - 1;
 
-                let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
-                let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
-                let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
+//                 let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
+//                 let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
+//                 let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
 
-                x_xi[[i, j]] = 0.5 * (x_ip1_j - x_im1_j);
-                x_eta[[i, j]] = -0.5 * x_i_jm1;
-                y_xi[[i, j]] = 0.5 * (y_ip1_j - y_im1_j);
-                y_eta[[i, j]] = -0.5 * y_i_jm1;
-            }
-        }
+//                 x_xi[[i, j]] = 0.5 * (x_ip1_j - x_im1_j);
+//                 x_eta[[i, j]] = -0.5 * x_i_jm1;
+//                 y_xi[[i, j]] = 0.5 * (y_ip1_j - y_im1_j);
+//                 y_eta[[i, j]] = -0.5 * y_i_jm1;
+//             }
+//         }
 
-        x_xi_mesh.push(x_xi);
-        x_eta_mesh.push(x_eta);
-        y_xi_mesh.push(y_xi);
-        y_eta_mesh.push(y_eta);
-    });
+//         x_xi_mesh.push(x_xi);
+//         x_eta_mesh.push(x_eta);
+//         y_xi_mesh.push(y_xi);
+//         y_eta_mesh.push(y_eta);
+//     });
 
-    // add contribution from non-owned connected points
-    mesh.edges.iter().for_each(|boundary| {
-        match boundary {
-            BlockBoundary::Connection(ranges) => {
-                add_non_owned(&mut x_xi_mesh, ranges);
-                add_non_owned(&mut x_eta_mesh, ranges);
-                add_non_owned(&mut y_xi_mesh, ranges);
-                add_non_owned(&mut y_eta_mesh, ranges);
-            }
-            // BlockBoundary::PeriodicConnection { connection, translation },
-            _ => (),
-        }
-    });
+//     // add contribution from non-owned connected points
+//     mesh.edges.iter().for_each(|boundary| {
+//         match boundary {
+//             BlockBoundary::Connection(ranges) => {
+//                 add_non_owned(&mut x_xi_mesh, ranges);
+//                 add_non_owned(&mut x_eta_mesh, ranges);
+//                 add_non_owned(&mut y_xi_mesh, ranges);
+//                 add_non_owned(&mut y_eta_mesh, ranges);
+//             }
+//             // BlockBoundary::PeriodicConnection { connection, translation },
+//             _ => (),
+//         }
+//     });
 
-    // copy data to non-owned connected points
-    mesh.edges.iter().for_each(|boundary| {
-        match boundary {
-            BlockBoundary::Connection(ranges) => {
-                copy_to_non_owned(&mut x_xi_mesh, ranges);
-                copy_to_non_owned(&mut x_eta_mesh, ranges);
-                copy_to_non_owned(&mut y_xi_mesh, ranges);
-                copy_to_non_owned(&mut y_eta_mesh, ranges);
-            }
-            // BlockBoundary::PeriodicConnection { connection, translation },
-            _ => (),
-        }
-    });
-}
+//     // copy data to non-owned connected points
+//     mesh.edges.iter().for_each(|boundary| {
+//         match boundary {
+//             BlockBoundary::Connection(ranges) => {
+//                 copy_to_non_owned(&mut x_xi_mesh, ranges);
+//                 copy_to_non_owned(&mut x_eta_mesh, ranges);
+//                 copy_to_non_owned(&mut y_xi_mesh, ranges);
+//                 copy_to_non_owned(&mut y_eta_mesh, ranges);
+//             }
+//             // BlockBoundary::PeriodicConnection { connection, translation },
+//             _ => (),
+//         }
+//     });
+// }
 
-fn add_non_owned(fields: &mut Vec<Array2<Scalar>>, ranges: &BlockConnection) {
-    let BlockConnection(own_range, other_range) = ranges;
+// fn add_non_owned(fields: &mut Vec<Array2<Scalar>>, ranges: &BlockConnection) {
+//     let BlockConnection(own_range, other_range) = ranges;
 
-    let edge_view_other = crate::types::edge_view(&fields, other_range);
+//     let edge_view_other = crate::types::edge_view(&fields, other_range);
 
-    let data: Vec<Scalar> = edge_view_other.iter().cloned().collect();
+//     let data: Vec<Scalar> = edge_view_other.iter().cloned().collect();
 
-    let mut edge_view_own = crate::types::edge_view_mut(fields, own_range);
+//     let mut edge_view_own = crate::types::edge_view_mut(fields, own_range);
 
-    edge_view_own
-        .iter_mut()
-        .zip(data.iter())
-        .for_each(|(target, source)| *target += *source);
-}
+//     edge_view_own
+//         .iter_mut()
+//         .zip(data.iter())
+//         .for_each(|(target, source)| *target += *source);
+// }
 
-fn copy_to_non_owned(fields: &mut Vec<Array2<Scalar>>, ranges: &BlockConnection) {
-    let BlockConnection(own_range, other_range) = ranges;
+// fn copy_to_non_owned(fields: &mut Vec<Array2<Scalar>>, ranges: &BlockConnection) {
+//     let BlockConnection(own_range, other_range) = ranges;
 
-    let edge_view_own = crate::types::edge_view(fields, own_range);
-    let data: Vec<Scalar> = edge_view_own.iter().cloned().collect();
+//     let edge_view_own = crate::types::edge_view(fields, own_range);
+//     let data: Vec<Scalar> = edge_view_own.iter().cloned().collect();
 
-    let mut edge_view_other = crate::types::edge_view_mut(fields, other_range);
+//     let mut edge_view_other = crate::types::edge_view_mut(fields, other_range);
 
-    edge_view_other
-        .iter_mut()
-        .zip(data.iter())
-        .for_each(|(target, source)| *target = *source);
-}
+//     edge_view_other
+//         .iter_mut()
+//         .zip(data.iter())
+//         .for_each(|(target, source)| *target = *source);
+// }
 
 #[derive(Debug, Clone)]
 enum PointProps {
@@ -504,651 +504,650 @@ pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
 
     // add the edge connections
 
-    mesh.edges.iter().for_each(|edge| {
-        let connection_stencil = Vec::<[Option<PointIndex>; 9]>::new();
-        if let BlockBoundary::Connection(connection) = edge {
-            let range_own = &connection.0;
+    // mesh.edges.iter().for_each(|edge| {
+    //     let connection_stencil = Vec::<[Option<PointIndex>; 9]>::new();
+    //     if let BlockBoundary::Connection(connection) = edge {
+    //         let range_own = &connection.0;
 
-            let block_own = &mesh.blocks[range_own.block];
+    //         let block_own = &mesh.blocks[range_own.block];
 
-            let edge_points_own: Vec<(usize, usize)> = match range_own.edge {
-                crate::types::EdgeIndex::IMin => {
-                    let j = 0;
-                    (range_own.start..=range_own.end)
-                        .into_iter()
-                        .map(|i| (i, j))
-                        .collect()
-                }
-                crate::types::EdgeIndex::IMax => {
-                    let j = block_own.points()[1] - 1;
-                    (range_own.start..=range_own.end)
-                        .into_iter()
-                        .map(|i| (i, j))
-                        .collect()
-                }
-                crate::types::EdgeIndex::JMin => {
-                    let i = 0;
-                    (range_own.start..=range_own.end)
-                        .into_iter()
-                        .map(|j| (i, j))
-                        .collect()
-                }
-                crate::types::EdgeIndex::JMax => {
-                    let i = block_own.points()[0] - 1;
-                    (range_own.start..=range_own.end)
-                        .into_iter()
-                        .map(|j| (i, j))
-                        .collect()
-                }
-            };
+    //         let edge_points_own: Vec<(usize, usize)> = match range_own.edge {
+    //             crate::types::EdgeIndex::IMin => {
+    //                 let j = 0;
+    //                 (range_own.start..=range_own.end)
+    //                     .into_iter()
+    //                     .map(|i| (i, j))
+    //                     .collect()
+    //             }
+    //             crate::types::EdgeIndex::IMax => {
+    //                 let j = block_own.points()[1] - 1;
+    //                 (range_own.start..=range_own.end)
+    //                     .into_iter()
+    //                     .map(|i| (i, j))
+    //                     .collect()
+    //             }
+    //             crate::types::EdgeIndex::JMin => {
+    //                 let i = 0;
+    //                 (range_own.start..=range_own.end)
+    //                     .into_iter()
+    //                     .map(|j| (i, j))
+    //                     .collect()
+    //             }
+    //             crate::types::EdgeIndex::JMax => {
+    //                 let i = block_own.points()[0] - 1;
+    //                 (range_own.start..=range_own.end)
+    //                     .into_iter()
+    //                     .map(|j| (i, j))
+    //                     .collect()
+    //             }
+    //         };
 
-            let range_rec = &connection.1;
+    //         let range_rec = &connection.1;
 
-            let block_rec = &mesh.blocks[range_rec.block];
+    //         let block_rec = &mesh.blocks[range_rec.block];
 
-            let edge_points_rec: Vec<(usize, usize)> = match range_rec.edge {
-                crate::types::EdgeIndex::IMin => {
-                    let j = 0;
-                    (range_rec.start..=range_rec.end)
-                        .into_iter()
-                        .map(|i| (i, j))
-                        .collect()
-                }
-                crate::types::EdgeIndex::IMax => {
-                    let j = block_rec.points()[1] - 1;
-                    (range_rec.start..=range_rec.end)
-                        .into_iter()
-                        .map(|i| (i, j))
-                        .collect()
-                }
-                crate::types::EdgeIndex::JMin => {
-                    let i = 0;
-                    (range_rec.start..=range_rec.end)
-                        .into_iter()
-                        .map(|j| (i, j))
-                        .collect()
-                }
-                crate::types::EdgeIndex::JMax => {
-                    let i = block_rec.points()[0] - 1;
-                    (range_rec.start..=range_rec.end)
-                        .into_iter()
-                        .map(|j| (i, j))
-                        .collect()
-                }
-            };
+    //         let edge_points_rec: Vec<(usize, usize)> = match range_rec.edge {
+    //             crate::types::EdgeIndex::IMin => {
+    //                 let j = 0;
+    //                 (range_rec.start..=range_rec.end)
+    //                     .into_iter()
+    //                     .map(|i| (i, j))
+    //                     .collect()
+    //             }
+    //             crate::types::EdgeIndex::IMax => {
+    //                 let j = block_rec.points()[1] - 1;
+    //                 (range_rec.start..=range_rec.end)
+    //                     .into_iter()
+    //                     .map(|i| (i, j))
+    //                     .collect()
+    //             }
+    //             crate::types::EdgeIndex::JMin => {
+    //                 let i = 0;
+    //                 (range_rec.start..=range_rec.end)
+    //                     .into_iter()
+    //                     .map(|j| (i, j))
+    //                     .collect()
+    //             }
+    //             crate::types::EdgeIndex::JMax => {
+    //                 let i = block_rec.points()[0] - 1;
+    //                 (range_rec.start..=range_rec.end)
+    //                     .into_iter()
+    //                     .map(|j| (i, j))
+    //                     .collect()
+    //             }
+    //         };
 
-            // TODO remove temp
-            let index = 0;
+    //         // TODO remove temp
+    //         let index = 0;
 
-            let mut stencil_rec: Vec<[Option<PointIndex>; 6]> = vec![];
-            match range_rec.edge {
-                crate::types::EdgeIndex::IMin => {
-                    let j = 0;
+    //         let mut stencil_rec: Vec<[Option<PointIndex>; 6]> = vec![];
+    //         match range_rec.edge {
+    //             crate::types::EdgeIndex::IMin => {
+    //                 let j = 0;
 
-                    {
-                        let i = range_rec.start;
-                        stencil_rec.push([
-                            None,
-                            Some(PointIndex::new(index, range_rec.block, i, j)),
-                            Some(PointIndex::new(index, range_rec.block, i + 1, j)),
-                            None,
-                            Some(PointIndex::new(index, range_rec.block, i, j + 1)),
-                            Some(PointIndex::new(index, range_rec.block, i + 1, j + 1)),
-                        ]);
-                    }
+    //                 {
+    //                     let i = range_rec.start;
+    //                     stencil_rec.push([
+    //                         None,
+    //                         Some(PointIndex::new(index, range_rec.block, i, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i + 1, j)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_rec.block, i, j + 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i + 1, j + 1)),
+    //                     ]);
+    //                 }
 
-                    for i in range_rec.start + 1..=range_rec.end - 1 {
-                        stencil_rec.push([
-                            Some(PointIndex::new(index, range_rec.block, i - 1, j)),
-                            Some(PointIndex::new(index, range_rec.block, i, j)),
-                            Some(PointIndex::new(index, range_rec.block, i + 1, j)),
-                            Some(PointIndex::new(index, range_rec.block, i - 1, j + 1)),
-                            Some(PointIndex::new(index, range_rec.block, i, j + 1)),
-                            Some(PointIndex::new(index, range_rec.block, i + 1, j + 1)),
-                        ]);
-                    }
+    //                 for i in range_rec.start + 1..=range_rec.end - 1 {
+    //                     stencil_rec.push([
+    //                         Some(PointIndex::new(index, range_rec.block, i - 1, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i + 1, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i - 1, j + 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j + 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i + 1, j + 1)),
+    //                     ]);
+    //                 }
 
-                    {
-                        let i = range_rec.end;
-                        stencil_rec.push([
-                            Some(PointIndex::new(index, range_rec.block, i - 1, j)),
-                            Some(PointIndex::new(index, range_rec.block, i, j)),
-                            None,
-                            Some(PointIndex::new(index, range_rec.block, i - 1, j + 1)),
-                            Some(PointIndex::new(index, range_rec.block, i, j + 1)),
-                            None,
-                        ]);
-                    }
-                }
-                crate::types::EdgeIndex::IMax => {
-                    let j = block_rec.points()[1] - 1;
+    //                 {
+    //                     let i = range_rec.end;
+    //                     stencil_rec.push([
+    //                         Some(PointIndex::new(index, range_rec.block, i - 1, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_rec.block, i - 1, j + 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j + 1)),
+    //                         None,
+    //                     ]);
+    //                 }
+    //             }
+    //             crate::types::EdgeIndex::IMax => {
+    //                 let j = block_rec.points()[1] - 1;
 
-                    {
-                        let i = range_rec.start;
-                        stencil_rec.push([
-                            None,
-                            Some(PointIndex::new(index, range_rec.block, i, j)),
-                            Some(PointIndex::new(index, range_rec.block, i + 1, j)),
-                            None,
-                            Some(PointIndex::new(index, range_rec.block, i, j - 1)),
-                            Some(PointIndex::new(index, range_rec.block, i + 1, j - 1)),
-                        ]);
-                    }
+    //                 {
+    //                     let i = range_rec.start;
+    //                     stencil_rec.push([
+    //                         None,
+    //                         Some(PointIndex::new(index, range_rec.block, i, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i + 1, j)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_rec.block, i, j - 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i + 1, j - 1)),
+    //                     ]);
+    //                 }
 
-                    for i in range_rec.start + 1..=range_rec.end - 1 {
-                        stencil_rec.push([
-                            Some(PointIndex::new(index, range_rec.block, i - 1, j)),
-                            Some(PointIndex::new(index, range_rec.block, i, j)),
-                            Some(PointIndex::new(index, range_rec.block, i + 1, j)),
-                            Some(PointIndex::new(index, range_rec.block, i - 1, j - 1)),
-                            Some(PointIndex::new(index, range_rec.block, i, j - 1)),
-                            Some(PointIndex::new(index, range_rec.block, i + 1, j - 1)),
-                        ]);
-                    }
+    //                 for i in range_rec.start + 1..=range_rec.end - 1 {
+    //                     stencil_rec.push([
+    //                         Some(PointIndex::new(index, range_rec.block, i - 1, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i + 1, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i - 1, j - 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j - 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i + 1, j - 1)),
+    //                     ]);
+    //                 }
 
-                    {
-                        let i = range_rec.end;
-                        stencil_rec.push([
-                            Some(PointIndex::new(index, range_rec.block, i - 1, j)),
-                            Some(PointIndex::new(index, range_rec.block, i, j)),
-                            None,
-                            Some(PointIndex::new(index, range_rec.block, i - 1, j - 1)),
-                            Some(PointIndex::new(index, range_rec.block, i, j - 1)),
-                            None,
-                        ]);
-                    }
-                }
-                crate::types::EdgeIndex::JMin => {
-                    let i = 0;
+    //                 {
+    //                     let i = range_rec.end;
+    //                     stencil_rec.push([
+    //                         Some(PointIndex::new(index, range_rec.block, i - 1, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_rec.block, i - 1, j - 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j - 1)),
+    //                         None,
+    //                     ]);
+    //                 }
+    //             }
+    //             crate::types::EdgeIndex::JMin => {
+    //                 let i = 0;
 
-                    {
-                        let j = range_rec.start;
-                        stencil_rec.push([
-                            None,
-                            Some(PointIndex::new(index, range_rec.block, i, j)),
-                            Some(PointIndex::new(index, range_rec.block, i, j + 1)),
-                            None,
-                            Some(PointIndex::new(index, range_rec.block, i + 1, j)),
-                            Some(PointIndex::new(index, range_rec.block, i + 1, j + 1)),
-                        ]);
-                    }
+    //                 {
+    //                     let j = range_rec.start;
+    //                     stencil_rec.push([
+    //                         None,
+    //                         Some(PointIndex::new(index, range_rec.block, i, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j + 1)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_rec.block, i + 1, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i + 1, j + 1)),
+    //                     ]);
+    //                 }
 
-                    for j in range_rec.start + 1..=range_rec.end - 1 {
-                        stencil_rec.push([
-                            Some(PointIndex::new(index, range_rec.block, i, j - 1)),
-                            Some(PointIndex::new(index, range_rec.block, i, j)),
-                            Some(PointIndex::new(index, range_rec.block, i, j + 1)),
-                            Some(PointIndex::new(index, range_rec.block, i + 1, j - 1)),
-                            Some(PointIndex::new(index, range_rec.block, i + i, j)),
-                            Some(PointIndex::new(index, range_rec.block, i + 1, j + 1)),
-                        ]);
-                    }
+    //                 for j in range_rec.start + 1..=range_rec.end - 1 {
+    //                     stencil_rec.push([
+    //                         Some(PointIndex::new(index, range_rec.block, i, j - 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j + 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i + 1, j - 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i + i, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i + 1, j + 1)),
+    //                     ]);
+    //                 }
 
-                    {
-                        let j = range_rec.end;
-                        stencil_rec.push([
-                            Some(PointIndex::new(index, range_rec.block, i, j - 1)),
-                            Some(PointIndex::new(index, range_rec.block, i, j)),
-                            None,
-                            Some(PointIndex::new(index, range_rec.block, i + 1, j - 1)),
-                            Some(PointIndex::new(index, range_rec.block, i + 1, j)),
-                            None,
-                        ]);
-                    }
-                }
-                crate::types::EdgeIndex::JMax => {
-                    let i = block_rec.points()[0] - 1;
+    //                 {
+    //                     let j = range_rec.end;
+    //                     stencil_rec.push([
+    //                         Some(PointIndex::new(index, range_rec.block, i, j - 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_rec.block, i + 1, j - 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i + 1, j)),
+    //                         None,
+    //                     ]);
+    //                 }
+    //             }
+    //             crate::types::EdgeIndex::JMax => {
+    //                 let i = block_rec.points()[0] - 1;
 
-                    {
-                        let j = range_rec.start;
-                        stencil_rec.push([
-                            None,
-                            Some(PointIndex::new(index, range_rec.block, i, j)),
-                            Some(PointIndex::new(index, range_rec.block, i, j + 1)),
-                            None,
-                            Some(PointIndex::new(index, range_rec.block, i - 1, j)),
-                            Some(PointIndex::new(index, range_rec.block, i - 1, j + 1)),
-                        ]);
-                    }
+    //                 {
+    //                     let j = range_rec.start;
+    //                     stencil_rec.push([
+    //                         None,
+    //                         Some(PointIndex::new(index, range_rec.block, i, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j + 1)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_rec.block, i - 1, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i - 1, j + 1)),
+    //                     ]);
+    //                 }
 
-                    for j in range_rec.start + 1..=range_rec.end - 1 {
-                        stencil_rec.push([
-                            Some(PointIndex::new(index, range_rec.block, i, j - 1)),
-                            Some(PointIndex::new(index, range_rec.block, i, j)),
-                            Some(PointIndex::new(index, range_rec.block, i, j + 1)),
-                            Some(PointIndex::new(index, range_rec.block, i - 1, j - 1)),
-                            Some(PointIndex::new(index, range_rec.block, i - i, j)),
-                            Some(PointIndex::new(index, range_rec.block, i - 1, j + 1)),
-                        ]);
-                    }
+    //                 for j in range_rec.start + 1..=range_rec.end - 1 {
+    //                     stencil_rec.push([
+    //                         Some(PointIndex::new(index, range_rec.block, i, j - 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j + 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i - 1, j - 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i - i, j)),
+    //                         Some(PointIndex::new(index, range_rec.block, i - 1, j + 1)),
+    //                     ]);
+    //                 }
 
-                    {
-                        let j = range_rec.end;
-                        stencil_rec.push([
-                            Some(PointIndex::new(index, range_rec.block, i, j - 1)),
-                            Some(PointIndex::new(index, range_rec.block, i, j)),
-                            None,
-                            Some(PointIndex::new(index, range_rec.block, i - 1, j - 1)),
-                            Some(PointIndex::new(index, range_rec.block, i - 1, j)),
-                            None,
-                        ]);
-                    }
-                }
-            }
+    //                 {
+    //                     let j = range_rec.end;
+    //                     stencil_rec.push([
+    //                         Some(PointIndex::new(index, range_rec.block, i, j - 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i, j)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_rec.block, i - 1, j - 1)),
+    //                         Some(PointIndex::new(index, range_rec.block, i - 1, j)),
+    //                         None,
+    //                     ]);
+    //                 }
+    //             }
+    //         }
 
-            let mut stencil_own: Vec<[Option<PointIndex>; 6]> = vec![];
-            match range_own.edge {
-                crate::types::EdgeIndex::IMin => {
-                    let j = 0;
+    //         let mut stencil_own: Vec<[Option<PointIndex>; 6]> = vec![];
+    //         match range_own.edge {
+    //             crate::types::EdgeIndex::IMin => {
+    //                 let j = 0;
 
-                    {
-                        let i = range_own.start;
-                        stencil_own.push([
-                            None,
-                            Some(PointIndex::new(index, range_own.block, i, j)),
-                            Some(PointIndex::new(index, range_own.block, i + 1, j)),
-                            None,
-                            Some(PointIndex::new(index, range_own.block, i, j + 1)),
-                            Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
-                        ]);
-                    }
+    //                 {
+    //                     let i = range_own.start;
+    //                     stencil_own.push([
+    //                         None,
+    //                         Some(PointIndex::new(index, range_own.block, i, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i + 1, j)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
+    //                     ]);
+    //                 }
 
-                    for i in range_own.start + 1..=range_own.end - 1 {
-                        stencil_own.push([
-                            Some(PointIndex::new(index, range_own.block, i - 1, j)),
-                            Some(PointIndex::new(index, range_own.block, i, j)),
-                            Some(PointIndex::new(index, range_own.block, i + 1, j)),
-                            Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
-                            Some(PointIndex::new(index, range_own.block, i, j + 1)),
-                            Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
-                        ]);
-                    }
+    //                 for i in range_own.start + 1..=range_own.end - 1 {
+    //                     stencil_own.push([
+    //                         Some(PointIndex::new(index, range_own.block, i - 1, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i + 1, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
+    //                     ]);
+    //                 }
 
-                    {
-                        let i = range_own.end;
-                        stencil_own.push([
-                            Some(PointIndex::new(index, range_own.block, i - 1, j)),
-                            Some(PointIndex::new(index, range_own.block, i, j)),
-                            None,
-                            Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
-                            Some(PointIndex::new(index, range_own.block, i, j + 1)),
-                            None,
-                        ]);
-                    }
-                }
-                crate::types::EdgeIndex::IMax => {
-                    let j = block_own.points()[1] - 1;
+    //                 {
+    //                     let i = range_own.end;
+    //                     stencil_own.push([
+    //                         Some(PointIndex::new(index, range_own.block, i - 1, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //                         None,
+    //                     ]);
+    //                 }
+    //             }
+    //             crate::types::EdgeIndex::IMax => {
+    //                 let j = block_own.points()[1] - 1;
 
-                    {
-                        let i = range_own.start;
-                        stencil_own.push([
-                            None,
-                            Some(PointIndex::new(index, range_own.block, i, j)),
-                            Some(PointIndex::new(index, range_own.block, i + 1, j)),
-                            None,
-                            Some(PointIndex::new(index, range_own.block, i, j - 1)),
-                            Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
-                        ]);
-                    }
+    //                 {
+    //                     let i = range_own.start;
+    //                     stencil_own.push([
+    //                         None,
+    //                         Some(PointIndex::new(index, range_own.block, i, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i + 1, j)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_own.block, i, j - 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
+    //                     ]);
+    //                 }
 
-                    // range_own.iter_inner().for_each(|range|
-                    for i in range_own.start + 1..=range_own.end - 1 {
-                        stencil_own.push([
-                            Some(PointIndex::new(index, range_own.block, i - 1, j)),
-                            Some(PointIndex::new(index, range_own.block, i, j)),
-                            Some(PointIndex::new(index, range_own.block, i + 1, j)),
-                            Some(PointIndex::new(index, range_own.block, i - 1, j - 1)),
-                            Some(PointIndex::new(index, range_own.block, i, j - 1)),
-                            Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
-                        ]);
-                    }
+    //                 range_own.iter_inner().for_each(|i| {
+    //                     stencil_own.push([
+    //                         Some(PointIndex::new(index, range_own.block, i - 1, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i + 1, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i - 1, j - 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j - 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
+    //                     ]);
+    //                 });
 
-                    {
-                        let i = range_own.end;
-                        stencil_own.push([
-                            Some(PointIndex::new(index, range_own.block, i - 1, j)),
-                            Some(PointIndex::new(index, range_own.block, i, j)),
-                            None,
-                            Some(PointIndex::new(index, range_own.block, i - 1, j - 1)),
-                            Some(PointIndex::new(index, range_own.block, i, j - 1)),
-                            None,
-                        ]);
-                    }
-                }
-                crate::types::EdgeIndex::JMin => {
-                    let i = 0;
+    //                 {
+    //                     let i = range_own.end;
+    //                     stencil_own.push([
+    //                         Some(PointIndex::new(index, range_own.block, i - 1, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_own.block, i - 1, j - 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j - 1)),
+    //                         None,
+    //                     ]);
+    //                 }
+    //             }
+    //             crate::types::EdgeIndex::JMin => {
+    //                 let i = 0;
 
-                    {
-                        let j = range_own.start;
-                        stencil_own.push([
-                            None,
-                            Some(PointIndex::new(index, range_own.block, i, j)),
-                            Some(PointIndex::new(index, range_own.block, i, j + 1)),
-                            None,
-                            Some(PointIndex::new(index, range_own.block, i + 1, j)),
-                            Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
-                        ]);
-                    }
+    //                 {
+    //                     let j = range_own.start;
+    //                     stencil_own.push([
+    //                         None,
+    //                         Some(PointIndex::new(index, range_own.block, i, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_own.block, i + 1, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
+    //                     ]);
+    //                 }
 
-                    for j in range_own.start + 1..=range_own.end - 1 {
-                        stencil_own.push([
-                            Some(PointIndex::new(index, range_own.block, i, j - 1)),
-                            Some(PointIndex::new(index, range_own.block, i, j)),
-                            Some(PointIndex::new(index, range_own.block, i, j + 1)),
-                            Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
-                            Some(PointIndex::new(index, range_own.block, i + i, j)),
-                            Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
-                        ]);
-                    }
+    //                 for j in range_own.start + 1..=range_own.end - 1 {
+    //                     stencil_own.push([
+    //                         Some(PointIndex::new(index, range_own.block, i, j - 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i + i, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
+    //                     ]);
+    //                 }
 
-                    {
-                        let j = range_own.end;
-                        stencil_own.push([
-                            Some(PointIndex::new(index, range_own.block, i, j - 1)),
-                            Some(PointIndex::new(index, range_own.block, i, j)),
-                            None,
-                            Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
-                            Some(PointIndex::new(index, range_own.block, i + 1, j)),
-                            None,
-                        ]);
-                    }
-                }
-                crate::types::EdgeIndex::JMax => {
-                    let i = block_own.points()[0] - 1;
+    //                 {
+    //                     let j = range_own.end;
+    //                     stencil_own.push([
+    //                         Some(PointIndex::new(index, range_own.block, i, j - 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i + 1, j)),
+    //                         None,
+    //                     ]);
+    //                 }
+    //             }
+    //             crate::types::EdgeIndex::JMax => {
+    //                 let i = block_own.points()[0] - 1;
 
-                    {
-                        let j = range_own.start;
-                        stencil_own.push([
-                            None,
-                            Some(PointIndex::new(index, range_own.block, i, j)),
-                            Some(PointIndex::new(index, range_own.block, i, j + 1)),
-                            None,
-                            Some(PointIndex::new(index, range_own.block, i - 1, j)),
-                            Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
-                        ]);
-                    }
+    //                 {
+    //                     let j = range_own.start;
+    //                     stencil_own.push([
+    //                         None,
+    //                         Some(PointIndex::new(index, range_own.block, i, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_own.block, i - 1, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
+    //                     ]);
+    //                 }
 
-                    for j in range_own.start + 1..=range_own.end - 1 {
-                        stencil_own.push([
-                            Some(PointIndex::new(index, range_own.block, i, j - 1)),
-                            Some(PointIndex::new(index, range_own.block, i, j)),
-                            Some(PointIndex::new(index, range_own.block, i, j + 1)),
-                            Some(PointIndex::new(index, range_own.block, i - 1, j - 1)),
-                            Some(PointIndex::new(index, range_own.block, i - i, j)),
-                            Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
-                        ]);
-                    }
+    //                 for j in range_own.start + 1..=range_own.end - 1 {
+    //                     stencil_own.push([
+    //                         Some(PointIndex::new(index, range_own.block, i, j - 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i - 1, j - 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i - i, j)),
+    //                         Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
+    //                     ]);
+    //                 }
 
-                    {
-                        let j = range_own.end;
-                        stencil_own.push([
-                            Some(PointIndex::new(index, range_own.block, i, j - 1)),
-                            Some(PointIndex::new(index, range_own.block, i, j)),
-                            None,
-                            Some(PointIndex::new(index, range_own.block, i - 1, j - 1)),
-                            Some(PointIndex::new(index, range_own.block, i - 1, j)),
-                            None,
-                        ]);
-                    }
-                }
-            }
+    //                 {
+    //                     let j = range_own.end;
+    //                     stencil_own.push([
+    //                         Some(PointIndex::new(index, range_own.block, i, j - 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i, j)),
+    //                         None,
+    //                         Some(PointIndex::new(index, range_own.block, i - 1, j - 1)),
+    //                         Some(PointIndex::new(index, range_own.block, i - 1, j)),
+    //                         None,
+    //                     ]);
+    //                 }
+    //             }
+    //         }
 
-            stencil_own
-                .iter()
-                .zip(stencil_rec.iter())
-                .for_each(|(own, rec)| {
-                    const EPSILON: f64 = 1e-10;
+    //         stencil_own
+    //             .iter()
+    //             .zip(stencil_rec.iter())
+    //             .for_each(|(own, rec)| {
+    //                 const EPSILON: f64 = 1e-10;
 
-                    // the coordinates of the first three entries must be equal
-                    if own[0].is_some() {
-                        assert!(rec[0].is_some(), "both entries mus be some");
-                        let own = own[0].unwrap();
-                        let rec = rec[0].unwrap();
-                        assert!(
-                            approx_eq!(
-                                &Vec2d,
-                                &block_own.coords[[own.i, own.j]],
-                                &block_rec.coords[[rec.i, rec.j]],
-                                epsilon = EPSILON
-                            ),
-                            "coordinates must equal: {} {}",
-                            block_own.coords[[own.i, own.j]],
-                            block_rec.coords[[rec.i, rec.j]]
-                        );
-                    } else {
-                        assert!(rec[0].is_none(), "both entries must be none");
-                    }
+    //                 // the coordinates of the first three entries must be equal
+    //                 if own[0].is_some() {
+    //                     assert!(rec[0].is_some(), "both entries mus be some");
+    //                     let own = own[0].unwrap();
+    //                     let rec = rec[0].unwrap();
+    //                     assert!(
+    //                         approx_eq!(
+    //                             &Vec2d,
+    //                             &block_own.coords[[own.i, own.j]],
+    //                             &block_rec.coords[[rec.i, rec.j]],
+    //                             epsilon = EPSILON
+    //                         ),
+    //                         "coordinates must equal: {} {}",
+    //                         block_own.coords[[own.i, own.j]],
+    //                         block_rec.coords[[rec.i, rec.j]]
+    //                     );
+    //                 } else {
+    //                     assert!(rec[0].is_none(), "both entries must be none");
+    //                 }
 
-                    {
-                        assert!(own[1].is_some());
-                        assert!(rec[1].is_some());
-                        let own = own[1].unwrap();
-                        let rec = rec[1].unwrap();
-                        assert!(
-                            approx_eq!(
-                                &Vec2d,
-                                &block_own.coords[[own.i, own.j]],
-                                &block_rec.coords[[rec.i, rec.j]],
-                                epsilon = EPSILON
-                            ),
-                            "coordinates must equal: {} {}",
-                            block_own.coords[[own.i, own.j]],
-                            block_rec.coords[[rec.i, rec.j]]
-                        );
-                    }
+    //                 {
+    //                     assert!(own[1].is_some());
+    //                     assert!(rec[1].is_some());
+    //                     let own = own[1].unwrap();
+    //                     let rec = rec[1].unwrap();
+    //                     assert!(
+    //                         approx_eq!(
+    //                             &Vec2d,
+    //                             &block_own.coords[[own.i, own.j]],
+    //                             &block_rec.coords[[rec.i, rec.j]],
+    //                             epsilon = EPSILON
+    //                         ),
+    //                         "coordinates must equal: {} {}",
+    //                         block_own.coords[[own.i, own.j]],
+    //                         block_rec.coords[[rec.i, rec.j]]
+    //                     );
+    //                 }
 
-                    if own[2].is_some() {
-                        assert!(rec[2].is_some(), "both entries mus be some");
-                        let own = own[2].unwrap();
-                        let rec = rec[2].unwrap();
-                        assert!(
-                            approx_eq!(
-                                &Vec2d,
-                                &block_own.coords[[own.i, own.j]],
-                                &block_rec.coords[[rec.i, rec.j]],
-                                epsilon = EPSILON
-                            ),
-                            "coordinates must equal: {} {}",
-                            block_own.coords[[own.i, own.j]],
-                            block_rec.coords[[rec.i, rec.j]]
-                        );
-                    } else {
-                        assert!(rec[2].is_none(), "both entries must be none");
-                    }
-                });
+    //                 if own[2].is_some() {
+    //                     assert!(rec[2].is_some(), "both entries mus be some");
+    //                     let own = own[2].unwrap();
+    //                     let rec = rec[2].unwrap();
+    //                     assert!(
+    //                         approx_eq!(
+    //                             &Vec2d,
+    //                             &block_own.coords[[own.i, own.j]],
+    //                             &block_rec.coords[[rec.i, rec.j]],
+    //                             epsilon = EPSILON
+    //                         ),
+    //                         "coordinates must equal: {} {}",
+    //                         block_own.coords[[own.i, own.j]],
+    //                         block_rec.coords[[rec.i, rec.j]]
+    //                     );
+    //                 } else {
+    //                     assert!(rec[2].is_none(), "both entries must be none");
+    //                 }
+    //             });
 
-            // match range_own.edge {
-            //     crate::types::EdgeIndex::IMin => {
-            //         let j = 0;
+    //         // match range_own.edge {
+    //         //     crate::types::EdgeIndex::IMin => {
+    //         //         let j = 0;
 
-            //         {
-            //             let i = range_own.start;
-            //             connection_stencil.push([
-            //                 Some(PointIndex::new(index, range_own.block, i, j)),
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
-            //                 None,
-            //                 None,
-            //                 None,
-            //             ]);
-            //         }
+    //         //         {
+    //         //             let i = range_own.start;
+    //         //             connection_stencil.push([
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
+    //         //                 None,
+    //         //                 None,
+    //         //                 None,
+    //         //             ]);
+    //         //         }
 
-            //         for i in range_own.start + 1..=range_own.end - 1 {
-            //             connection_stencil.push([
-            //                 Some(PointIndex::new(index, range_own.block, i, j)),
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j)),
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j)),
-            //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
-            //                 None,
-            //             ]);
-            //         }
+    //         //         for i in range_own.start + 1..=range_own.end - 1 {
+    //         //             connection_stencil.push([
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
+    //         //                 None,
+    //         //             ]);
+    //         //         }
 
-            //         {
-            //             let i = range_own.end;
-            //             connection_stencil.push([
-            //                 Some(PointIndex::new(index, range_own.block, i, j)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j)),
-            //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
-            //                 None,
-            //                 None,
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
-            //                 None,
-            //             ]);
-            //         }
-            //     }
-            //     crate::types::EdgeIndex::IMax => {
-            //         let j = block_own.points()[0] - 1;
+    //         //         {
+    //         //             let i = range_own.end;
+    //         //             connection_stencil.push([
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //         //                 None,
+    //         //                 None,
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
+    //         //                 None,
+    //         //             ]);
+    //         //         }
+    //         //     }
+    //         //     crate::types::EdgeIndex::IMax => {
+    //         //         let j = block_own.points()[0] - 1;
 
-            //         {
-            //             let i = range_own.start;
-            //             connection_stencil.push([
-            //                 Some(PointIndex::new(index, range_own.block, i, j)),
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j)),
-            //                 None,
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i, j - 1)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
-            //                 None,
-            //                 None,
-            //             ]);
-            //         }
+    //         //         {
+    //         //             let i = range_own.start;
+    //         //             connection_stencil.push([
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j)),
+    //         //                 None,
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j - 1)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
+    //         //                 None,
+    //         //                 None,
+    //         //             ]);
+    //         //         }
 
-            //         for i in range_own.start + 1..=range_own.end - 1 {
-            //             connection_stencil.push([
-            //                 Some(PointIndex::new(index, range_own.block, i, j)),
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j)),
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i, j - 1)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j - 1)),
-            //             ]);
-            //         }
+    //         //         for i in range_own.start + 1..=range_own.end - 1 {
+    //         //             connection_stencil.push([
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j - 1)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j - 1)),
+    //         //             ]);
+    //         //         }
 
-            //         {
-            //             let i = range_own.end;
-            //             connection_stencil.push([
-            //                 Some(PointIndex::new(index, range_own.block, i, j)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i, j - 1)),
-            //                 None,
-            //                 None,
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j - 1)),
-            //             ]);
-            //         }
-            //     }
-            //     crate::types::EdgeIndex::JMin => {
-            //         let i = 0;
+    //         //         {
+    //         //             let i = range_own.end;
+    //         //             connection_stencil.push([
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j - 1)),
+    //         //                 None,
+    //         //                 None,
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j - 1)),
+    //         //             ]);
+    //         //         }
+    //         //     }
+    //         //     crate::types::EdgeIndex::JMin => {
+    //         //         let i = 0;
 
-            //         {
-            //             let j = range_own.start;
-            //             connection_stencil.push([
-            //                 Some(PointIndex::new(index, range_own.block, i, j)),
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
-            //                 None,
-            //                 None,
-            //                 None,
-            //             ]);
-            //         }
+    //         //         {
+    //         //             let j = range_own.start;
+    //         //             connection_stencil.push([
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
+    //         //                 None,
+    //         //                 None,
+    //         //                 None,
+    //         //             ]);
+    //         //         }
 
-            //         for j in range_own.start + 1..=range_own.end - 1 {
-            //             connection_stencil.push([
-            //                 Some(PointIndex::new(index, range_own.block, i, j)),
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
-            //                 Some(PointIndex::new(index, range_own.block, i, j - 1)),
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
-            //                 None,
-            //                 None,
-            //             ]);
-            //         }
+    //         //         for j in range_own.start + 1..=range_own.end - 1 {
+    //         //             connection_stencil.push([
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j - 1)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j + 1)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
+    //         //                 None,
+    //         //                 None,
+    //         //             ]);
+    //         //         }
 
-            //         {
-            //             let j = range_own.end;
-            //             connection_stencil.push([
-            //                 Some(PointIndex::new(index, range_own.block, i, j)),
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j)),
-            //                 None,
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i, j - 1)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
-            //                 None,
-            //                 None,
-            //             ]);
-            //         }
-            //     }
-            //     crate::types::EdgeIndex::JMax => {
-            //         let i = block_own.points()[0] - 1;
+    //         //         {
+    //         //             let j = range_own.end;
+    //         //             connection_stencil.push([
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j)),
+    //         //                 None,
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j - 1)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i + 1, j - 1)),
+    //         //                 None,
+    //         //                 None,
+    //         //             ]);
+    //         //         }
+    //         //     }
+    //         //     crate::types::EdgeIndex::JMax => {
+    //         //         let i = block_own.points()[0] - 1;
 
-            //         {
-            //             let j = range_own.start;
-            //             connection_stencil.push([
-            //                 Some(PointIndex::new(index, range_own.block, i, j)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j)),
-            //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
-            //                 None,
-            //                 None,
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
-            //                 None,
-            //             ]);
-            //         }
+    //         //         {
+    //         //             let j = range_own.start;
+    //         //             connection_stencil.push([
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //         //                 None,
+    //         //                 None,
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
+    //         //                 None,
+    //         //             ]);
+    //         //         }
 
-            //         for j in range_own.start + 1..=range_own.end - 1 {
-            //             connection_stencil.push([
-            //                 Some(PointIndex::new(index, range_own.block, i, j)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j)),
-            //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
-            //                 Some(PointIndex::new(index, range_own.block, i, j - 1)),
-            //                 None,
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j - 1)),
-            //             ]);
-            //         }
+    //         //         for j in range_own.start + 1..=range_own.end - 1 {
+    //         //             connection_stencil.push([
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j - 1)),
+    //         //                 None,
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j - 1)),
+    //         //             ]);
+    //         //         }
 
-            //         {
-            //             let j = range_own.end;
-            //             connection_stencil.push([
-            //                 Some(PointIndex::new(index, range_own.block, i, j)),
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j)),
-            //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
-            //                 None,
-            //                 None,
-            //                 None,
-            //                 Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
-            //                 None,
-            //             ]);
-            //         }
-            //     }
-            // };
-        }
-    });
+    //         //         {
+    //         //             let j = range_own.end;
+    //         //             connection_stencil.push([
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j)),
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j)),
+    //         //                 Some(PointIndex::new(index, range_own.block, i, j + 1)),
+    //         //                 None,
+    //         //                 None,
+    //         //                 None,
+    //         //                 Some(PointIndex::new(index, range_own.block, i - 1, j + 1)),
+    //         //                 None,
+    //         //             ]);
+    //         //         }
+    //         //     }
+    //         // };
+    //     }
+    // });
 
     /*
         mesh.edges.iter().for_each(|edge| {
