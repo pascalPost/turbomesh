@@ -4,7 +4,7 @@
 use crate::types::{EdgeIndex, SegmentFunction};
 use crate::{Mesh, Scalar, Vec2d};
 use float_cmp::approx_eq;
-use ndarray::{s, Array2, ArrayView1, ArrayViewMut1};
+use ndarray::{s, Array2, ArrayViewMut1};
 use std::slice::SliceIndex;
 use subslice_index::subslice_index;
 
@@ -130,6 +130,14 @@ impl BlockBoundaryRangeNew {
     pub fn iter(&self) -> BlockBoundaryRangeNewIter {
         BlockBoundaryRangeNewIter::new(self)
     }
+
+    pub fn first(&self) -> (usize, usize) {
+        (self.start[[0, 0]] as usize, self.start[[1, 0]] as usize)
+    }
+
+    pub fn last(&self) -> (usize, usize) {
+        (self.end[[0, 0]] as usize, self.end[[1, 0]] as usize)
+    }
 }
 
 pub struct BlockBoundaryRangeNewIter<'a> {
@@ -189,8 +197,8 @@ impl<'a> Iterator for BlockBoundaryRangeNewIter<'a> {
 
 #[derive(Debug)]
 pub struct BlockConnection {
-    donor: BlockBoundaryRangeNew,
-    receiver: BlockBoundaryRangeNew,
+    pub donor: BlockBoundaryRangeNew,
+    pub receiver: BlockBoundaryRangeNew,
 
     // 2x2 transformation matrix, see
     // https://cgns.github.io/CGNS_docs_current/sids/cnct.html#Transform
@@ -268,11 +276,37 @@ impl BlockConnection {
                 )
             });
 
-        // check transform from donor to receiver
+        // check transform from donor to receiver w/ ghost layer on donor, i.e.
+        // first internal layer on receiver
 
-        // check for adjacent internal layer
+        let add = match ranges.0.edge {
+            EdgeIndex::IMin => (0, -1),
+            EdgeIndex::IMax => (0, mesh.blocks[ranges.0.block].points()[1] as isize),
+            EdgeIndex::JMin => (-1, 0),
+            EdgeIndex::JMax => (mesh.blocks[ranges.0.block].points()[0] as isize, 0),
+        };
 
-        // check for adjacent external layer
+        let add_rec: (isize, isize) = match ranges.1.edge {
+            EdgeIndex::IMin => (0, 1),
+            EdgeIndex::IMax => (0, -1),
+            EdgeIndex::JMin => (1, 0),
+            EdgeIndex::JMax => (-1, 0),
+        };
+
+        connection
+            .donor
+            .iter()
+            .zip(connection.receiver.iter())
+            .for_each(|((i, j), (i_rec, j_rec))| {
+                let i = i as isize + add.0;
+                let j = j as isize + add.1;
+
+                let ghost_point_comp = connection.get_index_in_receiver_block(&[i, j]);
+
+                let ghost_point = (i_rec as isize + add_rec.0, j_rec as isize + add_rec.1);
+
+                assert_eq!(ghost_point_comp, ghost_point);
+            });
 
         connection
     }
@@ -287,21 +321,21 @@ impl BlockConnection {
     }
 }
 
-pub fn edge_view<'a, T>(
-    arrays: &'a Vec<Array2<T>>,
-    range: &BlockBoundaryRange,
-) -> ArrayView1<'a, T> {
-    let array = &arrays[range.block];
-    let (size_i, size_j) = array.dim();
-    let start = range.start;
-    let end = range.end;
-    match range.edge {
-        EdgeIndex::IMin => array.slice(s![start..=end, 0]),
-        EdgeIndex::IMax => array.slice(s![start..=end, size_j - 1]),
-        EdgeIndex::JMin => array.slice(s![0, start..=end]),
-        EdgeIndex::JMax => array.slice(s![size_i - 1, start..=end]),
-    }
-}
+// pub fn edge_view<'a, T>(
+//     arrays: &'a Vec<Array2<T>>,
+//     range: &BlockBoundaryRange,
+// ) -> ArrayView1<'a, T> {
+//     let array = &arrays[range.block];
+//     let (size_i, size_j) = array.dim();
+//     let start = range.start;
+//     let end = range.end;
+//     match range.edge {
+//         EdgeIndex::IMin => array.slice(s![start..=end, 0]),
+//         EdgeIndex::IMax => array.slice(s![start..=end, size_j - 1]),
+//         EdgeIndex::JMin => array.slice(s![0, start..=end]),
+//         EdgeIndex::JMax => array.slice(s![size_i - 1, start..=end]),
+//     }
+// }
 
 pub fn edge_view_mut<'a, T>(
     arrays: &'a mut Vec<Array2<T>>,
@@ -311,28 +345,38 @@ pub fn edge_view_mut<'a, T>(
     let (size_i, size_j) = array.dim();
     let start = range.start;
     let end = range.end;
-    match range.edge {
-        EdgeIndex::IMin => array.slice_mut(s![start..=end, 0]),
-        EdgeIndex::IMax => array.slice_mut(s![start..=end, size_j - 1]),
-        EdgeIndex::JMin => array.slice_mut(s![0, start..=end]),
-        EdgeIndex::JMax => array.slice_mut(s![size_i - 1, start..=end]),
+
+    if start < end {
+        match range.edge {
+            EdgeIndex::IMin => array.slice_mut(s![start..=end, 0]),
+            EdgeIndex::IMax => array.slice_mut(s![start..=end, size_j - 1]),
+            EdgeIndex::JMin => array.slice_mut(s![0, start..=end]),
+            EdgeIndex::JMax => array.slice_mut(s![size_i - 1, start..=end]),
+        }
+    } else {
+        match range.edge {
+            EdgeIndex::IMin => array.slice_mut(s![start..=end, 0]),
+            EdgeIndex::IMax => array.slice_mut(s![start..=end, size_j - 1]),
+            EdgeIndex::JMin => array.slice_mut(s![0, start..=end]),
+            EdgeIndex::JMax => array.slice_mut(s![size_i - 1, start..=end]),
+        }
     }
 }
 
-pub fn edge_to_view<T>(
-    array: &Array2<T>,
-    edge: EdgeIndex,
-    start: usize,
-    end: usize,
-) -> ArrayView1<T> {
-    let (size_i, size_j) = array.dim();
-    match edge {
-        EdgeIndex::IMin => array.slice(s![start..=end, 0]),
-        EdgeIndex::IMax => array.slice(s![start..=end, size_j - 1]),
-        EdgeIndex::JMin => array.slice(s![0, start..=end]),
-        EdgeIndex::JMax => array.slice(s![size_i - 1, start..=end]),
-    }
-}
+// pub fn edge_to_view<T>(
+//     array: &Array2<T>,
+//     edge: EdgeIndex,
+//     start: usize,
+//     end: usize,
+// ) -> ArrayView1<T> {
+//     let (size_i, size_j) = array.dim();
+//     match edge {
+//         EdgeIndex::IMin => array.slice(s![start..=end, 0]),
+//         EdgeIndex::IMax => array.slice(s![start..=end, size_j - 1]),
+//         EdgeIndex::JMin => array.slice(s![0, start..=end]),
+//         EdgeIndex::JMax => array.slice(s![size_i - 1, start..=end]),
+//     }
+// }
 
 // pub fn edge_to_view_mut<T>(
 //     array: &mut Array2<T>,

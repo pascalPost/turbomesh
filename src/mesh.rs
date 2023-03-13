@@ -30,7 +30,7 @@ impl Mesh {
     }
 
     pub fn smooth(&mut self) {
-        crate::smoothing::smooth_mesh(self);
+        crate::smoothing::smooth_mesh(self).unwrap();
     }
 
     /// returns the total number of points of the mesh
