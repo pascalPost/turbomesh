@@ -138,6 +138,22 @@ impl BlockBoundaryRangeNew {
     pub fn last(&self) -> (usize, usize) {
         (self.end[[0, 0]] as usize, self.end[[1, 0]] as usize)
     }
+
+    pub fn get_ghost_layer_modifyer(&self, dim: &[usize; 2]) -> (isize, isize) {
+        if self.start[[0, 0]] == self.end[[0, 0]] {
+            if self.start[[0, 0]] == 0 {
+                (0, -1)
+            } else {
+                (0, dim[1] as isize)
+            }
+        } else {
+            if self.start[[1, 0]] == 0 {
+                (-1, 0)
+            } else {
+                (dim[0] as isize, 0)
+            }
+        }
+    }
 }
 
 pub struct BlockBoundaryRangeNewIter<'a> {
@@ -150,10 +166,10 @@ pub struct BlockBoundaryRangeNewIter<'a> {
 
 impl<'a> BlockBoundaryRangeNewIter<'a> {
     fn new(range: &'a BlockBoundaryRangeNew) -> Self {
-        let mut dim = 1;
+        let mut dim = 0;
 
         if range.start.first().unwrap() == range.end.first().unwrap() {
-            dim = 0;
+            dim = 1;
         }
 
         let mut step = 1;
@@ -186,7 +202,7 @@ impl<'a> Iterator for BlockBoundaryRangeNewIter<'a> {
 
         if self.count <= self.steps {
             let mut index = self.range.start.clone();
-            index[[self.dim, 0]] += self.step;
+            index[[self.dim, 0]] += self.step * (self.count as isize - 1);
 
             Some((index[[0, 0]] as usize, index[[1, 0]] as usize))
         } else {
@@ -220,29 +236,57 @@ impl BlockConnection {
 
         let parallel_sign = donor_parallel_sign * rec_parallel_sign;
 
-        let donor_orth_sign = match ranges.0.edge {
+        let donor_normal_sign = match ranges.0.edge {
             EdgeIndex::IMin => -1,
             EdgeIndex::IMax => 1,
             EdgeIndex::JMin => -1,
             EdgeIndex::JMax => 1,
         };
 
-        let rec_orth_sign = match ranges.1.edge {
-            EdgeIndex::IMin => -1,
-            EdgeIndex::IMax => 1,
-            EdgeIndex::JMin => -1,
-            EdgeIndex::JMax => 1,
+        let rec_normal_sign = match ranges.1.edge {
+            EdgeIndex::IMin => 1,
+            EdgeIndex::IMax => -1,
+            EdgeIndex::JMin => 1,
+            EdgeIndex::JMax => -1,
         };
 
-        let orth_sign = donor_orth_sign * rec_orth_sign;
+        let normal_sign = donor_normal_sign * rec_normal_sign;
 
-        if ranges.1.edge == EdgeIndex::IMin || ranges.1.edge == EdgeIndex::IMax {
-            transform[[0, 0]] = parallel_sign;
-            transform[[1, 1]] = orth_sign;
+        if ranges.1.edge == EdgeIndex::JMin || ranges.1.edge == EdgeIndex::JMax {
+            // parallel: t21 or t22
+            if ranges.0.edge == EdgeIndex::JMin || ranges.0.edge == EdgeIndex::JMax {
+                // parallel: t22
+                transform[[1, 1]] = parallel_sign;
+                // normal: t11
+                transform[[0, 0]] = normal_sign;
+            } else {
+                // parallel: t21
+                transform[[1, 0]] = parallel_sign;
+                // normal: t12
+                transform[[0, 1]] = normal_sign;
+            }
         } else {
-            transform[[0, 1]] = orth_sign;
-            transform[[1, 0]] = parallel_sign;
+            // parallel: t11 or t12
+            if ranges.0.edge == EdgeIndex::JMin || ranges.0.edge == EdgeIndex::JMax {
+                // parallel: t12
+                transform[[0, 1]] = parallel_sign;
+                // normal: t21
+                transform[[1, 0]] = normal_sign;
+            } else {
+                // parallel: t11
+                transform[[0, 0]] = parallel_sign;
+                // normal: t22
+                transform[[1, 1]] = normal_sign;
+            }
         }
+
+        // if ranges.1.edge == EdgeIndex::JMin || ranges.1.edge == EdgeIndex::JMax {
+        //     transform[[0, 1]] = normal_sign;
+        //     transform[[1, 0]] = parallel_sign;
+        // } else {
+        //     transform[[0, 0]] = parallel_sign;
+        //     transform[[1, 1]] = normal_sign;
+        // }
 
         let connection = Self {
             donor,
@@ -281,9 +325,9 @@ impl BlockConnection {
 
         let add = match ranges.0.edge {
             EdgeIndex::IMin => (0, -1),
-            EdgeIndex::IMax => (0, mesh.blocks[ranges.0.block].points()[1] as isize),
+            EdgeIndex::IMax => (0, 1),
             EdgeIndex::JMin => (-1, 0),
-            EdgeIndex::JMax => (mesh.blocks[ranges.0.block].points()[0] as isize, 0),
+            EdgeIndex::JMax => (1, 0),
         };
 
         let add_rec: (isize, isize) = match ranges.1.edge {
@@ -314,8 +358,41 @@ impl BlockConnection {
     pub fn get_index_in_receiver_block(&self, donor_index: &[isize; 2]) -> (isize, isize) {
         let donor_index = Array2::from_shape_vec((2, 1), donor_index.to_vec()).unwrap();
 
-        let receiver_index = self.transform.clone() * (donor_index - self.donor.start.clone())
-            + self.receiver.start.clone();
+        println!(
+            "transform:\n {} {}\n {} {}",
+            self.transform[[0, 0]],
+            self.transform[[1, 0]],
+            self.transform[[0, 1]],
+            self.transform[[1, 1]],
+        );
+
+        println!(
+            "donor index: {} {}",
+            donor_index[[0, 0]],
+            donor_index[[1, 0]]
+        );
+
+        println!(
+            "donor start: {} {}",
+            self.donor.start[[0, 0]],
+            self.donor.start[[1, 0]]
+        );
+
+        println!(
+            "rec start: {} {}",
+            self.receiver.start[[0, 0]],
+            self.receiver.start[[1, 0]]
+        );
+
+        let delta = donor_index - self.donor.start.clone();
+
+        let receiver_index = self.transform.dot(&delta) + self.receiver.start.clone();
+
+        println!(
+            "rec index: {} {}",
+            receiver_index[[0, 0]],
+            receiver_index[[1, 0]]
+        );
 
         (receiver_index[[0, 0]], receiver_index[[1, 0]])
     }
@@ -348,17 +425,17 @@ pub fn edge_view_mut<'a, T>(
 
     if start < end {
         match range.edge {
-            EdgeIndex::IMin => array.slice_mut(s![start..=end, 0]),
-            EdgeIndex::IMax => array.slice_mut(s![start..=end, size_j - 1]),
-            EdgeIndex::JMin => array.slice_mut(s![0, start..=end]),
-            EdgeIndex::JMax => array.slice_mut(s![size_i - 1, start..=end]),
+            EdgeIndex::IMin => array.slice_mut(s![start..=end, 1]),
+            EdgeIndex::IMax => array.slice_mut(s![start..=end, size_j - 2]),
+            EdgeIndex::JMin => array.slice_mut(s![1, start..=end]),
+            EdgeIndex::JMax => array.slice_mut(s![size_i - 2, start..=end]),
         }
     } else {
         match range.edge {
-            EdgeIndex::IMin => array.slice_mut(s![start..=end, 0]),
-            EdgeIndex::IMax => array.slice_mut(s![start..=end, size_j - 1]),
-            EdgeIndex::JMin => array.slice_mut(s![0, start..=end]),
-            EdgeIndex::JMax => array.slice_mut(s![size_i - 1, start..=end]),
+            EdgeIndex::IMin => array.slice_mut(s![end..=start, 1]),
+            EdgeIndex::IMax => array.slice_mut(s![end..=start, size_j - 2]),
+            EdgeIndex::JMin => array.slice_mut(s![1, end..=start]),
+            EdgeIndex::JMax => array.slice_mut(s![size_i - 2, end..=start]),
         }
     }
 }
