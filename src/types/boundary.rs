@@ -8,74 +8,11 @@ use ndarray::Array2;
 use std::slice::SliceIndex;
 use subslice_index::subslice_index;
 
-// #[derive(Debug, Clone)]
-// pub struct BlockBoundaryRange {
-//     pub block: usize,
-//     pub edge: EdgeIndex,
-//     pub start: usize,
-//     pub end: usize,
-// }
-
-// impl BlockBoundaryRange {
-//     pub fn new<Index>(mesh: &Mesh, block: usize, edge: EdgeIndex, segments: Index) -> Self
-//     where
-//         Index: SliceIndex<
-//             [Box<(dyn SegmentFunction + 'static)>],
-//             Output = [Box<(dyn SegmentFunction)>],
-//         >,
-//     {
-//         let edge_segments = mesh.blocks[block].segments(edge);
-//         let segments = &edge_segments[segments];
-
-//         let start = subslice_index(edge_segments.as_slice(), segments);
-
-//         let start_idx: usize = edge_segments[0..start]
-//             .iter()
-//             .map(|seg| seg.len())
-//             .sum::<usize>()
-//             - edge_segments[0..start].len();
-
-//         let len: usize = segments.iter().map(|seg| seg.len()).sum();
-//         let end_idx = start_idx + len - segments.len();
-
-//         Self {
-//             block,
-//             edge,
-//             start: start_idx,
-//             end: end_idx,
-//         }
-//     }
-
-//     pub fn reverse(mut self) -> Self {
-//         std::mem::swap(&mut self.start, &mut self.end);
-//         self
-//     }
-
-//     pub fn iter(&self) -> Box<dyn Iterator<Item = usize>> {
-//         if self.end > self.start {
-//             Box::new((self.start..=self.end).into_iter())
-//         } else {
-//             Box::new((self.end..=self.start).rev().into_iter())
-//         }
-//     }
-
-//     pub fn iter_inner(&self) -> Box<dyn Iterator<Item = usize>> {
-//         if self.end > self.start {
-//             Box::new(self.start + 1..=self.end - 1)
-//         } else {
-//             Box::new((self.end + 1..=self.start - 1).rev().into_iter())
-//         }
-//     }
-// }
-
 // TODO implement non-fixed inlet and outlet BCs
 #[derive(Debug)]
 pub enum BlockBoundary {
     Connection(BlockConnection),
-    PeriodicConnection {
-        connection: (BlockBoundaryRange, BlockBoundaryRange),
-        translation: Scalar,
-    },
+    PeriodicConnection(PeriodicBlockConnection),
     Inlet(BlockBoundaryRange),
     Outlet(BlockBoundaryRange),
     Wall(BlockBoundaryRange),
@@ -169,6 +106,11 @@ impl BlockBoundaryRange {
         }
     }
 
+    pub fn reverse(mut self) -> Self {
+        std::mem::swap(&mut self.start, &mut self.end);
+        self
+    }
+
     pub fn iter(&self) -> BlockBoundaryRangeNewIter {
         BlockBoundaryRangeNewIter::new(self)
     }
@@ -254,6 +196,27 @@ impl<'a> Iterator for BlockBoundaryRangeNewIter<'a> {
 }
 
 #[derive(Debug)]
+pub struct PeriodicBlockConnection {
+    pub connection: BlockConnection,
+    pub translation: Vec2d,
+}
+
+impl PeriodicBlockConnection {
+    pub fn new(
+        mesh: &Mesh,
+        ranges: (BlockBoundaryRange, BlockBoundaryRange),
+        translation: Vec2d,
+    ) -> Self {
+        let connection = BlockConnection::new_unchecked(mesh, ranges);
+        connection.check_overlap(mesh, translation);
+        Self {
+            connection,
+            translation,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct BlockConnection {
     pub donor: BlockBoundaryRange,
     pub receiver: BlockBoundaryRange,
@@ -265,10 +228,12 @@ pub struct BlockConnection {
 
 impl BlockConnection {
     pub fn new(mesh: &Mesh, ranges: (BlockBoundaryRange, BlockBoundaryRange)) -> Self {
-        const EPSILON: f64 = 1e-10;
+        let connection = BlockConnection::new_unchecked(mesh, ranges);
+        connection.check_overlap(mesh, Vec2d(0.0, 0.0));
+        connection
+    }
 
-        // let donor = BlockBoundaryRange::new(mesh, ranges.0.clone());
-        // let receiver = BlockBoundaryRange::new(mesh, ranges.1.clone());
+    pub fn new_unchecked(mesh: &Mesh, ranges: (BlockBoundaryRange, BlockBoundaryRange)) -> Self {
         let donor = ranges.0;
         let receiver = ranges.1;
 
@@ -327,33 +292,34 @@ impl BlockConnection {
             }
         }
 
-        let connection = Self {
+        Self {
             donor,
             receiver,
             transform,
-        };
+        }
+    }
 
-        // check overlap
+    fn check_overlap(&self, mesh: &Mesh, translation: Vec2d) {
+        const EPSILON: f64 = 1e-10;
 
-        let block_0 = &mesh.blocks[connection.donor.block].coords;
-        let block_1 = &mesh.blocks[connection.receiver.block].coords;
+        let block_0 = &mesh.blocks[self.donor.block].coords;
+        let block_1 = &mesh.blocks[self.receiver.block].coords;
 
-        connection
-            .donor
+        self.donor
             .iter()
-            .zip(connection.receiver.iter())
+            .zip(self.receiver.iter())
             .for_each(|(donor_idx, rec_idx)| {
                 let x_0 = block_0[[donor_idx.0, donor_idx.1]];
-                let x_1 = block_1[[rec_idx.0, rec_idx.1]];
+                let x_1 = block_1[[rec_idx.0, rec_idx.1]] - translation;
                 assert!(
                     approx_eq!(&Vec2d, &x_0, &x_1, epsilon = EPSILON),
                     "Non-matching Coordinates for Connection:\n
-                    {:?} at index {:?} with {}\n
-                    {:?} at index {:?} with {}",
-                    connection.donor,
+                            {:?} at index {:?} with {}\n
+                            {:?} at index {:?} with {}",
+                    self.donor,
                     donor_idx,
                     x_0,
-                    connection.receiver,
+                    self.receiver,
                     rec_idx,
                     x_1
                 )
@@ -361,6 +327,9 @@ impl BlockConnection {
 
         // check transform from donor to receiver w/ ghost layer on donor, i.e.
         // first internal layer on receiver
+
+        let donor_edge_type = self.donor.edge_type();
+        let rec_edge_type = self.receiver.edge_type();
 
         let add = match donor_edge_type {
             EdgeIndex::IMin => (0, -1),
@@ -376,22 +345,19 @@ impl BlockConnection {
             EdgeIndex::JMax => (-1, 0),
         };
 
-        connection
-            .donor
+        self.donor
             .iter()
-            .zip(connection.receiver.iter())
+            .zip(self.receiver.iter())
             .for_each(|((i, j), (i_rec, j_rec))| {
                 let i = i as isize + add.0;
                 let j = j as isize + add.1;
 
-                let ghost_point_comp = connection.get_index_in_receiver_block(&[i, j]);
+                let ghost_point_comp = self.get_index_in_receiver_block(&[i, j]);
 
                 let ghost_point = (i_rec as isize + add_rec.0, j_rec as isize + add_rec.1);
 
                 assert_eq!(ghost_point_comp, ghost_point);
             });
-
-        connection
     }
 
     pub fn get_index_in_receiver_block(&self, donor_index: &[isize; 2]) -> (isize, isize) {

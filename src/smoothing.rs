@@ -194,11 +194,17 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
     Ok(())
 }
 
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 enum PointProps {
     Solve,
     Fix,
-    Connect { donor_index: usize }, // SolvePeriodic,
+    Connect {
+        donor_index: usize,
+    },
+    ConnectPeriodic {
+        donor_index: usize,
+        translation: Vec2d,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -219,7 +225,6 @@ fn coordinates_with_ghost_points(mesh: &Mesh) -> Vec<Array2<Vec2d>> {
     // allocation and internal data
     mesh.blocks.iter().for_each(|block| {
         let dim = block.points();
-        // let mut block_coords = Array2::<Vec2d>::zeros([dim[0] + 2, dim[1] + 2]);
         let mut block_coords =
             Array2::<Vec2d>::from_elem([dim[0] + 2, dim[1] + 2], Vec2d(Scalar::NAN, Scalar::NAN));
 
@@ -254,6 +259,26 @@ fn coordinates_with_ghost_points(mesh: &Mesh) -> Vec<Array2<Vec2d>> {
                     mesh.blocks[connection.receiver.block].coords[[i_rec as usize, j_rec as usize]];
 
                 coords[connection.donor.block][[(i + 1) as usize, (j + 1) as usize]] = x;
+            });
+        }
+        // TODO reduce code duplication
+        else if let BlockBoundary::PeriodicConnection(periodic_connection) = edge {
+            let connection = &periodic_connection.connection;
+            let translation = &periodic_connection.translation;
+
+            let ghost_point_modifyer = connection.donor.get_ghost_layer_modifyer();
+
+            connection.donor.iter().for_each(|(i, j)| {
+                let i = i as isize + ghost_point_modifyer.0;
+                let j = j as isize + ghost_point_modifyer.1;
+
+                let (i_rec, j_rec) = connection.get_index_in_receiver_block(&[i, j]);
+
+                let x =
+                    mesh.blocks[connection.receiver.block].coords[[i_rec as usize, j_rec as usize]];
+
+                coords[connection.donor.block][[(i + 1) as usize, (j + 1) as usize]] =
+                    x - *translation;
             });
         }
     });
@@ -346,6 +371,50 @@ fn matrix_entries(mesh: &Mesh) -> Vec<Array2<MatrixEntry>> {
                 .prop = PointProps::Connect { donor_index };
             });
         }
+        // TODO remove code duplication
+        else if let BlockBoundary::PeriodicConnection(periodic_connection) = edge {
+            let connection = &periodic_connection.connection;
+            let translation = &periodic_connection.translation;
+
+            let ghost_point_modifyer = connection.donor.get_ghost_layer_modifyer();
+
+            connection.donor.iter().for_each(|(i, j)| {
+                // ghost point index
+                let i_gp = i as isize + ghost_point_modifyer.0;
+                let j_gp = j as isize + ghost_point_modifyer.1;
+
+                // ghost point index in receiver block (physical index)
+                let (i_rec, j_rec) = connection.get_index_in_receiver_block(&[i_gp, j_gp]);
+                let index_rec = matrix_entries[connection.receiver.block]
+                    [[(i_rec + 1) as usize, (j_rec + 1) as usize]]
+                .index;
+
+                // set ghost point to point to receiver matrix entry
+                matrix_entries[connection.donor.block]
+                    [[(i_gp + 1) as usize, (j_gp + 1) as usize]]
+                .index = index_rec;
+
+                // set connection point to be solved
+                matrix_entries[connection.donor.block][[(i + 1) as usize, (j + 1) as usize]].prop =
+                    PointProps::Solve;
+            });
+
+            connection.donor.iter().for_each(|(i, j)| {
+                let (i_rec, j_rec) =
+                    connection.get_index_in_receiver_block(&[i as isize, j as isize]);
+
+                let donor_index = matrix_entries[connection.donor.block]
+                    [[(i + 1) as usize, (j + 1) as usize]]
+                .index;
+
+                matrix_entries[connection.receiver.block]
+                    [[(i_rec + 1) as usize, (j_rec + 1) as usize]]
+                .prop = PointProps::ConnectPeriodic {
+                    donor_index,
+                    translation: *translation,
+                };
+            });
+        }
     });
 
     // set all other edges to be fixed
@@ -362,16 +431,54 @@ fn matrix_entries(mesh: &Mesh) -> Vec<Array2<MatrixEntry>> {
 
         match edge {
             BlockBoundary::Connection(_) => (),
-            BlockBoundary::PeriodicConnection { connection, .. } => {
-                set_fixed_closure(&connection.0);
-                set_fixed_closure(&connection.1);
-
-                todo!();
-            }
+            BlockBoundary::PeriodicConnection { .. } => {}
             BlockBoundary::Inlet(range) => set_fixed_closure(range),
             BlockBoundary::Outlet(range) => set_fixed_closure(range),
             BlockBoundary::Wall(range) => set_fixed_closure(range),
         };
+    });
+
+    // recheck connection start and end points if one is to be fixed
+    mesh.edges.iter().for_each(|edge| {
+        if let BlockBoundary::Connection(connection) = edge {
+            {
+                let (i, j) = connection.donor.first();
+                let (i_rec, j_rec) = connection.receiver.first();
+
+                assert!(
+                    (i_rec as isize, j_rec as isize)
+                        == connection.get_index_in_receiver_block(&[i as isize, j as isize])
+                );
+
+                if matrix_entries[connection.donor.block][[i + 1, j + 1]].prop == PointProps::Fix
+                    || matrix_entries[connection.receiver.block][[i_rec + 1, j_rec + 1]].prop
+                        == PointProps::Fix
+                {
+                    matrix_entries[connection.donor.block][[i + 1, j + 1]].prop = PointProps::Fix;
+                    matrix_entries[connection.receiver.block][[i_rec + 1, j_rec + 1]].prop =
+                        PointProps::Fix;
+                }
+            }
+
+            {
+                let (i, j) = connection.donor.last();
+                let (i_rec, j_rec) = connection.receiver.last();
+
+                assert!(
+                    (i_rec as isize, j_rec as isize)
+                        == connection.get_index_in_receiver_block(&[i as isize, j as isize])
+                );
+
+                if matrix_entries[connection.donor.block][[i + 1, j + 1]].prop == PointProps::Fix
+                    || matrix_entries[connection.receiver.block][[i_rec + 1, j_rec + 1]].prop
+                        == PointProps::Fix
+                {
+                    matrix_entries[connection.donor.block][[i + 1, j + 1]].prop = PointProps::Fix;
+                    matrix_entries[connection.receiver.block][[i_rec + 1, j_rec + 1]].prop =
+                        PointProps::Fix;
+                }
+            }
+        }
     });
 
     matrix_entries
@@ -452,11 +559,6 @@ pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
                                 let a_im1_jp1 = 0.5 * q;
                                 let a_im1_jm1 = -0.5 * q;
 
-                                // println!(
-                                //     "block: {} i: {} j: {} index: {} prop: {:?}",
-                                //     block_index, i, j, point.index, point.prop
-                                // );
-
                                 assert!(a_i_j.is_finite());
                                 assert!(a_ip1_j.is_finite());
                                 assert!(a_im1_j.is_finite());
@@ -510,6 +612,15 @@ pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
                             PointProps::Connect { donor_index } => {
                                 lhs.put(index, index, 1.0).unwrap();
                                 lhs.put(index, donor_index, -1.0).unwrap();
+                            }
+                            PointProps::ConnectPeriodic {
+                                donor_index,
+                                translation,
+                            } => {
+                                lhs.put(index, index, 1.0).unwrap();
+                                lhs.put(index, donor_index, -1.0).unwrap();
+                                rhs_x[index] = translation.0;
+                                rhs_y[index] = translation.1;
                             }
                         }
                     });
@@ -568,6 +679,45 @@ pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
         let norm = (x_norm_sqr + y_norm_sqr).sqrt();
 
         println!("\tresidual {norm}");
+
+        // TODO check if this is necessary (for periodic it is necessary)
+        // fill ghost points
+        mesh.edges.iter().for_each(|edge| {
+            if let BlockBoundary::Connection(connection) = edge {
+                let ghost_point_modifyer = connection.donor.get_ghost_layer_modifyer();
+
+                connection.donor.iter().for_each(|(i, j)| {
+                    let i = i as isize + ghost_point_modifyer.0;
+                    let j = j as isize + ghost_point_modifyer.1;
+
+                    let (i_rec, j_rec) = connection.get_index_in_receiver_block(&[i, j]);
+
+                    let x = mesh.blocks[connection.receiver.block].coords
+                        [[i_rec as usize, j_rec as usize]];
+
+                    coords[connection.donor.block][[(i + 1) as usize, (j + 1) as usize]] = x;
+                });
+            }
+            // TODO reduce code duplication
+            else if let BlockBoundary::PeriodicConnection(periodic_connection) = edge {
+                let connection = &periodic_connection.connection;
+                let translation = &periodic_connection.translation;
+                let ghost_point_modifyer = connection.donor.get_ghost_layer_modifyer();
+
+                connection.donor.iter().for_each(|(i, j)| {
+                    let i = i as isize + ghost_point_modifyer.0;
+                    let j = j as isize + ghost_point_modifyer.1;
+
+                    let (i_rec, j_rec) = connection.get_index_in_receiver_block(&[i, j]);
+
+                    let x = mesh.blocks[connection.receiver.block].coords
+                        [[i_rec as usize, j_rec as usize]];
+
+                    coords[connection.donor.block][[(i + 1) as usize, (j + 1) as usize]] =
+                        x + *translation;
+                });
+            }
+        });
     }
 
     // update mesh coordinates
