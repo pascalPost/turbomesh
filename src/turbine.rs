@@ -5,10 +5,7 @@ use crate::clustering::{RobertsClustering, UniformClustering};
 use crate::geometry::{Line2d, Spline};
 use crate::interpolation::FittingSpline;
 use crate::smoothing::SmoothingMethod;
-use crate::types::{
-    BlockBoundary, BlockBoundaryRange, BlockBoundaryRangeNew, BlockConnection, Edge, EdgeIndex,
-    EdgeView,
-};
+use crate::types::{BlockBoundary, BlockBoundaryRange, BlockConnection, Edge, EdgeIndex, EdgeView};
 use crate::{Block2d, Geometry, Mesh, Segment, Vec2d};
 use ndarray::Array;
 use plotters::prelude::*;
@@ -203,18 +200,20 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
         mesh.add_block(block);
 
-        mesh.edges
-            .push(BlockBoundary::Wall(BlockBoundaryRangeNew::new(
-                &mesh,
-                BlockBoundaryRange::new(&mesh, 0, EdgeIndex::IMin, 0..=1),
-            )));
+        mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+            &mesh,
+            0,
+            EdgeIndex::IMin,
+            0..=1,
+        )));
 
         // TODO remove temporarily
-        mesh.edges
-            .push(BlockBoundary::Wall(BlockBoundaryRangeNew::new(
-                &mesh,
-                BlockBoundaryRange::new(&mesh, 0, EdgeIndex::IMax, 0..1),
-            )));
+        mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+            &mesh,
+            0,
+            EdgeIndex::IMax,
+            0..1,
+        )));
     }
 
     {
@@ -247,11 +246,12 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
         mesh.add_block(block);
 
-        mesh.edges
-            .push(BlockBoundary::Wall(BlockBoundaryRangeNew::new(
-                &mesh,
-                BlockBoundaryRange::new(&mesh, 1, EdgeIndex::IMin, 0..1),
-            )));
+        mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+            &mesh,
+            1,
+            EdgeIndex::IMin,
+            0..1,
+        )));
         mesh.edges
             .push(BlockBoundary::Connection(BlockConnection::new(
                 &mesh,
@@ -262,11 +262,12 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
             )));
 
         // TODO remove temporarily
-        mesh.edges
-            .push(BlockBoundary::Wall(BlockBoundaryRangeNew::new(
-                &mesh,
-                BlockBoundaryRange::new(&mesh, 1, EdgeIndex::IMax, 0..1),
-            )));
+        mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+            &mesh,
+            1,
+            EdgeIndex::IMax,
+            0..1,
+        )));
     }
 
     // {

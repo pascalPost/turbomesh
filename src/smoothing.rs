@@ -6,12 +6,12 @@
 // runs based on slightly modified repo https://github.com/cpmech/russell
 
 use crate::{
-    types::{edge_view_mut, BlockBoundary, BlockBoundaryRangeNew, BlockConnection},
+    types::{BlockBoundary, BlockBoundaryRange, BlockConnection},
     Block2d, Mesh, Scalar, Vec2d,
 };
 use float_cmp::approx_eq;
-use ndarray::{s, Array1, Array2};
-use russell_lab::{add_vectors, vector_norm, Matrix, NormVec, StrError, Vector};
+use ndarray::{s, Array2};
+use russell_lab::Vector;
 use russell_sparse::{ConfigSolver, Solver, SparseTriplet, Symmetry};
 use std::error::Error;
 
@@ -350,64 +350,28 @@ fn matrix_entries(mesh: &Mesh) -> Vec<Array2<MatrixEntry>> {
 
     // set all other edges to be fixed
     mesh.edges.iter().for_each(|edge| {
-        // let mut set_fixed_closure = |range| {
-        //     let mut points = edge_view_mut(&mut matrix_entries, range);
-
-        //     points.iter().for_each(|p| println!("{p:?}"));
-
-        //     points.iter_mut().for_each(|point| {
-        //         println!("{} {:?}", point.index, point.prop);
-
-        //         point.prop = PointProps::Fix;
-
-        //         println!("{} {:?}", point.index, point.prop);
-        //     });
-        // };
-
-        let mut set_fixed_closure_new = |range: &BlockBoundaryRangeNew| {
+        let mut set_fixed_closure = |range: &BlockBoundaryRange| {
             range.iter().for_each(|(i, j)| {
                 // to ghost point index
                 let i = i + 1;
                 let j = j + 1;
 
-                // let point = &matrix_entries[range.block][[i, j]];
-
-                // println!("{} {} {} {:?}", i, j, point.index, point.prop);
-
                 matrix_entries[range.block][[i, j]].prop = PointProps::Fix;
-
-                // let point = &matrix_entries[range.block][[i, j]];
-
-                // println!("{} {:?}", point.index, point.prop);
-
-                // println!("{} {}", i, j);
             });
-
-            // points.iter().for_each(|p| println!("{p:?}"));
-
-            // points.iter_mut().for_each(|point| {
-            //     println!("{} {:?}", point.index, point.prop);
-
-            //     point.prop = PointProps::Fix;
-
-            //     println!("{} {:?}", point.index, point.prop);
-            // });
         };
 
         match edge {
             BlockBoundary::Connection(_) => (),
             BlockBoundary::PeriodicConnection { connection, .. } => {
-                // set_fixed_closure(&connection.0);
-                // set_fixed_closure(&connection.1);
+                set_fixed_closure(&connection.0);
+                set_fixed_closure(&connection.1);
 
                 todo!();
             }
-            BlockBoundary::Inlet(range) => todo!(),
-            BlockBoundary::Outlet(range) => todo!(),
-            BlockBoundary::Wall(range) => set_fixed_closure_new(range),
+            BlockBoundary::Inlet(range) => set_fixed_closure(range),
+            BlockBoundary::Outlet(range) => set_fixed_closure(range),
+            BlockBoundary::Wall(range) => set_fixed_closure(range),
         };
-
-        // println!("{:?}", matrix_entries[0][[1, 2]]);
     });
 
     matrix_entries
@@ -551,6 +515,7 @@ pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
                     });
             });
 
+        // write matrix to ascii file for debugging
         // let (m, n) = lhs.dims();
         // let mut a = Matrix::new(m, n);
         // lhs.to_matrix(&mut a)?;
