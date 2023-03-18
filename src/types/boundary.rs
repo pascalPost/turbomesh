@@ -78,7 +78,7 @@ pub enum BlockBoundary {
     },
     Inlet(BlockBoundaryRange),
     Outlet(BlockBoundaryRange),
-    Wall(BlockBoundaryRange),
+    Wall(BlockBoundaryRangeNew),
 }
 
 #[derive(Debug)]
@@ -139,18 +139,18 @@ impl BlockBoundaryRangeNew {
         (self.end[[0, 0]] as usize, self.end[[1, 0]] as usize)
     }
 
-    pub fn get_ghost_layer_modifyer(&self, dim: &[usize; 2]) -> (isize, isize) {
+    pub fn get_ghost_layer_modifyer(&self) -> (isize, isize) {
         if self.start[[0, 0]] == self.end[[0, 0]] {
             if self.start[[0, 0]] == 0 {
-                (0, -1)
+                (-1, 0)
             } else {
-                (0, dim[1] as isize)
+                (1, 0)
             }
         } else {
             if self.start[[1, 0]] == 0 {
-                (-1, 0)
+                (0, -1)
             } else {
-                (dim[0] as isize, 0)
+                (0, 1)
             }
         }
     }
@@ -200,7 +200,7 @@ impl<'a> Iterator for BlockBoundaryRangeNewIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         self.count += 1;
 
-        if self.count <= self.steps {
+        if self.count <= self.steps + 1 {
             let mut index = self.range.start.clone();
             index[[self.dim, 0]] += self.step * (self.count as isize - 1);
 
@@ -280,14 +280,6 @@ impl BlockConnection {
             }
         }
 
-        // if ranges.1.edge == EdgeIndex::JMin || ranges.1.edge == EdgeIndex::JMax {
-        //     transform[[0, 1]] = normal_sign;
-        //     transform[[1, 0]] = parallel_sign;
-        // } else {
-        //     transform[[0, 0]] = parallel_sign;
-        //     transform[[1, 1]] = normal_sign;
-        // }
-
         let connection = Self {
             donor,
             receiver,
@@ -357,62 +349,11 @@ impl BlockConnection {
 
     pub fn get_index_in_receiver_block(&self, donor_index: &[isize; 2]) -> (isize, isize) {
         let donor_index = Array2::from_shape_vec((2, 1), donor_index.to_vec()).unwrap();
-
-        println!(
-            "transform:\n {} {}\n {} {}",
-            self.transform[[0, 0]],
-            self.transform[[1, 0]],
-            self.transform[[0, 1]],
-            self.transform[[1, 1]],
-        );
-
-        println!(
-            "donor index: {} {}",
-            donor_index[[0, 0]],
-            donor_index[[1, 0]]
-        );
-
-        println!(
-            "donor start: {} {}",
-            self.donor.start[[0, 0]],
-            self.donor.start[[1, 0]]
-        );
-
-        println!(
-            "rec start: {} {}",
-            self.receiver.start[[0, 0]],
-            self.receiver.start[[1, 0]]
-        );
-
         let delta = donor_index - self.donor.start.clone();
-
         let receiver_index = self.transform.dot(&delta) + self.receiver.start.clone();
-
-        println!(
-            "rec index: {} {}",
-            receiver_index[[0, 0]],
-            receiver_index[[1, 0]]
-        );
-
         (receiver_index[[0, 0]], receiver_index[[1, 0]])
     }
 }
-
-// pub fn edge_view<'a, T>(
-//     arrays: &'a Vec<Array2<T>>,
-//     range: &BlockBoundaryRange,
-// ) -> ArrayView1<'a, T> {
-//     let array = &arrays[range.block];
-//     let (size_i, size_j) = array.dim();
-//     let start = range.start;
-//     let end = range.end;
-//     match range.edge {
-//         EdgeIndex::IMin => array.slice(s![start..=end, 0]),
-//         EdgeIndex::IMax => array.slice(s![start..=end, size_j - 1]),
-//         EdgeIndex::JMin => array.slice(s![0, start..=end]),
-//         EdgeIndex::JMax => array.slice(s![size_i - 1, start..=end]),
-//     }
-// }
 
 pub fn edge_view_mut<'a, T>(
     arrays: &'a mut Vec<Array2<T>>,
@@ -420,8 +361,8 @@ pub fn edge_view_mut<'a, T>(
 ) -> ArrayViewMut1<'a, T> {
     let array = &mut arrays[range.block];
     let (size_i, size_j) = array.dim();
-    let start = range.start;
-    let end = range.end;
+    let start = range.start + 1;
+    let end = range.end + 1;
 
     if start < end {
         match range.edge {
@@ -439,33 +380,3 @@ pub fn edge_view_mut<'a, T>(
         }
     }
 }
-
-// pub fn edge_to_view<T>(
-//     array: &Array2<T>,
-//     edge: EdgeIndex,
-//     start: usize,
-//     end: usize,
-// ) -> ArrayView1<T> {
-//     let (size_i, size_j) = array.dim();
-//     match edge {
-//         EdgeIndex::IMin => array.slice(s![start..=end, 0]),
-//         EdgeIndex::IMax => array.slice(s![start..=end, size_j - 1]),
-//         EdgeIndex::JMin => array.slice(s![0, start..=end]),
-//         EdgeIndex::JMax => array.slice(s![size_i - 1, start..=end]),
-//     }
-// }
-
-// pub fn edge_to_view_mut<T>(
-//     array: &mut Array2<T>,
-//     edge: EdgeIndex,
-//     start: usize,
-//     end: usize,
-// ) -> ArrayViewMut1<T> {
-//     let (size_i, size_j) = array.dim();
-//     match edge {
-//         EdgeIndex::IMin => array.slice_mut(s![start..=end, 0]),
-//         EdgeIndex::IMax => array.slice_mut(s![start..=end, size_j - 1]),
-//         EdgeIndex::JMin => array.slice_mut(s![0, start..=end]),
-//         EdgeIndex::JMax => array.slice_mut(s![size_i - 1, start..=end]),
-//     }
-// }

@@ -12,7 +12,7 @@ pub type Index = usize;
 
 pub use crate::types::block2d::{Block2d, EdgeIndex};
 pub use crate::types::boundary::{
-    edge_view_mut, BlockBoundary, BlockBoundaryRange, BlockConnection,
+    edge_view_mut, BlockBoundary, BlockBoundaryRange, BlockBoundaryRangeNew, BlockConnection,
 };
 pub use crate::types::edge::{BlockEdgeData, Edge, EdgeView};
 pub use crate::types::segment::ClusteringFunction;

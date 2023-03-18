@@ -2,6 +2,7 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 use crate::cgns::interface::*;
+use crate::smoothing::{smooth_block, smooth_mesh, SmoothingMethod};
 use crate::types::{Block2d, BlockBoundary};
 
 /// mesh data structure
@@ -29,8 +30,16 @@ impl Mesh {
         self.blocks.iter().position(|block| block.name == name)
     }
 
-    pub fn smooth(&mut self) {
-        crate::smoothing::smooth_mesh(self).unwrap();
+    pub fn smooth(&mut self, method: SmoothingMethod) {
+        match method {
+            SmoothingMethod::Global => smooth_mesh(self).unwrap(),
+            SmoothingMethod::BlockInternal => {
+                self.blocks.iter_mut().for_each(|block| {
+                    println!("block: {}", block.name);
+                    smooth_block(block, 25).unwrap()
+                });
+            }
+        }
     }
 
     /// returns the total number of points of the mesh
@@ -62,8 +71,12 @@ impl Mesh {
             )?;
 
             {
-                let coords_x: Vec<f64> = block.coords.iter().map(|x| x.0).collect();
-                let coords_y: Vec<f64> = block.coords.iter().map(|x| x.1).collect();
+                // assumption coordinates in row-major (C) ordering -> needs
+                // transformation for cgns
+                // TODO add detection
+
+                let coords_x: Vec<f64> = block.coords.t().iter().map(|x| x.0).collect();
+                let coords_y: Vec<f64> = block.coords.t().iter().map(|x| x.1).collect();
 
                 coord_write(i_file, i_base, i_zone, "CoordinateX", &coords_x.as_slice())?;
                 coord_write(i_file, i_base, i_zone, "CoordinateY", &coords_y.as_slice())?;

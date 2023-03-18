@@ -6,41 +6,23 @@
 // runs based on slightly modified repo https://github.com/cpmech/russell
 
 use crate::{
-    types::{edge_view_mut, BlockBoundary, BlockConnection},
+    types::{edge_view_mut, BlockBoundary, BlockBoundaryRangeNew, BlockConnection},
     Block2d, Mesh, Scalar, Vec2d,
 };
 use float_cmp::approx_eq;
 use ndarray::{s, Array1, Array2};
-use russell_lab::{vector_norm, NormVec, Vector};
+use russell_lab::{add_vectors, vector_norm, Matrix, NormVec, StrError, Vector};
 use russell_sparse::{ConfigSolver, Solver, SparseTriplet, Symmetry};
 use std::error::Error;
+
+pub enum SmoothingMethod {
+    Global,
+    BlockInternal,
+}
 
 fn matrix_index(i: usize, j: usize, i_size: usize) -> usize {
     (i - 1) + (j - 1) * (i_size - 2)
 }
-
-// fn derivatives(
-//     x: &Array2d<Scalar>,
-//     y: &Array2d<Scalar>,
-//     x_xi: &mut Array2d<Scalar>,
-//     x_eta: &mut Array2d<Scalar>,
-//     y_xi: &mut Array2d<Scalar>,
-//     y_eta: &mut Array2d<Scalar>,
-// ) {
-//     // TODO compute derivatives only on internal points and reduce memory
-//     // allocation
-
-//     // TODO enhance memory access
-
-//     for j in 1..x.shape[1] - 1 {
-//         for i in 1..x.shape[0] - 1 {
-//             x_xi[[i, j]] = 0.5 * (x[[i + 1, j]] - x[[i - 1, j]]);
-//             x_eta[[i, j]] = 0.5 * (x[[i, j + 1]] - x[[i, j - 1]]);
-//             y_xi[[i, j]] = 0.5 * (y[[i + 1, j]] - y[[i - 1, j]]);
-//             y_eta[[i, j]] = 0.5 * (y[[i, j + 1]] - y[[i, j - 1]]);
-//         }
-//     }
-// }
 
 pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dyn Error>> {
     let coords = &mut block.coords;
@@ -180,10 +162,22 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
         solver.solve(&mut x_new, &rhs_x)?;
         solver.solve(&mut y_new, &rhs_y)?;
 
-        let x_norm = vector_norm(&x_new, NormVec::Euc);
-        let y_norm = vector_norm(&y_new, NormVec::Euc);
+        let mut x_norm_sqr = 0.0;
+        let mut y_norm_sqr = 0.0;
 
-        let norm = (x_norm * x_norm + y_norm * y_norm).sqrt();
+        for j in 1..shape.1 - 1 {
+            for i in 1..shape.0 - 1 {
+                let idx = matrix_index(i, j, i_size);
+                let Vec2d(x, y) = coords[[i, j]];
+                let dx = x - x_new[idx];
+                let dy = y - y_new[idx];
+
+                x_norm_sqr += dx * dx;
+                y_norm_sqr += dy * dy;
+            }
+        }
+
+        let norm = (x_norm_sqr + y_norm_sqr).sqrt();
 
         println!("\tresidual {norm}");
 
@@ -199,220 +193,6 @@ pub fn smooth_block(block: &mut Block2d, iterations: usize) -> Result<(), Box<dy
 
     Ok(())
 }
-
-// fn compute_derivatives(mesh: &Mesh) {
-//     // allocate derivative fields
-//     let n = mesh.blocks.len();
-
-//     let mut x_xi_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
-//     let mut x_eta_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
-//     let mut y_xi_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
-//     let mut y_eta_mesh: Vec<Array2<Scalar>> = Vec::with_capacity(n);
-
-//     mesh.blocks.iter().for_each(|block| {
-//         let shape = block.coords.dim();
-//         let x = &block.coords;
-
-//         let mut x_xi = Array2::<Scalar>::zeros(shape);
-//         let mut x_eta = Array2::<Scalar>::zeros(shape);
-//         let mut y_xi = Array2::<Scalar>::zeros(shape);
-//         let mut y_eta = Array2::<Scalar>::zeros(shape);
-
-//         // loop internal points
-//         for j in 1..shape.1 - 1 {
-//             for i in 1..shape.0 - 1 {
-//                 let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
-//                 let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
-//                 let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
-//                 let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
-
-//                 x_xi[[i, j]] = 0.5 * (x_ip1_j - x_im1_j);
-//                 x_eta[[i, j]] = 0.5 * (x_i_jp1 - x_i_jm1);
-//                 y_xi[[i, j]] = 0.5 * (y_ip1_j - y_im1_j);
-//                 y_eta[[i, j]] = 0.5 * (y_i_jp1 - y_i_jm1);
-//             }
-//         }
-
-//         // add own contributions on corners
-//         {
-//             let j = 0;
-//             let i = 0;
-
-//             let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
-//             let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
-
-//             x_xi[[i, j]] = 0.5 * x_ip1_j;
-//             x_eta[[i, j]] = 0.5 * x_i_jp1;
-//             y_xi[[i, j]] = 0.5 * y_ip1_j;
-//             y_eta[[i, j]] = 0.5 * y_i_jp1;
-//         }
-
-//         {
-//             let j = shape.1 - 1;
-//             let i = shape.0 - 1;
-
-//             let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
-//             let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
-
-//             x_xi[[i, j]] = -0.5 * x_im1_j;
-//             x_eta[[i, j]] = -0.5 * x_i_jm1;
-//             y_xi[[i, j]] = -0.5 * y_im1_j;
-//             y_eta[[i, j]] = -0.5 * y_i_jm1;
-//         }
-
-//         {
-//             let j = shape.1 - 1;
-//             let i = 0;
-
-//             let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
-//             let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
-
-//             x_xi[[i, j]] = 0.5 * x_ip1_j;
-//             x_eta[[i, j]] = -0.5 * x_i_jm1;
-//             y_xi[[i, j]] = 0.5 * y_ip1_j;
-//             y_eta[[i, j]] = -0.5 * y_i_jm1;
-//         }
-
-//         {
-//             let j = 0;
-//             let i = shape.0 - 1;
-
-//             let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
-//             let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
-
-//             x_xi[[i, j]] = -0.5 * x_im1_j;
-//             x_eta[[i, j]] = 0.5 * x_i_jp1;
-//             y_xi[[i, j]] = -0.5 * y_im1_j;
-//             y_eta[[i, j]] = 0.5 * y_i_jp1;
-//         }
-
-//         // add own contributions on edges excluding corners
-
-//         // edge i min & i max
-//         for j in 1..shape.1 - 1 {
-//             {
-//                 // edge i min
-//                 let i = 0;
-
-//                 let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
-//                 let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
-//                 let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
-
-//                 x_xi[[i, j]] = 0.5 * x_ip1_j;
-//                 x_eta[[i, j]] = 0.5 * (x_i_jp1 - x_i_jm1);
-//                 y_xi[[i, j]] = 0.5 * y_ip1_j;
-//                 y_eta[[i, j]] = 0.5 * (y_i_jp1 - y_i_jm1);
-//             }
-
-//             {
-//                 // edge i max
-//                 let i = shape.0 - 1;
-
-//                 let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
-//                 let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
-//                 let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
-
-//                 x_xi[[i, j]] = -0.5 * x_im1_j;
-//                 x_eta[[i, j]] = 0.5 * (x_i_jp1 - x_i_jm1);
-//                 y_xi[[i, j]] = -0.5 * y_im1_j;
-//                 y_eta[[i, j]] = 0.5 * (y_i_jp1 - y_i_jm1);
-//             }
-//         }
-
-//         // edge j min & j max
-//         for i in 1..shape.0 - 1 {
-//             {
-//                 // edge j min
-//                 let j = 0;
-
-//                 let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
-//                 let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
-//                 let Vec2d(x_i_jp1, y_i_jp1) = x[[i, j + 1]];
-
-//                 x_xi[[i, j]] = 0.5 * (x_ip1_j - x_im1_j);
-//                 x_eta[[i, j]] = 0.5 * x_i_jp1;
-//                 y_xi[[i, j]] = 0.5 * (y_ip1_j - y_im1_j);
-//                 y_eta[[i, j]] = 0.5 * y_i_jp1;
-//             }
-
-//             {
-//                 // edge j max
-//                 let j = shape.1 - 1;
-
-//                 let Vec2d(x_ip1_j, y_ip1_j) = x[[i + 1, j]];
-//                 let Vec2d(x_im1_j, y_im1_j) = x[[i - 1, j]];
-//                 let Vec2d(x_i_jm1, y_i_jm1) = x[[i, j - 1]];
-
-//                 x_xi[[i, j]] = 0.5 * (x_ip1_j - x_im1_j);
-//                 x_eta[[i, j]] = -0.5 * x_i_jm1;
-//                 y_xi[[i, j]] = 0.5 * (y_ip1_j - y_im1_j);
-//                 y_eta[[i, j]] = -0.5 * y_i_jm1;
-//             }
-//         }
-
-//         x_xi_mesh.push(x_xi);
-//         x_eta_mesh.push(x_eta);
-//         y_xi_mesh.push(y_xi);
-//         y_eta_mesh.push(y_eta);
-//     });
-
-//     // add contribution from non-owned connected points
-//     mesh.edges.iter().for_each(|boundary| {
-//         match boundary {
-//             BlockBoundary::Connection(ranges) => {
-//                 add_non_owned(&mut x_xi_mesh, ranges);
-//                 add_non_owned(&mut x_eta_mesh, ranges);
-//                 add_non_owned(&mut y_xi_mesh, ranges);
-//                 add_non_owned(&mut y_eta_mesh, ranges);
-//             }
-//             // BlockBoundary::PeriodicConnection { connection, translation },
-//             _ => (),
-//         }
-//     });
-
-//     // copy data to non-owned connected points
-//     mesh.edges.iter().for_each(|boundary| {
-//         match boundary {
-//             BlockBoundary::Connection(ranges) => {
-//                 copy_to_non_owned(&mut x_xi_mesh, ranges);
-//                 copy_to_non_owned(&mut x_eta_mesh, ranges);
-//                 copy_to_non_owned(&mut y_xi_mesh, ranges);
-//                 copy_to_non_owned(&mut y_eta_mesh, ranges);
-//             }
-//             // BlockBoundary::PeriodicConnection { connection, translation },
-//             _ => (),
-//         }
-//     });
-// }
-
-// fn add_non_owned(fields: &mut Vec<Array2<Scalar>>, ranges: &BlockConnection) {
-//     let BlockConnection(own_range, other_range) = ranges;
-
-//     let edge_view_other = crate::types::edge_view(&fields, other_range);
-
-//     let data: Vec<Scalar> = edge_view_other.iter().cloned().collect();
-
-//     let mut edge_view_own = crate::types::edge_view_mut(fields, own_range);
-
-//     edge_view_own
-//         .iter_mut()
-//         .zip(data.iter())
-//         .for_each(|(target, source)| *target += *source);
-// }
-
-// fn copy_to_non_owned(fields: &mut Vec<Array2<Scalar>>, ranges: &BlockConnection) {
-//     let BlockConnection(own_range, other_range) = ranges;
-
-//     let edge_view_own = crate::types::edge_view(fields, own_range);
-//     let data: Vec<Scalar> = edge_view_own.iter().cloned().collect();
-
-//     let mut edge_view_other = crate::types::edge_view_mut(fields, other_range);
-
-//     edge_view_other
-//         .iter_mut()
-//         .zip(data.iter())
-//         .for_each(|(target, source)| *target = *source);
-// }
 
 #[derive(Debug, Clone)]
 enum PointProps {
@@ -462,9 +242,7 @@ fn coordinates_with_ghost_points(mesh: &Mesh) -> Vec<Array2<Vec2d>> {
     // fill ghost points
     mesh.edges.iter().for_each(|edge| {
         if let BlockBoundary::Connection(connection) = edge {
-            let ghost_point_modifyer = connection
-                .donor
-                .get_ghost_layer_modifyer(&mesh.blocks[connection.donor.block].points());
+            let ghost_point_modifyer = connection.donor.get_ghost_layer_modifyer();
 
             connection.donor.iter().for_each(|(i, j)| {
                 let i = i as isize + ghost_point_modifyer.0;
@@ -489,10 +267,7 @@ fn matrix_entries(mesh: &Mesh) -> Vec<Array2<MatrixEntry>> {
     let start_indices: Vec<usize> = mesh
         .blocks
         .iter()
-        .map(|block| {
-            let (size_i, size_j) = block.coords.dim();
-            (size_i - 1) * (size_j - 1)
-        })
+        .map(|block| block.coords.len())
         .scan(0 as usize, |state, internal_size| {
             let idx = *state;
             *state += internal_size;
@@ -512,42 +287,50 @@ fn matrix_entries(mesh: &Mesh) -> Vec<Array2<MatrixEntry>> {
                 MatrixEntry::new(usize::MAX, PointProps::Fix),
             );
 
+            // set index for all block points
             block_entries
                 .slice_mut(s![1..dim[0] + 1, 1..dim[1] + 1])
                 .iter_mut()
                 .enumerate()
                 .for_each(|(counter, e)| {
-                    *e = MatrixEntry::new(start_idx + counter, PointProps::Solve);
+                    e.index = start_idx + counter;
+                });
+
+            // set all internal block points to solve
+            block_entries
+                .slice_mut(s![2..dim[0], 2..dim[1]])
+                .iter_mut()
+                .for_each(|e| {
+                    e.prop = PointProps::Solve;
                 });
 
             matrix_entries.push(block_entries);
         });
 
-    // fill ghost point indices
+    // setup connections: set ghost points
     mesh.edges.iter().for_each(|edge| {
         if let BlockBoundary::Connection(connection) = edge {
-            println!("{:?} {:?}", connection.donor.start, connection.donor.end);
-            println!(
-                "{:?} {:?}",
-                connection.receiver.start, connection.receiver.end
-            );
-
-            let ghost_point_modifyer = connection
-                .donor
-                .get_ghost_layer_modifyer(&mesh.blocks[connection.donor.block].points());
+            let ghost_point_modifyer = connection.donor.get_ghost_layer_modifyer();
 
             connection.donor.iter().for_each(|(i, j)| {
-                let i = i as isize + ghost_point_modifyer.0;
-                let j = j as isize + ghost_point_modifyer.1;
+                // ghost point index
+                let i_gp = i as isize + ghost_point_modifyer.0;
+                let j_gp = j as isize + ghost_point_modifyer.1;
 
-                let (i_rec, j_rec) = connection.get_index_in_receiver_block(&[i, j]);
-
+                // ghost point index in receiver block (physical index)
+                let (i_rec, j_rec) = connection.get_index_in_receiver_block(&[i_gp, j_gp]);
                 let index_rec = matrix_entries[connection.receiver.block]
                     [[(i_rec + 1) as usize, (j_rec + 1) as usize]]
                 .index;
 
-                matrix_entries[connection.donor.block][[(i + 1) as usize, (j + 1) as usize]]
-                    .index = index_rec;
+                // set ghost point to point to receiver matrix entry
+                matrix_entries[connection.donor.block]
+                    [[(i_gp + 1) as usize, (j_gp + 1) as usize]]
+                .index = index_rec;
+
+                // set connection point to be solved
+                matrix_entries[connection.donor.block][[(i + 1) as usize, (j + 1) as usize]].prop =
+                    PointProps::Solve;
             });
 
             connection.donor.iter().for_each(|(i, j)| {
@@ -567,149 +350,279 @@ fn matrix_entries(mesh: &Mesh) -> Vec<Array2<MatrixEntry>> {
 
     // set all other edges to be fixed
     mesh.edges.iter().for_each(|edge| {
-        let mut set_fixed_closure = |range| {
-            let mut points = edge_view_mut(&mut matrix_entries, range);
+        // let mut set_fixed_closure = |range| {
+        //     let mut points = edge_view_mut(&mut matrix_entries, range);
 
-            points
-                .iter_mut()
-                .for_each(|point| point.prop = PointProps::Fix);
+        //     points.iter().for_each(|p| println!("{p:?}"));
+
+        //     points.iter_mut().for_each(|point| {
+        //         println!("{} {:?}", point.index, point.prop);
+
+        //         point.prop = PointProps::Fix;
+
+        //         println!("{} {:?}", point.index, point.prop);
+        //     });
+        // };
+
+        let mut set_fixed_closure_new = |range: &BlockBoundaryRangeNew| {
+            range.iter().for_each(|(i, j)| {
+                // to ghost point index
+                let i = i + 1;
+                let j = j + 1;
+
+                // let point = &matrix_entries[range.block][[i, j]];
+
+                // println!("{} {} {} {:?}", i, j, point.index, point.prop);
+
+                matrix_entries[range.block][[i, j]].prop = PointProps::Fix;
+
+                // let point = &matrix_entries[range.block][[i, j]];
+
+                // println!("{} {:?}", point.index, point.prop);
+
+                // println!("{} {}", i, j);
+            });
+
+            // points.iter().for_each(|p| println!("{p:?}"));
+
+            // points.iter_mut().for_each(|point| {
+            //     println!("{} {:?}", point.index, point.prop);
+
+            //     point.prop = PointProps::Fix;
+
+            //     println!("{} {:?}", point.index, point.prop);
+            // });
         };
 
         match edge {
             BlockBoundary::Connection(_) => (),
             BlockBoundary::PeriodicConnection { connection, .. } => {
-                set_fixed_closure(&connection.0);
-                set_fixed_closure(&connection.1);
+                // set_fixed_closure(&connection.0);
+                // set_fixed_closure(&connection.1);
+
+                todo!();
             }
-            BlockBoundary::Inlet(range) => set_fixed_closure(range),
-            BlockBoundary::Outlet(range) => set_fixed_closure(range),
-            BlockBoundary::Wall(range) => set_fixed_closure(range),
+            BlockBoundary::Inlet(range) => todo!(),
+            BlockBoundary::Outlet(range) => todo!(),
+            BlockBoundary::Wall(range) => set_fixed_closure_new(range),
         };
+
+        // println!("{:?}", matrix_entries[0][[1, 2]]);
     });
 
     matrix_entries
 }
 
 pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
-    let coords = coordinates_with_ghost_points(&mesh);
+    let iterations = 20;
+
+    // fields with ghost points
+    let mut coords = coordinates_with_ghost_points(&mesh);
     let entries = matrix_entries(&mesh);
 
+    // allocations
     let dof = mesh.points();
-
-    // assemble LHS and RHS
-
     let mut lhs = SparseTriplet::new(dof, dof, dof * 9, Symmetry::No)?;
-
     let mut rhs_x = Vector::new(dof);
     let mut rhs_y = Vector::new(dof);
 
-    entries
+    // iterate
+    for n in 0..iterations {
+        print!("  iteration\t{n}");
+
+        lhs.reset();
+        rhs_x.fill(0.0);
+        rhs_y.fill(0.0);
+
+        // assemble LHS and RHS
+
+        entries
+            .iter()
+            .enumerate()
+            .for_each(|(block_index, block_points)| {
+                let dim = block_points.dim();
+
+                block_points
+                    .slice(s![1..dim.0 - 1, 1..dim.1 - 1])
+                    .indexed_iter()
+                    .for_each(|((i, j), point)| {
+                        // convert to index w/ ghost points
+                        let i = i + 1;
+                        let j = j + 1;
+
+                        let index = point.index;
+
+                        match point.prop {
+                            PointProps::Solve => {
+                                // laplace conditions (zero intialization)
+                                let s = 0.0;
+                                let t = 0.0;
+
+                                // let Vec2d(x_i_j, y_i_j) = coords[[i, j]];
+                                let Vec2d(x_ip1_j, y_ip1_j) = coords[block_index][[i + 1, j]];
+                                let Vec2d(x_im1_j, y_im1_j) = coords[block_index][[i - 1, j]];
+                                let Vec2d(x_i_jp1, y_i_jp1) = coords[block_index][[i, j + 1]];
+                                let Vec2d(x_i_jm1, y_i_jm1) = coords[block_index][[i, j - 1]];
+
+                                // let Vec2d(x_ip1_jp1, y_ip1_jp1) = coords[block_index][[i + 1, j + 1]];
+                                // let Vec2d(x_im1_jm1, y_im1_jm1) = coords[block_index][[i - 1, j - 1]];
+                                // let Vec2d(x_ip1_jm1, y_ip1_jm1) = coords[block_index][[i + 1, j - 1]];
+                                // let Vec2d(x_im1_jp1, y_im1_jp1) = coords[block_index][[i - 1, j + 1]];
+
+                                let x_xi = 0.5 * (x_ip1_j - x_im1_j);
+                                let x_eta = 0.5 * (x_i_jp1 - x_i_jm1);
+                                let y_xi = 0.5 * (y_ip1_j - y_im1_j);
+                                let y_eta = 0.5 * (y_i_jp1 - y_i_jm1);
+
+                                let p = x_eta * x_eta + y_eta * y_eta;
+                                let q = x_xi * x_eta + y_xi * y_eta;
+                                let r = x_xi * x_xi + y_xi * y_xi;
+
+                                let a_i_j = -2.0 * p - 2.0 * r;
+                                let a_ip1_j = p + 0.5 * s;
+                                let a_im1_j = p - 0.5 * s;
+                                let a_i_jp1 = r + 0.5 * t;
+                                let a_i_jm1 = r - 0.5 * t;
+                                let a_ip1_jp1 = -0.5 * q;
+                                let a_ip1_jm1 = 0.5 * q;
+                                let a_im1_jp1 = 0.5 * q;
+                                let a_im1_jm1 = -0.5 * q;
+
+                                // println!(
+                                //     "block: {} i: {} j: {} index: {} prop: {:?}",
+                                //     block_index, i, j, point.index, point.prop
+                                // );
+
+                                assert!(a_i_j.is_finite());
+                                assert!(a_ip1_j.is_finite());
+                                assert!(a_im1_j.is_finite());
+                                assert!(a_i_jp1.is_finite());
+                                assert!(a_i_jm1.is_finite());
+                                assert!(a_ip1_jp1.is_finite());
+                                assert!(a_ip1_jm1.is_finite());
+                                assert!(a_im1_jp1.is_finite());
+                                assert!(a_im1_jm1.is_finite());
+
+                                lhs.put(index, index, a_i_j).unwrap();
+                                lhs.put(index, entries[block_index][[i - 1, j]].index, a_im1_j)
+                                    .unwrap();
+                                lhs.put(index, entries[block_index][[i + 1, j]].index, a_ip1_j)
+                                    .unwrap();
+                                lhs.put(index, entries[block_index][[i, j - 1]].index, a_i_jm1)
+                                    .unwrap();
+                                lhs.put(index, entries[block_index][[i, j + 1]].index, a_i_jp1)
+                                    .unwrap();
+                                lhs.put(
+                                    index,
+                                    entries[block_index][[i + 1, j + 1]].index,
+                                    a_ip1_jp1,
+                                )
+                                .unwrap();
+                                lhs.put(
+                                    index,
+                                    entries[block_index][[i + 1, j - 1]].index,
+                                    a_ip1_jm1,
+                                )
+                                .unwrap();
+                                lhs.put(
+                                    index,
+                                    entries[block_index][[i - 1, j + 1]].index,
+                                    a_im1_jp1,
+                                )
+                                .unwrap();
+                                lhs.put(
+                                    index,
+                                    entries[block_index][[i - 1, j - 1]].index,
+                                    a_im1_jm1,
+                                )
+                                .unwrap();
+                            }
+                            PointProps::Fix => {
+                                let Vec2d(x, y) = coords[block_index][[i, j]];
+                                lhs.put(index, index, 1.0).unwrap();
+                                rhs_x[index] = x;
+                                rhs_y[index] = y;
+                            }
+                            PointProps::Connect { donor_index } => {
+                                lhs.put(index, index, 1.0).unwrap();
+                                lhs.put(index, donor_index, -1.0).unwrap();
+                            }
+                        }
+                    });
+            });
+
+        // let (m, n) = lhs.dims();
+        // let mut a = Matrix::new(m, n);
+        // lhs.to_matrix(&mut a)?;
+        // std::fs::write("matrix.txt", format!("{}", a)).unwrap();
+
+        // solve
+        let config = ConfigSolver::new();
+
+        let mut x_new = Vector::new(dof);
+        let mut y_new = Vector::new(dof);
+
+        let mut solver = Solver::new(config)?;
+
+        solver.initialize(&lhs)?;
+        solver.factorize()?;
+        solver.solve(&mut x_new, &rhs_x)?;
+        solver.solve(&mut y_new, &rhs_y)?;
+
+        // update coords field with solution and compute norm
+
+        let mut x_norm_sqr = 0.0;
+        let mut y_norm_sqr = 0.0;
+
+        entries
+            .iter()
+            .zip(coords.iter_mut())
+            .for_each(|(block_entries, block_coords)| {
+                assert!(block_entries.dim() == block_coords.dim());
+                let dim = block_entries.dim();
+                let internal = s![1..dim.0 - 1, 1..dim.1 - 1];
+
+                block_coords
+                    .slice_mut(internal)
+                    .iter_mut()
+                    .zip(block_entries.slice(internal).iter())
+                    .for_each(|(x, info)| {
+                        let i = info.index;
+
+                        let x_new = Vec2d(x_new[i], y_new[i]);
+
+                        let dx = x_new - *x;
+
+                        x_norm_sqr += dx.0 * dx.0;
+                        y_norm_sqr += dx.1 * dx.1;
+
+                        *x = x_new;
+                    });
+            });
+
+        let norm = (x_norm_sqr + y_norm_sqr).sqrt();
+
+        println!("\tresidual {norm}");
+    }
+
+    // update mesh coordinates
+    coords
         .iter()
-        .enumerate()
-        .for_each(|(block_index, block_points)| {
-            let dim = mesh.blocks[block_index].points();
-
-            println!("{} {:?}", block_index, mesh.blocks[block_index].points());
-
-            block_points
-                .slice(s![1..dim[0] - 1, 1..dim[1] - 1])
-                .indexed_iter()
-                .for_each(|((i, j), point)| {
-                    // convert to index w/ ghost points
-                    let i = i + 1;
-                    let j = j + 1;
-
-                    let index = point.index;
-
-                    match point.prop {
-                        PointProps::Solve => {
-                            // laplace conditions (zero intialization)
-                            let s = 0.0;
-                            let t = 0.0;
-
-                            // let Vec2d(x_i_j, y_i_j) = coords[[i, j]];
-                            let Vec2d(x_ip1_j, y_ip1_j) = coords[block_index][[i + 1, j]];
-                            let Vec2d(x_im1_j, y_im1_j) = coords[block_index][[i - 1, j]];
-                            let Vec2d(x_i_jp1, y_i_jp1) = coords[block_index][[i, j + 1]];
-                            let Vec2d(x_i_jm1, y_i_jm1) = coords[block_index][[i, j - 1]];
-
-                            // let Vec2d(x_ip1_jp1, y_ip1_jp1) = coords[block_index][[i + 1, j + 1]];
-                            // let Vec2d(x_im1_jm1, y_im1_jm1) = coords[block_index][[i - 1, j - 1]];
-                            // let Vec2d(x_ip1_jm1, y_ip1_jm1) = coords[block_index][[i + 1, j - 1]];
-                            // let Vec2d(x_im1_jp1, y_im1_jp1) = coords[block_index][[i - 1, j + 1]];
-
-                            let x_xi = 0.5 * (x_ip1_j - x_im1_j);
-                            let x_eta = 0.5 * (x_i_jp1 - x_i_jm1);
-                            let y_xi = 0.5 * (y_ip1_j - y_im1_j);
-                            let y_eta = 0.5 * (y_i_jp1 - y_i_jm1);
-
-                            let p = x_eta * x_eta + y_eta * y_eta;
-                            let q = x_xi * x_eta + y_xi * y_eta;
-                            let r = x_xi * x_xi + y_xi * y_xi;
-
-                            let a_i_j = -2.0 * p - 2.0 * r;
-                            let a_ip1_j = p + 0.5 * s;
-                            let a_im1_j = p - 0.5 * s;
-                            let a_i_jp1 = r + 0.5 * t;
-                            let a_i_jm1 = r - 0.5 * t;
-                            let a_ip1_jp1 = -0.5 * q;
-                            let a_ip1_jm1 = 0.5 * q;
-                            let a_im1_jp1 = 0.5 * q;
-                            let a_im1_jm1 = -0.5 * q;
-
-                            println!("{:?}", entries[block_index]);
-                            println!(
-                                "{} {} : {}",
-                                i - 1,
-                                j,
-                                entries[block_index][[i - 1, j]].index
-                            );
-
-                            lhs.put(index, index, a_i_j).unwrap();
-                            lhs.put(index, entries[block_index][[i - 1, j]].index, a_im1_j)
-                                .unwrap();
-                            lhs.put(index, entries[block_index][[i + 1, j]].index, a_ip1_j)
-                                .unwrap();
-                            lhs.put(index, entries[block_index][[i, j - 1]].index, a_i_jm1)
-                                .unwrap();
-                            lhs.put(index, entries[block_index][[i, j + 1]].index, a_i_jp1)
-                                .unwrap();
-                            lhs.put(index, entries[block_index][[i + 1, j + 1]].index, a_ip1_jp1)
-                                .unwrap();
-                            lhs.put(index, entries[block_index][[i + 1, j - 1]].index, a_ip1_jm1)
-                                .unwrap();
-                            lhs.put(index, entries[block_index][[i - 1, j + 1]].index, a_im1_jp1)
-                                .unwrap();
-                            lhs.put(index, entries[block_index][[i - 1, j - 1]].index, a_im1_jm1)
-                                .unwrap();
-                        }
-                        PointProps::Fix => {
-                            let Vec2d(x, y) = mesh.blocks[block_index].coords[[i, j]];
-                            lhs.put(index, index, 1.0).unwrap();
-                            rhs_x[index] = x;
-                            rhs_y[index] = y;
-                        }
-                        PointProps::Connect { donor_index } => {
-                            lhs.put(index, index, 1.0).unwrap();
-                            lhs.put(donor_index, donor_index, 1.0).unwrap();
-                        }
-                    }
+        .zip(mesh.blocks.iter_mut())
+        .for_each(|(block_coords_ref, block)| {
+            let dim = block_coords_ref.dim();
+            block
+                .coords
+                .iter_mut()
+                .zip(
+                    block_coords_ref
+                        .slice(s![1..dim.0 - 1, 1..dim.1 - 1])
+                        .iter(),
+                )
+                .for_each(|(x, x_ref)| {
+                    *x = *x_ref;
                 });
         });
-
-    // // solve
-    // let mut solver = Solver::new(config)?;
-    // solver.initialize(&lhs)?;
-    // solver.factorize()?;
-    // solver.solve(&mut x_new, &rhs_x)?;
-    // solver.solve(&mut y_new, &rhs_y)?;
-
-    // let x_norm = vector_norm(&x_new, NormVec::Euc);
-    // let y_norm = vector_norm(&y_new, NormVec::Euc);
-
-    // let norm = (x_norm * x_norm + y_norm * y_norm).sqrt();
-
-    // println!("\tresidual {norm}");
 
     Ok(())
 }
