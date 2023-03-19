@@ -440,10 +440,10 @@ fn matrix_entries(mesh: &Mesh) -> Vec<Array2<MatrixEntry>> {
 
     // recheck connection start and end points if one is to be fixed
     mesh.edges.iter().for_each(|edge| {
-        if let BlockBoundary::Connection(connection) = edge {
-            {
-                let (i, j) = connection.donor.first();
-                let (i_rec, j_rec) = connection.receiver.first();
+        let mut set_potential_fixed_edge_points =
+            |connection: &BlockConnection, donor_ij: (usize, usize), rec_ij: (usize, usize)| {
+                let (i, j) = donor_ij;
+                let (i_rec, j_rec) = rec_ij;
 
                 assert!(
                     (i_rec as isize, j_rec as isize)
@@ -458,26 +458,30 @@ fn matrix_entries(mesh: &Mesh) -> Vec<Array2<MatrixEntry>> {
                     matrix_entries[connection.receiver.block][[i_rec + 1, j_rec + 1]].prop =
                         PointProps::Fix;
                 }
+            };
+
+        let mut set_potential_fixed_edge_endpoints = |connection: &BlockConnection| {
+            set_potential_fixed_edge_points(
+                connection,
+                connection.donor.first(),
+                connection.receiver.first(),
+            );
+            set_potential_fixed_edge_points(
+                connection,
+                connection.donor.last(),
+                connection.receiver.last(),
+            );
+        };
+
+        match edge {
+            BlockBoundary::Connection(connection) => set_potential_fixed_edge_endpoints(connection),
+            BlockBoundary::PeriodicConnection(periodic_connection) => {
+                let connection = &periodic_connection.connection;
+                set_potential_fixed_edge_endpoints(connection);
             }
-
-            {
-                let (i, j) = connection.donor.last();
-                let (i_rec, j_rec) = connection.receiver.last();
-
-                assert!(
-                    (i_rec as isize, j_rec as isize)
-                        == connection.get_index_in_receiver_block(&[i as isize, j as isize])
-                );
-
-                if matrix_entries[connection.donor.block][[i + 1, j + 1]].prop == PointProps::Fix
-                    || matrix_entries[connection.receiver.block][[i_rec + 1, j_rec + 1]].prop
-                        == PointProps::Fix
-                {
-                    matrix_entries[connection.donor.block][[i + 1, j + 1]].prop = PointProps::Fix;
-                    matrix_entries[connection.receiver.block][[i_rec + 1, j_rec + 1]].prop =
-                        PointProps::Fix;
-                }
-            }
+            BlockBoundary::Inlet(_) => (),
+            BlockBoundary::Outlet(_) => (),
+            BlockBoundary::Wall(_) => (),
         }
     });
 
@@ -529,16 +533,10 @@ pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
                                 let s = 0.0;
                                 let t = 0.0;
 
-                                // let Vec2d(x_i_j, y_i_j) = coords[[i, j]];
                                 let Vec2d(x_ip1_j, y_ip1_j) = coords[block_index][[i + 1, j]];
                                 let Vec2d(x_im1_j, y_im1_j) = coords[block_index][[i - 1, j]];
                                 let Vec2d(x_i_jp1, y_i_jp1) = coords[block_index][[i, j + 1]];
                                 let Vec2d(x_i_jm1, y_i_jm1) = coords[block_index][[i, j - 1]];
-
-                                // let Vec2d(x_ip1_jp1, y_ip1_jp1) = coords[block_index][[i + 1, j + 1]];
-                                // let Vec2d(x_im1_jm1, y_im1_jm1) = coords[block_index][[i - 1, j - 1]];
-                                // let Vec2d(x_ip1_jm1, y_ip1_jm1) = coords[block_index][[i + 1, j - 1]];
-                                // let Vec2d(x_im1_jp1, y_im1_jp1) = coords[block_index][[i - 1, j + 1]];
 
                                 let x_xi = 0.5 * (x_ip1_j - x_im1_j);
                                 let x_eta = 0.5 * (x_i_jp1 - x_i_jm1);
