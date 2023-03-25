@@ -138,6 +138,33 @@ impl BlockBoundaryRange {
             }
         }
     }
+
+    pub fn contains(&self, index: (isize, isize)) -> bool {
+        match self.edge_type() {
+            EdgeIndex::IMin | EdgeIndex::IMax => {
+                if index.1 != self.start[[1, 0]] {
+                    false
+                } else {
+                    if self.is_increasing() {
+                        self.start[[0, 0]] <= index.0 && index.0 <= self.end[[0, 0]]
+                    } else {
+                        self.end[[0, 0]] <= index.0 && index.0 <= self.start[[0, 0]]
+                    }
+                }
+            }
+            EdgeIndex::JMin | EdgeIndex::JMax => {
+                if index.0 != self.start[[0, 0]] {
+                    false
+                } else {
+                    if self.is_increasing() {
+                        self.start[[1, 0]] <= index.1 && index.1 <= self.end[[1, 0]]
+                    } else {
+                        self.end[[1, 0]] <= index.1 && index.1 <= self.start[[1, 0]]
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub struct BlockBoundaryRangeNewIter<'a> {
