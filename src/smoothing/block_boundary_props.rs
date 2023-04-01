@@ -25,15 +25,22 @@ pub enum BlockBoundaryPointProp {
 
 /// stores the block boundary point edge mapping for all blocks
 pub struct BoundaryProps {
-    pub blocks: Vec<BlockBoundaryProps>,
+    pub blocks: Vec<BlockBoundaryProps<Vec<(BlockBoundaryPointProp, usize)>>>,
 }
 
 impl BoundaryProps {
     pub fn new(mesh: &Mesh) -> Self {
-        let mut blocks = Vec::<BlockBoundaryProps>::with_capacity(mesh.blocks.len());
+        let mut blocks =
+            Vec::<BlockBoundaryProps<Vec<(BlockBoundaryPointProp, usize)>>>::with_capacity(
+                mesh.blocks.len(),
+            );
 
         mesh.blocks.iter().for_each(|block| {
-            blocks.push(BlockBoundaryProps::new(block));
+            blocks.push(
+                BlockBoundaryProps::<Vec<(BlockBoundaryPointProp, usize)>>::new(block, || {
+                    Vec::<(BlockBoundaryPointProp, usize)>::with_capacity(4)
+                }),
+            );
         });
 
         mesh.edges
@@ -58,18 +65,20 @@ impl BoundaryProps {
 }
 
 fn add_fixed_points(
-    blocks: &mut Vec<BlockBoundaryProps>,
+    blocks: &mut Vec<BlockBoundaryProps<Vec<(BlockBoundaryPointProp, usize)>>>,
     range: &BlockBoundaryRange,
     edge_idx: usize,
 ) {
     let block_boundary = &mut blocks[range.block];
     range.iter().for_each(|p| {
-        block_boundary.add(p, edge_idx, BlockBoundaryPointProp::Fixed);
+        block_boundary
+            .get_mut(p)
+            .push((BlockBoundaryPointProp::Fixed, edge_idx));
     });
 }
 
 fn add_connected_points(
-    blocks: &mut Vec<BlockBoundaryProps>,
+    blocks: &mut Vec<BlockBoundaryProps<Vec<(BlockBoundaryPointProp, usize)>>>,
     connection: &BlockConnection,
     edge_idx: usize,
 ) {
@@ -78,48 +87,52 @@ fn add_connected_points(
         .iter()
         .zip(connection.receiver.iter())
         .for_each(|(donor, rec)| {
-            blocks[connection.donor.block].add(
-                donor,
-                edge_idx,
+            blocks[connection.donor.block].get_mut(donor).push((
                 BlockBoundaryPointProp::Connected(ConnectionData::new(
                     connection.receiver.block,
                     rec,
                 )),
-            );
-
-            blocks[connection.receiver.block].add(
-                rec,
                 edge_idx,
+            ));
+
+            blocks[connection.receiver.block].get_mut(rec).push((
                 BlockBoundaryPointProp::Connected(ConnectionData::new(
                     connection.donor.block,
                     donor,
                 )),
-            );
+                edge_idx,
+            ));
         });
 }
 
 /// stores for every block boundary point the edges it is contained in
-pub struct BlockBoundaryProps {
+pub struct BlockBoundaryProps<T> {
     dim: [usize; 2],
 
     // saves for every point on the block boundary the mesh edges the point is
     // contained in
-    pub points: Vec<Vec<(BlockBoundaryPointProp, usize)>>,
+    pub points: Vec<T>,
 }
 
-impl BlockBoundaryProps {
-    fn new(block: &Block2d) -> Self {
+impl<T> BlockBoundaryProps<T> {
+    fn new<F>(block: &Block2d, init: F) -> Self
+    where
+        F: FnMut() -> T,
+    {
         let dim = block.points();
-        let points = vec![
-            Vec::<(BlockBoundaryPointProp, usize)>::with_capacity(4);
-            dim[0] * 2 + dim[1] * 2 - 4
-        ];
+        let mut points = Vec::<T>::new();
+        points.resize_with(dim[0] * 2 + dim[1] * 2 - 4, init);
         Self { dim, points }
     }
 
-    fn add(&mut self, point: (usize, usize), edge_idx: usize, prop: BlockBoundaryPointProp) {
+    pub fn get(&self, point: (usize, usize)) -> &T {
         let point_idx = boundary_point_index(point, (self.dim[0], self.dim[1])).unwrap();
-        self.points[point_idx].push((prop, edge_idx));
+        &self.points[point_idx]
+    }
+
+    pub fn get_mut(&mut self, point: (usize, usize)) -> &mut T {
+        let point_idx = boundary_point_index(point, (self.dim[0], self.dim[1])).unwrap();
+        &mut self.points[point_idx]
     }
 
     fn shrink_to_fit(&mut self) {
@@ -204,8 +217,8 @@ pub fn boundary_point_index(point: (usize, usize), dim: (usize, usize)) -> Optio
 //     Connected,
 // }
 
-// fn block_boundary_points_solver_props(mesh: &Mesh) {
+// pub fn block_boundary_points_solver_props(mesh: &Mesh) {
 //     let boundary_props = BoundaryProps::new(mesh);
 
-//     let data = Vec::<>::with_capacity(mesh.blocks.len());
+//     let data = Vec::with_capacity(mesh.blocks.len());
 // }
