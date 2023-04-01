@@ -1,11 +1,14 @@
 // Copyright (c) 2022 Pascal Post
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
+pub mod block_boundary_props;
+
 // for mumps compilation, see also https://github.com/scivision/mumps
 
 // runs based on slightly modified repo https://github.com/cpmech/russell
 
 use crate::{
+    smoothing::block_boundary_props::{BlockBoundaryPointProp, BoundaryProps},
     types::{BlockBoundary, BlockBoundaryRange, BlockConnection, EdgeIndex},
     Block2d, Mesh, Scalar, Vec2d,
 };
@@ -519,9 +522,46 @@ fn matrix_entries(mesh: &Mesh) -> (Vec<Array2<MatrixEntry>>, Vec<(MeshPoint, Mes
         }
     });
 
-    // TODO find tripple and quadrupple solution points and set only one to be
+    // find tripple and quadrupple solution points and set only one to be
     // solved
-    // todo!();
+    let boundary_props = BoundaryProps::new(mesh);
+
+    // bouNdary_props
+    //     .blocks
+    //     .iter()
+    //     .enumerate()
+    //     .for_each(|(block_idx, block)| {
+    //         block.points.iter().for_each(|(prop, edges)| {
+    //             if *prop != BlockBoundaryPointProp::Fixed {
+    //                 let mut n_solve = 0;
+
+    //                 for edge_idx in edges.iter() {
+    //                     match &mesh.edges[*edge_idx] {
+    //                         BlockBoundary::Connection(connection) => {
+    //                             if connection.donor.block == block_idx {
+    //                                 n_solve += 1
+    //                             }
+    //                         }
+    //                         BlockBoundary::PeriodicConnection(per) => {
+    //                             if per.connection.donor.block == block_idx {
+    //                                 n_solve += 1
+    //                             }
+    //                         }
+    //                         BlockBoundary::Inlet(_)
+    //                         | BlockBoundary::Outlet(_)
+    //                         | BlockBoundary::Wall(_) => {
+    //                             n_solve = 0;
+    //                             break;
+    //                         }
+    //                     }
+    //                 }
+
+    //                 if n_solve > 1 {
+    //                     todo!();
+    //                 }
+    //             }
+    //         });
+    //     });
 
     // vector of changes for block,i,j (0) to apply index of block,i,j (1)
     // TODO change to better structure
