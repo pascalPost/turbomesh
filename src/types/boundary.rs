@@ -2,7 +2,7 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 use crate::types::{EdgeIndex, SegmentFunction};
-use crate::{Mesh, Scalar, Vec2d};
+use crate::{Mesh, Vec2d};
 use float_cmp::approx_eq;
 use ndarray::Array2;
 use std::slice::SliceIndex;
@@ -111,8 +111,8 @@ impl BlockBoundaryRange {
         self
     }
 
-    pub fn iter(&self) -> BlockBoundaryRangeNewIter {
-        BlockBoundaryRangeNewIter::new(self)
+    pub fn iter(&self) -> BlockBoundaryRangeIter {
+        BlockBoundaryRangeIter::new(self)
     }
 
     pub fn first(&self) -> (usize, usize) {
@@ -167,7 +167,7 @@ impl BlockBoundaryRange {
     }
 }
 
-pub struct BlockBoundaryRangeNewIter<'a> {
+pub struct BlockBoundaryRangeIter<'a> {
     range: &'a BlockBoundaryRange,
     dim: usize,
     step: isize,
@@ -175,7 +175,7 @@ pub struct BlockBoundaryRangeNewIter<'a> {
     count: usize,
 }
 
-impl<'a> BlockBoundaryRangeNewIter<'a> {
+impl<'a> BlockBoundaryRangeIter<'a> {
     fn new(range: &'a BlockBoundaryRange) -> Self {
         let mut dim = 0;
 
@@ -205,7 +205,7 @@ impl<'a> BlockBoundaryRangeNewIter<'a> {
     }
 }
 
-impl<'a> Iterator for BlockBoundaryRangeNewIter<'a> {
+impl<'a> Iterator for BlockBoundaryRangeIter<'a> {
     type Item = (usize, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -234,7 +234,7 @@ impl PeriodicBlockConnection {
         ranges: (BlockBoundaryRange, BlockBoundaryRange),
         translation: Vec2d,
     ) -> Self {
-        let connection = BlockConnection::new_unchecked(mesh, ranges);
+        let connection = BlockConnection::new_unchecked(ranges);
         connection.check_overlap(mesh, translation);
         Self {
             connection,
@@ -255,12 +255,12 @@ pub struct BlockConnection {
 
 impl BlockConnection {
     pub fn new(mesh: &Mesh, ranges: (BlockBoundaryRange, BlockBoundaryRange)) -> Self {
-        let connection = BlockConnection::new_unchecked(mesh, ranges);
+        let connection = BlockConnection::new_unchecked(ranges);
         connection.check_overlap(mesh, Vec2d(0.0, 0.0));
         connection
     }
 
-    pub fn new_unchecked(mesh: &Mesh, ranges: (BlockBoundaryRange, BlockBoundaryRange)) -> Self {
+    pub fn new_unchecked(ranges: (BlockBoundaryRange, BlockBoundaryRange)) -> Self {
         let donor = ranges.0;
         let receiver = ranges.1;
 
