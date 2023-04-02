@@ -8,7 +8,9 @@ pub mod block_boundary_props;
 // runs based on slightly modified repo https://github.com/cpmech/russell
 
 use crate::{
-    smoothing::block_boundary_props::{BlockBoundaryPointProp, BoundaryProps},
+    smoothing::block_boundary_props::{
+        block_boundary_points_solver_props, BlockBoundaryPointProp, BoundaryProps,
+    },
     types::{BlockBoundary, BlockBoundaryRange, BlockConnection, EdgeIndex},
     Block2d, Mesh, Scalar, Vec2d,
 };
@@ -524,9 +526,11 @@ fn matrix_entries(mesh: &Mesh) -> (Vec<Array2<MatrixEntry>>, Vec<(MeshPoint, Mes
 
     // find tripple and quadrupple solution points and set only one to be
     // solved
-    let boundary_props = BoundaryProps::new(mesh);
+    // let boundary_props = BoundaryProps::new(mesh);
 
-    // bouNdary_props
+    let boundary_props = block_boundary_points_solver_props(mesh);
+
+    // boundary_props
     //     .blocks
     //     .iter()
     //     .enumerate()

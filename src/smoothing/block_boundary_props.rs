@@ -1,6 +1,8 @@
 // Copyright (c) 2023 Pascal Post
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
+use std::cell::Cell;
+
 use crate::types::{BlockBoundary, BlockBoundaryRange, BlockConnection};
 use crate::{Block2d, Mesh};
 
@@ -135,6 +137,18 @@ impl<T> BlockBoundaryProps<T> {
         &mut self.points[point_idx]
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.points.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        self.points.iter_mut()
+    }
+
+    pub fn point_index(&self, boundary_point_index: usize) -> Option<(usize, usize)> {
+        boundary_point_to_point(boundary_point_index, (self.dim[0], self.dim[1]))
+    }
+
     fn shrink_to_fit(&mut self) {
         self.points.shrink_to_fit();
     }
@@ -210,15 +224,238 @@ pub fn boundary_point_index(point: (usize, usize), dim: (usize, usize)) -> Optio
     }
 }
 
-// pub enum BlockBoundaryPointSolverProp {
-//     Undefined,
-//     Fixed,
-//     Solved,
-//     Connected,
-// }
+/// returns the point index given the flat array boundary index for the block of
+/// boudary dimensions dim
+///
+/// example block of size 6x4:
+///          (0,3) (1,3) (2,3) (3,3) (4,3) (5,3)
+///          13    12    11    10    09    08
+/// (0,3)    x     x     x     x     x     x     (5,3)
+/// (0,2) 14 x                             x  07 (5,2)
+/// (0,1) 15 x                             x  06 (5,1)
+/// (0,0)    x     x     x     x     x     x     (5,0)
+///          00    01    02    03    04    05
+///         (0,0) (1,0) (2,0) (3,0) (4,0) (5,0)
+///
+/// ```
+/// use turbomesh::smoothing::block_boundary_props::boundary_point_to_point;
+///
+/// let dim = (6,4);
+/// assert_eq!(boundary_point_to_point(0, dim), Some((0, 0)));
+/// assert_eq!(boundary_point_to_point(1, dim), Some((1, 0)));
+/// assert_eq!(boundary_point_to_point(2, dim), Some((2, 0)));
+/// assert_eq!(boundary_point_to_point(3, dim), Some((3, 0)));
+/// assert_eq!(boundary_point_to_point(4, dim), Some((4, 0)));
+/// assert_eq!(boundary_point_to_point(5, dim), Some((5, 0)));
+///
+/// assert_eq!(boundary_point_to_point(5, dim), Some((5, 0)));
+/// assert_eq!(boundary_point_to_point(6, dim), Some((5, 1)));
+/// assert_eq!(boundary_point_to_point(7, dim), Some((5, 2)));
+/// assert_eq!(boundary_point_to_point(8, dim), Some((5, 3)));
+///
+/// assert_eq!(boundary_point_to_point(8, dim), Some((5, 3)));
+/// assert_eq!(boundary_point_to_point(9, dim), Some((4, 3)));
+/// assert_eq!(boundary_point_to_point(10, dim), Some((3, 3)));
+/// assert_eq!(boundary_point_to_point(11, dim), Some((2, 3)));
+/// assert_eq!(boundary_point_to_point(12, dim), Some((1, 3)));
+/// assert_eq!(boundary_point_to_point(13, dim), Some((0, 3)));
+///
+/// assert_eq!(boundary_point_to_point(13, dim), Some((0, 3)));
+/// assert_eq!(boundary_point_to_point(14, dim), Some((0, 2)));
+/// assert_eq!(boundary_point_to_point(15, dim), Some((0, 1)));
+/// assert_eq!(boundary_point_to_point(16, dim), None);
+/// ```
+pub fn boundary_point_to_point(
+    boundary_point_index: usize,
+    dim: (usize, usize),
+) -> Option<(usize, usize)> {
+    if boundary_point_index < dim.0 {
+        Some((boundary_point_index, 0))
+    } else if boundary_point_index < dim.0 + dim.1 - 1 {
+        Some((dim.0 - 1, boundary_point_index - dim.0 + 1))
+    } else if boundary_point_index < 2 * dim.0 + dim.1 - 2 {
+        Some((2 * dim.0 + dim.1 - 3 - boundary_point_index, dim.1 - 1))
+    } else if boundary_point_index < 2 * dim.0 + 2 * dim.1 - 4 {
+        Some((0, 2 * dim.0 + 2 * dim.1 - 4 - boundary_point_index))
+    } else {
+        None
+    }
+}
 
-// pub fn block_boundary_points_solver_props(mesh: &Mesh) {
-//     let boundary_props = BoundaryProps::new(mesh);
+#[derive(Debug, Clone, PartialEq)]
+pub enum BlockBoundaryPointSolverProp {
+    Undefined,
+    Fixed,
+    Solved(Vec<ConnectionData>),
+    Connected(ConnectionData),
+}
 
-//     let data = Vec::with_capacity(mesh.blocks.len());
-// }
+/// compute the matrix treatment for every mesh point
+pub fn block_boundary_points_solver_props(
+    mesh: &Mesh,
+) -> Vec<BlockBoundaryProps<BlockBoundaryPointSolverProp>> {
+    let boundary_props = BoundaryProps::new(mesh);
+
+    // init all points to undefined
+    let mut data = mesh
+        .blocks
+        .iter()
+        .map(|block| BlockBoundaryProps::new(block, || BlockBoundaryPointSolverProp::Undefined))
+        .collect::<Vec<_>>();
+
+    // set all fixed points to fixed
+    boundary_props.blocks.iter().zip(data.iter_mut()).for_each(
+        |(block_data, block_solver_data)| {
+            block_data
+                .iter()
+                .zip(block_solver_data.iter_mut())
+                .for_each(|(point_data, point_solver_data)| {
+                    for p in point_data.iter() {
+                        assert!(p.0 != BlockBoundaryPointProp::Undefined);
+                        if let BlockBoundaryPointProp::Fixed = p.0 {
+                            *point_solver_data = BlockBoundaryPointSolverProp::Fixed;
+                            break;
+                        }
+                    }
+                });
+        },
+    );
+
+    for (block_idx, block) in boundary_props.blocks.iter().enumerate() {
+        for (point_idx, point) in block.iter().enumerate() {
+            // check if point props need to be defined
+            if data[block_idx].points[point_idx] == BlockBoundaryPointSolverProp::Undefined {
+                // loop over all connected points and check for a fixed point. If
+                // there is a fixed point, set all the current point and all
+                // connected points to fixed
+                let mut is_fixed = false;
+                for p in point.iter() {
+                    if let BlockBoundaryPointProp::Connected(con) = &p.0 {
+                        if *data[con.block].get(con.point) == BlockBoundaryPointSolverProp::Fixed {
+                            is_fixed = true;
+                            break;
+                        }
+                    }
+                }
+                if is_fixed {
+                    data[block_idx].points[point_idx] = BlockBoundaryPointSolverProp::Fixed;
+                    for p in point.iter() {
+                        if let BlockBoundaryPointProp::Connected(con) = &p.0 {
+                            *data[con.block].get_mut(con.point) =
+                                BlockBoundaryPointSolverProp::Fixed;
+                        }
+                    }
+                } else {
+                    // set the current point to be solved and the connected
+                    // points to be connected
+                    let mut connected_points = Vec::<ConnectionData>::with_capacity(4);
+                    for p in point.iter() {
+                        if let BlockBoundaryPointProp::Connected(con) = &p.0 {
+                            *data[con.block].get_mut(con.point) =
+                                BlockBoundaryPointSolverProp::Connected(ConnectionData::new(
+                                    block_idx,
+                                    block.point_index(point_idx).unwrap(),
+                                ));
+
+                            connected_points.push(ConnectionData::new(con.block, con.point));
+                        } else {
+                            panic!("point is not connected");
+                        }
+                    }
+
+                    connected_points.shrink_to_fit();
+
+                    data[block_idx].points[point_idx] =
+                        BlockBoundaryPointSolverProp::Solved(connected_points);
+                }
+            }
+        }
+    }
+
+    // boundary_props
+    //     .blocks
+    //     .iter()
+    //     .enumerate()
+    //     .for_each(|(block_idx, block)| {
+    //         block.iter().enumerate().for_each(|(point_idx, point)| {
+    //             // loop over all connected points
+
+    //             // check if the current point is to be fixed (if one connected point is fixed)
+    //             let mut is_fixed = false;
+
+    //             for p in point.iter() {
+    //                 if let BlockBoundaryPointProp::Connected(con) = &p.0 {
+    //                     if *data[con.block].get(con.point) == BlockBoundaryPointSolverProp::Fixed {
+    //                         is_fixed = true;
+    //                         break;
+    //                     }
+    //                 }
+    //             }
+
+    //             if is_fixed {
+    //                 data[block_idx].points[point_idx] = BlockBoundaryPointSolverProp::Fixed;
+    //             } else {
+    //                 // the point is to be solved
+
+    //                 // check if one of the points it already set to be solved
+
+    //                 let mut is_already_solved = false;
+
+    //                 for p in point.iter() {
+    //                     if let BlockBoundaryPointProp::Connected(con) = &p.0 {
+    //                         if *data[con.block].get(con.point)
+    //                             == BlockBoundaryPointSolverProp::Solved
+    //                         {
+    //                             is_already_solved = true;
+    //                             break;
+    //                         }
+    //                     }
+    //                 }
+
+    //                 if !is_already_solved {
+    //                     // set the current point to be solved and all other
+    //                     // points to be connected
+    //                 }
+    //             }
+    //         })
+    //     });
+
+    // // check all connected points for fixed points and set these to fixed
+    // {
+    //     // TODO preallocate to gain speed
+    //     let mut changes = Vec::<(usize, usize)>::new();
+
+    //     boundary_props
+    //         .blocks
+    //         .iter()
+    //         .zip(data.iter())
+    //         .enumerate()
+    //         .for_each(|(block_idx, (block_data, block_solver_data))| {
+    //             block_data
+    //                 .iter()
+    //                 .zip(block_solver_data.iter())
+    //                 .enumerate()
+    //                 .for_each(|(point_idx, (point_data, point_solver_data))| {
+    //                     if *point_solver_data != BlockBoundaryPointSolverProp::Fixed {
+    //                         for p in point_data.iter() {
+    //                             if let BlockBoundaryPointProp::Connected(con) = &p.0 {
+    //                                 // check if connected point is fixed
+    //                                 if *data[con.block].get(con.point)
+    //                                     == BlockBoundaryPointSolverProp::Fixed
+    //                                 {
+    //                                     changes.push((block_idx, point_idx));
+    //                                     break;
+    //                                 }
+    //                             }
+    //                         }
+    //                     }
+    //                 });
+    //         });
+
+    //     changes.into_iter().for_each(|(block_idx, point_idx)| {
+    //         data[block_idx].points[point_idx] = BlockBoundaryPointSolverProp::Fixed;
+    //     });
+    // }
+
+    data
+}
