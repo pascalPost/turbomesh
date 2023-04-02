@@ -326,8 +326,6 @@ fn matrix_entries(mesh: &Mesh) -> (Vec<Array2<MatrixEntry>>, Vec<(MeshPoint, Mes
     // 2 | 1
     //
 
-    let mut matrix_entries: Vec<Array2<MatrixEntry>> = Vec::with_capacity(mesh.blocks.len());
-
     let start_indices: Vec<usize> = mesh
         .blocks
         .iter()
@@ -338,6 +336,76 @@ fn matrix_entries(mesh: &Mesh) -> (Vec<Array2<MatrixEntry>>, Vec<(MeshPoint, Mes
             Some(idx)
         })
         .collect();
+
+    let mut matrix_entries_new: Vec<Array2<MatrixEntry>> = Vec::with_capacity(mesh.blocks.len());
+
+    // intialization
+    mesh.blocks
+        .iter()
+        .zip(start_indices.iter())
+        .for_each(|(block, start_idx)| {
+            let dim = block.points();
+
+            // initialize all block points including ghost  to fixed and usize::MAX as matrix index
+            let mut block_entries = Array2::<MatrixEntry>::from_elem(
+                [dim[0] + 2, dim[1] + 2],
+                MatrixEntry::new(usize::MAX, PointProps::Fix),
+            );
+
+            // set index for all block points
+            block_entries
+                .slice_mut(s![1..dim[0] + 1, 1..dim[1] + 1])
+                .iter_mut()
+                .enumerate()
+                .for_each(|(counter, e)| {
+                    e.index = start_idx + counter;
+                });
+
+            // set all internal block points to solve
+            block_entries
+                .slice_mut(s![2..dim[0], 2..dim[1]])
+                .iter_mut()
+                .for_each(|e| {
+                    e.prop = PointProps::Solve;
+                });
+
+            matrix_entries_new.push(block_entries);
+        });
+
+    // boundary indices
+    let boundary_props = block_boundary_points_solver_props(mesh);
+
+    boundary_props
+        .iter()
+        .enumerate()
+        .for_each(|(block_idx, block_boundary_props)| {
+            block_boundary_props
+                .iter()
+                .enumerate()
+                .for_each(|(point_idx, point_prop)| {
+                    let point = block_boundary_props.point_index(point_idx).unwrap();
+                    match point_prop {
+                        block_boundary_props::BlockBoundaryPointSolverProp::Undefined => {
+                            panic!("undefined block boundary point encountered")
+                        }
+                        block_boundary_props::BlockBoundaryPointSolverProp::Fixed => {
+                            matrix_entries[block_idx][[i, j]].prop = PointProps::Fix
+                        }
+                        block_boundary_props::BlockBoundaryPointSolverProp::Solved(_) => todo!(),
+                        block_boundary_props::BlockBoundaryPointSolverProp::Connected(_) => todo!(),
+                        block_boundary_props::BlockBoundaryPointSolverProp::SolvedPeriodic(_) => {
+                            todo!()
+                        }
+                        block_boundary_props::BlockBoundaryPointSolverProp::ConnectedPeriodic(
+                            _,
+                        ) => todo!(),
+                    }
+
+                    matrix_entries[block_idx][[point.0 + 1, point.1 + 1]].prop = *prop;
+                });
+        });
+
+    let mut matrix_entries: Vec<Array2<MatrixEntry>> = Vec::with_capacity(mesh.blocks.len());
 
     // internal indices
     mesh.blocks

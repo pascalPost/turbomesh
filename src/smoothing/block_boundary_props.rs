@@ -1,10 +1,8 @@
 // Copyright (c) 2023 Pascal Post
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
-use std::cell::Cell;
-
-use crate::types::{BlockBoundary, BlockBoundaryRange, BlockConnection};
-use crate::{Block2d, Mesh};
+use crate::types::{BlockBoundary, BlockBoundaryRange, BlockConnection, PeriodicBlockConnection};
+use crate::{Block2d, Mesh, Vec2d};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConnectionData {
@@ -23,6 +21,9 @@ pub enum BlockBoundaryPointProp {
     Undefined,
     Fixed,
     Connected(ConnectionData),
+
+    // set only the donor to periodic in order to have the correct translation
+    Periodic(ConnectionData, Vec2d),
 }
 
 /// stores the block boundary point edge mapping for all blocks
@@ -53,7 +54,7 @@ impl BoundaryProps {
                     add_connected_points(&mut blocks, connection, edge_idx)
                 }
                 BlockBoundary::PeriodicConnection(per) => {
-                    add_connected_points(&mut blocks, &per.connection, edge_idx)
+                    add_periodic_points(&mut blocks, &per, edge_idx)
                 }
                 BlockBoundary::Inlet(range)
                 | BlockBoundary::Outlet(range)
@@ -66,6 +67,7 @@ impl BoundaryProps {
     }
 }
 
+/// adds the fixed points to the block boundary point edge mapping
 fn add_fixed_points(
     blocks: &mut Vec<BlockBoundaryProps<Vec<(BlockBoundaryPointProp, usize)>>>,
     range: &BlockBoundaryRange,
@@ -79,6 +81,7 @@ fn add_fixed_points(
     });
 }
 
+/// adds the connected points to the block boundary point edge mapping
 fn add_connected_points(
     blocks: &mut Vec<BlockBoundaryProps<Vec<(BlockBoundaryPointProp, usize)>>>,
     connection: &BlockConnection,
@@ -94,6 +97,38 @@ fn add_connected_points(
                     connection.receiver.block,
                     rec,
                 )),
+                edge_idx,
+            ));
+
+            blocks[connection.receiver.block].get_mut(rec).push((
+                BlockBoundaryPointProp::Connected(ConnectionData::new(
+                    connection.donor.block,
+                    donor,
+                )),
+                edge_idx,
+            ));
+        });
+}
+
+/// adds the periodic points to the block boundary point edge mapping, where the
+/// donor is set to periodic and the receiver is set to connected
+fn add_periodic_points(
+    blocks: &mut Vec<BlockBoundaryProps<Vec<(BlockBoundaryPointProp, usize)>>>,
+    per: &PeriodicBlockConnection,
+    edge_idx: usize,
+) {
+    let connection = &per.connection;
+
+    connection
+        .donor
+        .iter()
+        .zip(connection.receiver.iter())
+        .for_each(|(donor, rec)| {
+            blocks[connection.donor.block].get_mut(donor).push((
+                BlockBoundaryPointProp::Periodic(
+                    ConnectionData::new(connection.receiver.block, rec),
+                    per.translation,
+                ),
                 edge_idx,
             ));
 
@@ -288,6 +323,8 @@ pub enum BlockBoundaryPointSolverProp {
     Fixed,
     Solved(Vec<ConnectionData>),
     Connected(ConnectionData),
+    SolvedPeriodic(Vec<ConnectionData>),
+    ConnectedPeriodic(ConnectionData),
 }
 
 /// compute the matrix treatment for every mesh point
@@ -321,6 +358,11 @@ pub fn block_boundary_points_solver_props(
         },
     );
 
+    // loop over all points and checks
+    // (0) if the point is still undefined
+    // (1) if one connected point is fixed
+    // (2) if one connected point is periodic
+    // (3) set points to solve and connected
     for (block_idx, block) in boundary_props.blocks.iter().enumerate() {
         for (point_idx, point) in block.iter().enumerate() {
             // check if point props need to be defined
@@ -338,6 +380,7 @@ pub fn block_boundary_points_solver_props(
                     }
                 }
                 if is_fixed {
+                    // set the point and all connected points to fixed
                     data[block_idx].points[point_idx] = BlockBoundaryPointSolverProp::Fixed;
                     for p in point.iter() {
                         if let BlockBoundaryPointProp::Connected(con) = &p.0 {
@@ -346,116 +389,71 @@ pub fn block_boundary_points_solver_props(
                         }
                     }
                 } else {
-                    // set the current point to be solved and the connected
-                    // points to be connected
-                    let mut connected_points = Vec::<ConnectionData>::with_capacity(4);
-                    for p in point.iter() {
-                        if let BlockBoundaryPointProp::Connected(con) = &p.0 {
-                            *data[con.block].get_mut(con.point) =
-                                BlockBoundaryPointSolverProp::Connected(ConnectionData::new(
-                                    block_idx,
-                                    block.point_index(point_idx).unwrap(),
-                                ));
+                    // loop over all connected points and check for a periodic point. If
+                    // there is a periodic point, set all the current point and all
+                    // connected points to fixed
+                    let mut is_periodic = false;
 
-                            connected_points.push(ConnectionData::new(con.block, con.point));
-                        } else {
-                            panic!("point is not connected");
+                    for p in point.iter() {
+                        if let BlockBoundaryPointProp::Periodic(_, _) = &p.0 {
+                            is_periodic = true;
                         }
                     }
+                    if is_periodic {
+                        let mut connected_points = Vec::<ConnectionData>::with_capacity(4);
+                        for p in point.iter() {
+                            if let BlockBoundaryPointProp::Connected(con) = &p.0 {
+                                *data[con.block].get_mut(con.point) =
+                                    BlockBoundaryPointSolverProp::Connected(ConnectionData::new(
+                                        block_idx,
+                                        block.point_index(point_idx).unwrap(),
+                                    ));
 
-                    connected_points.shrink_to_fit();
+                                connected_points.push(ConnectionData::new(con.block, con.point));
+                            } else if let BlockBoundaryPointProp::Periodic(con, _) = &p.0 {
+                                *data[con.block].get_mut(con.point) =
+                                    BlockBoundaryPointSolverProp::Connected(ConnectionData::new(
+                                        block_idx,
+                                        block.point_index(point_idx).unwrap(),
+                                    ));
 
-                    data[block_idx].points[point_idx] =
-                        BlockBoundaryPointSolverProp::Solved(connected_points);
+                                connected_points.push(ConnectionData::new(con.block, con.point));
+                            } else {
+                                panic!("point is not connected");
+                            }
+                        }
+
+                        connected_points.shrink_to_fit();
+
+                        data[block_idx].points[point_idx] =
+                            BlockBoundaryPointSolverProp::SolvedPeriodic(connected_points);
+                    } else {
+                        // set the current point to be solved and the connected
+                        // points to be connected
+                        let mut connected_points = Vec::<ConnectionData>::with_capacity(4);
+                        for p in point.iter() {
+                            if let BlockBoundaryPointProp::Connected(con) = &p.0 {
+                                *data[con.block].get_mut(con.point) =
+                                    BlockBoundaryPointSolverProp::Connected(ConnectionData::new(
+                                        block_idx,
+                                        block.point_index(point_idx).unwrap(),
+                                    ));
+
+                                connected_points.push(ConnectionData::new(con.block, con.point));
+                            } else {
+                                panic!("point is not connected");
+                            }
+                        }
+
+                        connected_points.shrink_to_fit();
+
+                        data[block_idx].points[point_idx] =
+                            BlockBoundaryPointSolverProp::Solved(connected_points);
+                    }
                 }
             }
         }
     }
-
-    // boundary_props
-    //     .blocks
-    //     .iter()
-    //     .enumerate()
-    //     .for_each(|(block_idx, block)| {
-    //         block.iter().enumerate().for_each(|(point_idx, point)| {
-    //             // loop over all connected points
-
-    //             // check if the current point is to be fixed (if one connected point is fixed)
-    //             let mut is_fixed = false;
-
-    //             for p in point.iter() {
-    //                 if let BlockBoundaryPointProp::Connected(con) = &p.0 {
-    //                     if *data[con.block].get(con.point) == BlockBoundaryPointSolverProp::Fixed {
-    //                         is_fixed = true;
-    //                         break;
-    //                     }
-    //                 }
-    //             }
-
-    //             if is_fixed {
-    //                 data[block_idx].points[point_idx] = BlockBoundaryPointSolverProp::Fixed;
-    //             } else {
-    //                 // the point is to be solved
-
-    //                 // check if one of the points it already set to be solved
-
-    //                 let mut is_already_solved = false;
-
-    //                 for p in point.iter() {
-    //                     if let BlockBoundaryPointProp::Connected(con) = &p.0 {
-    //                         if *data[con.block].get(con.point)
-    //                             == BlockBoundaryPointSolverProp::Solved
-    //                         {
-    //                             is_already_solved = true;
-    //                             break;
-    //                         }
-    //                     }
-    //                 }
-
-    //                 if !is_already_solved {
-    //                     // set the current point to be solved and all other
-    //                     // points to be connected
-    //                 }
-    //             }
-    //         })
-    //     });
-
-    // // check all connected points for fixed points and set these to fixed
-    // {
-    //     // TODO preallocate to gain speed
-    //     let mut changes = Vec::<(usize, usize)>::new();
-
-    //     boundary_props
-    //         .blocks
-    //         .iter()
-    //         .zip(data.iter())
-    //         .enumerate()
-    //         .for_each(|(block_idx, (block_data, block_solver_data))| {
-    //             block_data
-    //                 .iter()
-    //                 .zip(block_solver_data.iter())
-    //                 .enumerate()
-    //                 .for_each(|(point_idx, (point_data, point_solver_data))| {
-    //                     if *point_solver_data != BlockBoundaryPointSolverProp::Fixed {
-    //                         for p in point_data.iter() {
-    //                             if let BlockBoundaryPointProp::Connected(con) = &p.0 {
-    //                                 // check if connected point is fixed
-    //                                 if *data[con.block].get(con.point)
-    //                                     == BlockBoundaryPointSolverProp::Fixed
-    //                                 {
-    //                                     changes.push((block_idx, point_idx));
-    //                                     break;
-    //                                 }
-    //                             }
-    //                         }
-    //                     }
-    //                 });
-    //         });
-
-    //     changes.into_iter().for_each(|(block_idx, point_idx)| {
-    //         data[block_idx].points[point_idx] = BlockBoundaryPointSolverProp::Fixed;
-    //     });
-    // }
 
     data
 }
