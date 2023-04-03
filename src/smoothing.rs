@@ -8,10 +8,8 @@ pub mod block_boundary_props;
 // runs based on slightly modified repo https://github.com/cpmech/russell
 
 use crate::{
-    smoothing::block_boundary_props::{
-        block_boundary_points_solver_props, BlockBoundaryPointProp, BoundaryProps,
-    },
-    types::{BlockBoundary, BlockBoundaryRange, BlockConnection, EdgeIndex},
+    smoothing::block_boundary_props::block_boundary_points_solver_props,
+    types::{BlockBoundary, BlockBoundaryRange, BlockConnection},
     Block2d, Mesh, Scalar, Vec2d,
 };
 use ndarray::{s, Array2};
@@ -254,7 +252,7 @@ fn coordinates_with_ghost_points(mesh: &Mesh) -> Vec<Array2<Vec2d>> {
 fn fill_ghost_points(
     mesh: &Mesh,
     coords: &mut Vec<ndarray::Array2<Vec2d>>,
-    corners: &Vec<(MeshPoint, MeshPoint)>,
+    // _corners: &Vec<(MeshPoint, MeshPoint)>,
 ) {
     mesh.edges.iter().for_each(|edge| {
         if let BlockBoundary::Connection(connection) = edge {
@@ -384,24 +382,66 @@ fn matrix_entries(mesh: &Mesh) -> (Vec<Array2<MatrixEntry>>, Vec<(MeshPoint, Mes
                 .enumerate()
                 .for_each(|(point_idx, point_prop)| {
                     let point = block_boundary_props.point_index(point_idx).unwrap();
+
+                    // ghost point index
+                    let i = point.0 + 1;
+                    let j = point.1 + 1;
+
                     match point_prop {
                         block_boundary_props::BlockBoundaryPointSolverProp::Undefined => {
                             panic!("undefined block boundary point encountered")
                         }
                         block_boundary_props::BlockBoundaryPointSolverProp::Fixed => {
-                            matrix_entries[block_idx][[i, j]].prop = PointProps::Fix
+                            matrix_entries_new[block_idx][[i, j]].prop = PointProps::Fix
                         }
-                        block_boundary_props::BlockBoundaryPointSolverProp::Solved(_) => todo!(),
-                        block_boundary_props::BlockBoundaryPointSolverProp::Connected(_) => todo!(),
-                        block_boundary_props::BlockBoundaryPointSolverProp::SolvedPeriodic(_) => {
-                            todo!()
-                        }
-                        block_boundary_props::BlockBoundaryPointSolverProp::ConnectedPeriodic(
-                            _,
-                        ) => todo!(),
-                    }
+                        block_boundary_props::BlockBoundaryPointSolverProp::Solved(connections) => {
+                            matrix_entries_new[block_idx][[i, j]].prop = PointProps::Solve;
 
-                    matrix_entries[block_idx][[point.0 + 1, point.1 + 1]].prop = *prop;
+                            // fill ghost points
+
+                            // derive the three needed ghost points
+                            let dim = block_boundary_props.dim;
+
+                            // let ghost_points = if i == 1 {
+                            //     [(0, j - 1), (0, j), (0, j + 1)]
+                            // } else if j == 1 {
+                            //     [(i - 1, 0), (i, 0), (i + 1, 0)]
+                            // } else if i == dim[0] {
+                            //     [(dim[0] + 1, j - 1), (dim[0] + 1, j), (dim[0] + 1, j + 1)]
+                            // } else if j == dim[1] {
+                            //     [(i - 1, dim[1] + 1), (i, dim[1] + 1), (i + 1, dim[1] + 1)]
+                            // } else {
+                            //     panic!("ghost point index out of bounds")
+                            // };
+
+                            // for every ghost point, search the connected
+                            // points for the point donor
+
+                            // for point in ghost_points.iter() {}
+
+                            // for connection in connections.iter() {}
+                        }
+                        block_boundary_props::BlockBoundaryPointSolverProp::Connected(donor) => {
+                            let donor_index = matrix_entries_new[donor.index.block]
+                                [[donor.index.point.0 + 1, donor.index.point.1 + 1]]
+                            .index;
+                            matrix_entries_new[block_idx][[i, j]].prop =
+                                PointProps::Connect { donor_index }
+                        }
+                        block_boundary_props::BlockBoundaryPointSolverProp::ConnectedPeriodic {
+                            donor,
+                            translation,
+                        } => {
+                            let donor_index = matrix_entries_new[donor.index.block]
+                                [[donor.index.point.0 + 1, donor.index.point.1 + 1]]
+                            .index;
+                            matrix_entries_new[block_idx][[i, j]].prop =
+                                PointProps::ConnectPeriodic {
+                                    donor_index,
+                                    translation: *translation,
+                                }
+                        }
+                    }
                 });
         });
 
@@ -592,11 +632,32 @@ fn matrix_entries(mesh: &Mesh) -> (Vec<Array2<MatrixEntry>>, Vec<(MeshPoint, Mes
         }
     });
 
+    // write matrix_entries to file
+    use std::io::Write;
+    {
+        let mut file = std::fs::File::create("matrix_entries.txt").unwrap();
+        for (block_idx, block) in matrix_entries.iter().enumerate() {
+            writeln!(file, "block {}", block_idx).unwrap();
+            for ((i, j), entry) in block.indexed_iter() {
+                writeln!(file, ", ({}, {}) = {:?}", i, j, entry).unwrap();
+            }
+        }
+    }
+    {
+        let mut file = std::fs::File::create("matrix_entries_new.txt").unwrap();
+        for (block_idx, block) in matrix_entries_new.iter().enumerate() {
+            writeln!(file, "block {}", block_idx).unwrap();
+            for ((i, j), entry) in block.indexed_iter() {
+                writeln!(file, ", ({}, {}) = {:?}", i, j, entry).unwrap();
+            }
+        }
+    }
+
     // find tripple and quadrupple solution points and set only one to be
     // solved
     // let boundary_props = BoundaryProps::new(mesh);
 
-    let boundary_props = block_boundary_points_solver_props(mesh);
+    // let boundary_props = block_boundary_points_solver_props(mesh);
 
     // boundary_props
     //     .blocks
@@ -853,7 +914,7 @@ pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
     let iterations = 20;
 
     // fields with ghost points
-    let (entries, corners) = matrix_entries(&mesh);
+    let (entries, _) = matrix_entries(&mesh);
     let mut coords = coordinates_with_ghost_points(&mesh);
 
     // allocations
@@ -866,7 +927,7 @@ pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
     for n in 0..iterations {
         print!("  iteration\t{n}");
 
-        fill_ghost_points(mesh, &mut coords, &corners);
+        fill_ghost_points(mesh, &mut coords /* , &corners */);
 
         lhs.reset();
         rhs_x.fill(0.0);
