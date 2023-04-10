@@ -67,7 +67,7 @@ impl BoundaryProps {
                 }
                 BlockBoundary::Inlet(range)
                 | BlockBoundary::Outlet(range)
-                | BlockBoundary::Wall(range) => add_fixed_points(&mut blocks, &range, edge_idx),
+                | BlockBoundary::Wall(range) => add_fixed_points(&mut blocks, &range),
             });
 
         blocks.iter_mut().for_each(|bound| bound.shrink_to_fit());
@@ -80,12 +80,12 @@ impl BoundaryProps {
 fn add_fixed_points(
     blocks: &mut Vec<BlockBoundaryProps<Vec<BlockBoundaryPointProp>>>,
     range: &BlockBoundaryRange,
-    edge_idx: usize,
 ) {
     let block_boundary = &mut blocks[range.block];
     range.iter().for_each(|p| {
         block_boundary
             .get_mut(p)
+            .unwrap()
             .push(BlockBoundaryPointProp::Fixed);
     });
 }
@@ -101,16 +101,17 @@ fn add_connected_points(
         .iter()
         .zip(connection.receiver.iter())
         .for_each(|(donor, rec)| {
-            blocks[connection.donor.block]
-                .get_mut(donor)
-                .push(BlockBoundaryPointProp::Connected(ConnectionData::new(
+            blocks[connection.donor.block].get_mut(donor).unwrap().push(
+                BlockBoundaryPointProp::Connected(ConnectionData::new(
                     BlockPointIndex::new(connection.receiver.block, rec),
                     edge_idx,
                     true,
-                )));
+                )),
+            );
 
             blocks[connection.receiver.block]
                 .get_mut(rec)
+                .unwrap()
                 .push(BlockBoundaryPointProp::Connected(ConnectionData::new(
                     BlockPointIndex::new(connection.donor.block, donor),
                     edge_idx,
@@ -133,16 +134,17 @@ fn add_periodic_points(
         .iter()
         .zip(connection.receiver.iter())
         .for_each(|(donor, rec)| {
-            blocks[connection.donor.block]
-                .get_mut(donor)
-                .push(BlockBoundaryPointProp::Periodic(ConnectionData::new(
+            blocks[connection.donor.block].get_mut(donor).unwrap().push(
+                BlockBoundaryPointProp::Periodic(ConnectionData::new(
                     BlockPointIndex::new(connection.receiver.block, rec),
                     edge_idx,
                     true,
-                )));
+                )),
+            );
 
             blocks[connection.receiver.block]
                 .get_mut(rec)
+                .unwrap()
                 .push(BlockBoundaryPointProp::Periodic(ConnectionData::new(
                     BlockPointIndex::new(connection.donor.block, donor),
                     edge_idx,
@@ -152,6 +154,7 @@ fn add_periodic_points(
 }
 
 /// stores for every block boundary point the edges it is contained in
+#[derive(Debug)]
 pub struct BlockBoundaryProps<T> {
     pub dim: [usize; 2],
 
@@ -171,14 +174,14 @@ impl<T> BlockBoundaryProps<T> {
         Self { dim, points }
     }
 
-    pub fn get(&self, point: (usize, usize)) -> &T {
-        let point_idx = boundary_point_index(point, (self.dim[0], self.dim[1])).unwrap();
-        &self.points[point_idx]
+    pub fn get(&self, point: (usize, usize)) -> Option<&T> {
+        let point_idx = boundary_point_index(point, (self.dim[0], self.dim[1]))?;
+        Some(&self.points[point_idx])
     }
 
-    pub fn get_mut(&mut self, point: (usize, usize)) -> &mut T {
-        let point_idx = boundary_point_index(point, (self.dim[0], self.dim[1])).unwrap();
-        &mut self.points[point_idx]
+    pub fn get_mut(&mut self, point: (usize, usize)) -> Option<&mut T> {
+        let point_idx = boundary_point_index(point, (self.dim[0], self.dim[1]))?;
+        Some(&mut self.points[point_idx])
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> {
@@ -383,8 +386,10 @@ pub fn block_boundary_points_solver_props(
                 // connected points to fixed
                 let mut is_fixed = false;
                 for p in point.iter() {
-                    if let BlockBoundaryPointProp::Connected(con) = &p {
-                        if *data[con.index.block].get(con.index.point)
+                    if let BlockBoundaryPointProp::Connected(con)
+                    | BlockBoundaryPointProp::Periodic(con) = &p
+                    {
+                        if *data[con.index.block].get(con.index.point).unwrap()
                             == BlockBoundaryPointSolverProp::Fixed
                         {
                             is_fixed = true;
@@ -396,8 +401,10 @@ pub fn block_boundary_points_solver_props(
                     // set the point and all connected points to fixed
                     data[block_idx].points[point_idx] = BlockBoundaryPointSolverProp::Fixed;
                     for p in point.iter() {
-                        if let BlockBoundaryPointProp::Connected(con) = &p {
-                            *data[con.index.block].get_mut(con.index.point) =
+                        if let BlockBoundaryPointProp::Connected(con)
+                        | BlockBoundaryPointProp::Periodic(con) = &p
+                        {
+                            *data[con.index.block].get_mut(con.index.point).unwrap() =
                                 BlockBoundaryPointSolverProp::Fixed;
                         }
                     }
@@ -416,7 +423,7 @@ pub fn block_boundary_points_solver_props(
                         let mut connected_points = Vec::<ConnectionData>::with_capacity(4);
                         for p in point.iter() {
                             if let BlockBoundaryPointProp::Connected(con) = &p {
-                                *data[con.index.block].get_mut(con.index.point) =
+                                *data[con.index.block].get_mut(con.index.point).unwrap() =
                                     BlockBoundaryPointSolverProp::Connected(ConnectionData::new(
                                         BlockPointIndex::new(
                                             block_idx,
@@ -432,7 +439,7 @@ pub fn block_boundary_points_solver_props(
                                     con.donor,
                                 ));
                             } else if let BlockBoundaryPointProp::Periodic(con) = &p {
-                                *data[con.index.block].get_mut(con.index.point) =
+                                *data[con.index.block].get_mut(con.index.point).unwrap() =
                                     BlockBoundaryPointSolverProp::ConnectedPeriodic {
                                         donor: ConnectionData::new(
                                             BlockPointIndex::new(
@@ -471,7 +478,7 @@ pub fn block_boundary_points_solver_props(
                         let mut connected_points = Vec::<ConnectionData>::with_capacity(4);
                         for p in point.iter() {
                             if let BlockBoundaryPointProp::Connected(con) = &p {
-                                *data[con.index.block].get_mut(con.index.point) =
+                                *data[con.index.block].get_mut(con.index.point).unwrap() =
                                     BlockBoundaryPointSolverProp::Connected(ConnectionData::new(
                                         BlockPointIndex::new(
                                             block_idx,

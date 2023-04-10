@@ -9,13 +9,13 @@ pub mod block_boundary_props;
 
 use crate::{
     smoothing::block_boundary_props::block_boundary_points_solver_props,
-    types::{BlockBoundary, BlockBoundaryRange, BlockConnection},
+    types::{BlockBoundary, BlockConnection},
     Block2d, Mesh, Scalar, Vec2d,
 };
 use ndarray::{s, Array2};
 use russell_lab::Vector;
 use russell_sparse::{ConfigSolver, Solver, SparseTriplet, Symmetry};
-use std::{error::Error, ops::ControlFlow};
+use std::error::Error;
 
 pub enum SmoothingMethod {
     Global,
@@ -299,23 +299,39 @@ fn fill_ghost_points(
     // });
 }
 
-/// represent the data needed to identify a point in a block structured mesh
-#[derive(Debug)]
-struct MeshPoint {
-    pub block: usize,
-    pub point: (usize, usize),
-}
+fn try_set_ghost_point_data(
+    matrix_entries: &mut Vec<Array2<MatrixEntry>>,
+    mesh: &Mesh,
+    block_idx: usize,
+    ghost_point: &(usize, usize),
+    connection: &BlockConnection,
+) -> bool {
+    let potential_donor = connection
+        .get_index_in_receiver_block(&[ghost_point.0 as isize - 1, ghost_point.1 as isize - 1]);
 
-impl MeshPoint {
-    fn new(block: usize, point: (usize, usize)) -> Self {
-        Self { block, point }
+    // check if potential donor is a
+    // valid point
+    let rec_dim = mesh.blocks[connection.receiver.block].points();
+    if (potential_donor.0 >= 0 || potential_donor.0 < rec_dim[0] as isize)
+        && (potential_donor.1 >= 0 || potential_donor.1 < rec_dim[1] as isize)
+    {
+        let index = matrix_entries[connection.receiver.block][[
+            potential_donor.0 as usize + 1,
+            potential_donor.1 as usize + 1,
+        ]]
+        .index;
+        matrix_entries[block_idx][[ghost_point.0, ghost_point.1]].index = index;
+
+        true
+    } else {
+        false
     }
 }
 
 /// returns fields containing the unique matrix/vector indices for every point,
 /// property how to treat every point (fixed, solved for, connected) and target
 /// indices for every needed ghost point
-fn matrix_entries(mesh: &Mesh) -> (Vec<Array2<MatrixEntry>>, Vec<(MeshPoint, MeshPoint)>) {
+fn matrix_entries(mesh: &Mesh) -> Vec<Array2<MatrixEntry>> {
     // TODO create mechanism to work for multi point conenctions (4 block
     // meeting point)
     //
@@ -399,27 +415,68 @@ fn matrix_entries(mesh: &Mesh) -> (Vec<Array2<MatrixEntry>>, Vec<(MeshPoint, Mes
 
                             // fill ghost points
 
-                            // derive the three needed ghost points
+                            // collect all needed ghost points
                             let dim = block_boundary_props.dim;
+                            let ghost_points = if i == 1 {
+                                [(0, j - 1), (0, j), (0, j + 1)]
+                            } else if j == 1 {
+                                [(i - 1, 0), (i, 0), (i + 1, 0)]
+                            } else if i == dim[0] {
+                                [(dim[0] + 1, j - 1), (dim[0] + 1, j), (dim[0] + 1, j + 1)]
+                            } else if j == dim[1] {
+                                [(i - 1, dim[1] + 1), (i, dim[1] + 1), (i + 1, dim[1] + 1)]
+                            } else {
+                                panic!("ghost point index out of bounds")
+                            };
 
-                            // let ghost_points = if i == 1 {
-                            //     [(0, j - 1), (0, j), (0, j + 1)]
-                            // } else if j == 1 {
-                            //     [(i - 1, 0), (i, 0), (i + 1, 0)]
-                            // } else if i == dim[0] {
-                            //     [(dim[0] + 1, j - 1), (dim[0] + 1, j), (dim[0] + 1, j + 1)]
-                            // } else if j == dim[1] {
-                            //     [(i - 1, dim[1] + 1), (i, dim[1] + 1), (i + 1, dim[1] + 1)]
-                            // } else {
-                            //     panic!("ghost point index out of bounds")
-                            // };
+                            // search for ghost points donor in all connections to this point
+                            for ghost_point in ghost_points.iter() {
+                                let mut found = false;
 
-                            // for every ghost point, search the connected
-                            // points for the point donor
+                                for connection in connections.iter() {
+                                    let edge = &mesh.edges[connection.edge];
 
-                            // for point in ghost_points.iter() {}
+                                    if connection.donor {
+                                        match &edge {
+                                            BlockBoundary::Connection(connection) => {
+                                                found = try_set_ghost_point_data(
+                                                    &mut matrix_entries_new,
+                                                    mesh,
+                                                    block_idx,
+                                                    ghost_point,
+                                                    connection,
+                                                );
 
-                            // for connection in connections.iter() {}
+                                                if found {
+                                                    break;
+                                                }
+                                            }
+                                            BlockBoundary::PeriodicConnection(per) => {
+                                                found = try_set_ghost_point_data(
+                                                    &mut matrix_entries_new,
+                                                    mesh,
+                                                    block_idx,
+                                                    ghost_point,
+                                                    &per.connection,
+                                                );
+
+                                                if found {
+                                                    break;
+                                                }
+                                            }
+                                            BlockBoundary::Inlet(_) => todo!(),
+                                            BlockBoundary::Outlet(_) => todo!(),
+                                            BlockBoundary::Wall(_) => todo!(),
+                                        }
+                                    } else {
+                                        // todo!();
+                                    }
+                                }
+
+                                if !found {
+                                    panic!("no donor found for ghost point");
+                                }
+                            }
                         }
                         block_boundary_props::BlockBoundaryPointSolverProp::Connected(donor) => {
                             let donor_index = matrix_entries_new[donor.index.block]
@@ -445,476 +502,26 @@ fn matrix_entries(mesh: &Mesh) -> (Vec<Array2<MatrixEntry>>, Vec<(MeshPoint, Mes
                 });
         });
 
-    let mut matrix_entries: Vec<Array2<MatrixEntry>> = Vec::with_capacity(mesh.blocks.len());
-
-    // internal indices
-    mesh.blocks
-        .iter()
-        .zip(start_indices.iter())
-        .for_each(|(block, start_idx)| {
-            let dim = block.points();
-
-            let mut block_entries = Array2::<MatrixEntry>::from_elem(
-                [dim[0] + 2, dim[1] + 2],
-                MatrixEntry::new(usize::MAX, PointProps::Fix),
-            );
-
-            // set index for all block points
-            block_entries
-                .slice_mut(s![1..dim[0] + 1, 1..dim[1] + 1])
-                .iter_mut()
-                .enumerate()
-                .for_each(|(counter, e)| {
-                    e.index = start_idx + counter;
-                });
-
-            // set all internal block points to solve
-            block_entries
-                .slice_mut(s![2..dim[0], 2..dim[1]])
-                .iter_mut()
-                .for_each(|e| {
-                    e.prop = PointProps::Solve;
-                });
-
-            matrix_entries.push(block_entries);
-        });
-
-    // setup connections: set ghost points
-    mesh.edges.iter().for_each(|edge| {
-        if let BlockBoundary::Connection(connection) = edge {
-            let ghost_point_modifyer = connection.donor.get_ghost_layer_modifyer();
-
-            connection.donor.iter().for_each(|(i, j)| {
-                // ghost point index
-                let i_gp = i as isize + ghost_point_modifyer.0;
-                let j_gp = j as isize + ghost_point_modifyer.1;
-
-                // ghost point index in receiver block (physical index)
-                let (i_rec, j_rec) = connection.get_index_in_receiver_block(&[i_gp, j_gp]);
-                let index_rec = matrix_entries[connection.receiver.block]
-                    [[(i_rec + 1) as usize, (j_rec + 1) as usize]]
-                .index;
-
-                // set ghost point to point to receiver matrix entry
-                matrix_entries[connection.donor.block]
-                    [[(i_gp + 1) as usize, (j_gp + 1) as usize]]
-                .index = index_rec;
-
-                // set connection point to be solved
-                matrix_entries[connection.donor.block][[(i + 1) as usize, (j + 1) as usize]].prop =
-                    PointProps::Solve;
-            });
-
-            connection.donor.iter().for_each(|(i, j)| {
-                let (i_rec, j_rec) =
-                    connection.get_index_in_receiver_block(&[i as isize, j as isize]);
-
-                let donor_index = matrix_entries[connection.donor.block]
-                    [[(i + 1) as usize, (j + 1) as usize]]
-                .index;
-
-                matrix_entries[connection.receiver.block]
-                    [[(i_rec + 1) as usize, (j_rec + 1) as usize]]
-                .prop = PointProps::Connect { donor_index };
-            });
-        }
-        // TODO remove code duplication
-        else if let BlockBoundary::PeriodicConnection(periodic_connection) = edge {
-            let connection = &periodic_connection.connection;
-            let translation = &periodic_connection.translation;
-
-            let ghost_point_modifyer = connection.donor.get_ghost_layer_modifyer();
-
-            connection.donor.iter().for_each(|(i, j)| {
-                // ghost point index
-                let i_gp = i as isize + ghost_point_modifyer.0;
-                let j_gp = j as isize + ghost_point_modifyer.1;
-
-                // ghost point index in receiver block (physical index)
-                let (i_rec, j_rec) = connection.get_index_in_receiver_block(&[i_gp, j_gp]);
-                let index_rec = matrix_entries[connection.receiver.block]
-                    [[(i_rec + 1) as usize, (j_rec + 1) as usize]]
-                .index;
-
-                // set ghost point to point to receiver matrix entry
-                matrix_entries[connection.donor.block]
-                    [[(i_gp + 1) as usize, (j_gp + 1) as usize]]
-                .index = index_rec;
-
-                // set connection point to be solved
-                matrix_entries[connection.donor.block][[(i + 1) as usize, (j + 1) as usize]].prop =
-                    PointProps::Solve;
-            });
-
-            connection.donor.iter().for_each(|(i, j)| {
-                let (i_rec, j_rec) =
-                    connection.get_index_in_receiver_block(&[i as isize, j as isize]);
-
-                let donor_index = matrix_entries[connection.donor.block]
-                    [[(i + 1) as usize, (j + 1) as usize]]
-                .index;
-
-                matrix_entries[connection.receiver.block]
-                    [[(i_rec + 1) as usize, (j_rec + 1) as usize]]
-                .prop = PointProps::ConnectPeriodic {
-                    donor_index,
-                    translation: *translation,
-                };
-            });
-        }
-    });
-
-    // set all other edges to be fixed
-    mesh.edges.iter().for_each(|edge| {
-        let mut set_fixed_closure = |range: &BlockBoundaryRange| {
-            range.iter().for_each(|(i, j)| {
-                // to ghost point index
-                let i = i + 1;
-                let j = j + 1;
-
-                matrix_entries[range.block][[i, j]].prop = PointProps::Fix;
-            });
-        };
-
-        match edge {
-            BlockBoundary::Connection(_) => (),
-            BlockBoundary::PeriodicConnection { .. } => {}
-            BlockBoundary::Inlet(range) => set_fixed_closure(range),
-            BlockBoundary::Outlet(range) => set_fixed_closure(range),
-            BlockBoundary::Wall(range) => set_fixed_closure(range),
-        };
-    });
-
-    // recheck connection start and end points if one is to be fixed
-    mesh.edges.iter().for_each(|edge| {
-        let mut set_potential_fixed_edge_points =
-            |connection: &BlockConnection, donor_ij: (usize, usize), rec_ij: (usize, usize)| {
-                let (i, j) = donor_ij;
-                let (i_rec, j_rec) = rec_ij;
-
-                assert!(
-                    (i_rec as isize, j_rec as isize)
-                        == connection.get_index_in_receiver_block(&[i as isize, j as isize])
-                );
-
-                if matrix_entries[connection.donor.block][[i + 1, j + 1]].prop == PointProps::Fix
-                    || matrix_entries[connection.receiver.block][[i_rec + 1, j_rec + 1]].prop
-                        == PointProps::Fix
-                {
-                    matrix_entries[connection.donor.block][[i + 1, j + 1]].prop = PointProps::Fix;
-                    matrix_entries[connection.receiver.block][[i_rec + 1, j_rec + 1]].prop =
-                        PointProps::Fix;
-                }
-            };
-
-        let mut set_potential_fixed_edge_endpoints = |connection: &BlockConnection| {
-            set_potential_fixed_edge_points(
-                connection,
-                connection.donor.first(),
-                connection.receiver.first(),
-            );
-            set_potential_fixed_edge_points(
-                connection,
-                connection.donor.last(),
-                connection.receiver.last(),
-            );
-        };
-
-        match edge {
-            BlockBoundary::Connection(connection) => set_potential_fixed_edge_endpoints(connection),
-            BlockBoundary::PeriodicConnection(periodic_connection) => {
-                let connection = &periodic_connection.connection;
-                set_potential_fixed_edge_endpoints(connection);
-            }
-            BlockBoundary::Inlet(_) => (),
-            BlockBoundary::Outlet(_) => (),
-            BlockBoundary::Wall(_) => (),
-        }
-    });
-
     // write matrix_entries to file
-    use std::io::Write;
     {
-        let mut file = std::fs::File::create("matrix_entries.txt").unwrap();
-        for (block_idx, block) in matrix_entries.iter().enumerate() {
-            writeln!(file, "block {}", block_idx).unwrap();
-            for ((i, j), entry) in block.indexed_iter() {
-                writeln!(file, ", ({}, {}) = {:?}", i, j, entry).unwrap();
-            }
-        }
-    }
-    {
+        use std::io::Write;
         let mut file = std::fs::File::create("matrix_entries_new.txt").unwrap();
         for (block_idx, block) in matrix_entries_new.iter().enumerate() {
             writeln!(file, "block {}", block_idx).unwrap();
             for ((i, j), entry) in block.indexed_iter() {
-                writeln!(file, ", ({}, {}) = {:?}", i, j, entry).unwrap();
+                writeln!(file, "{}, ({}, {}) = {:?}", block_idx, i, j, entry).unwrap();
             }
         }
     }
 
-    // find tripple and quadrupple solution points and set only one to be
-    // solved
-    // let boundary_props = BoundaryProps::new(mesh);
-
-    // let boundary_props = block_boundary_points_solver_props(mesh);
-
-    // boundary_props
-    //     .blocks
-    //     .iter()
-    //     .enumerate()
-    //     .for_each(|(block_idx, block)| {
-    //         block.points.iter().for_each(|(prop, edges)| {
-    //             if *prop != BlockBoundaryPointProp::Fixed {
-    //                 let mut n_solve = 0;
-
-    //                 for edge_idx in edges.iter() {
-    //                     match &mesh.edges[*edge_idx] {
-    //                         BlockBoundary::Connection(connection) => {
-    //                             if connection.donor.block == block_idx {
-    //                                 n_solve += 1
-    //                             }
-    //                         }
-    //                         BlockBoundary::PeriodicConnection(per) => {
-    //                             if per.connection.donor.block == block_idx {
-    //                                 n_solve += 1
-    //                             }
-    //                         }
-    //                         BlockBoundary::Inlet(_)
-    //                         | BlockBoundary::Outlet(_)
-    //                         | BlockBoundary::Wall(_) => {
-    //                             n_solve = 0;
-    //                             break;
-    //                         }
-    //                     }
-    //                 }
-
-    //                 if n_solve > 1 {
-    //                     todo!();
-    //                 }
-    //             }
-    //         });
-    //     });
-
-    // vector of changes for block,i,j (0) to apply index of block,i,j (1)
-    // TODO change to better structure
-    let mut changes: Vec<(MeshPoint, MeshPoint)> = vec![];
-
-    matrix_entries
-        .iter()
-        .enumerate()
-        .for_each(|(block_idx, entries)| {
-            let dim = entries.dim();
-            let dim_internal = (dim.0 - 2, dim.1 - 2);
-
-            //[0,0]
-            search_corner_owner(mesh, block_idx, (0, 0), entries, &mut changes);
-
-            //[dim.0-1,0]
-            search_corner_owner(
-                mesh,
-                block_idx,
-                (dim_internal.0 - 1, 0),
-                entries,
-                &mut changes,
-            );
-
-            //[0,dim.1-1]
-            search_corner_owner(
-                mesh,
-                block_idx,
-                (0, dim_internal.1 - 1),
-                entries,
-                &mut changes,
-            );
-
-            //[dim.0-1,dim.1-1]
-            search_corner_owner(
-                mesh,
-                block_idx,
-                (dim_internal.0 - 1, dim_internal.1 - 1),
-                entries,
-                &mut changes,
-            );
-        });
-
-    println!("{changes:?}");
-
-    changes.clear();
-
-    changes.iter().for_each(|(ghost_point, point)| {
-        let index = matrix_entries[point.block][[point.point.0, point.point.1]].index;
-        matrix_entries[ghost_point.block][[ghost_point.point.0, ghost_point.point.1]].index = index;
-    });
-
-    (matrix_entries, changes)
-}
-
-/// sets the owner of the ghost cell corner if needed
-fn search_corner_owner(
-    mesh: &Mesh,
-    block_idx: usize,
-    corner_internal: (usize, usize),
-    entries: &ndarray::Array2<MatrixEntry>,
-    changes: &mut Vec<(MeshPoint, MeshPoint)>,
-) {
-    // let dim_internal = mesh.blocks[block_idx].points();
-    // let dim = (dim_internal[0] + 2, dim_internal[1] + 2);
-
-    let internal_corner_2_corner_index = |i: isize| -> isize {
-        if i == 0 {
-            -1
-        } else {
-            i + 1
-        }
-    };
-
-    let ghost_point = [
-        internal_corner_2_corner_index(corner_internal.0 as isize),
-        internal_corner_2_corner_index(corner_internal.1 as isize),
-    ];
-
-    let corner = [corner_internal.0 + 1, corner_internal.1 + 1];
-
-    if entries[corner].prop == PointProps::Solve {
-        // find both connections containing the corner point
-
-        let connections = find_edge_connections_for_corner(
-            mesh,
-            &MeshPoint::new(block_idx, (corner[0], corner[1])),
-        )
-        .unwrap();
-
-        // check if the corner ghost point is in one of the connected
-        // blocks
-        match check_connection_for_ghost_point_transform(
-            mesh,
-            connections[0],
-            block_idx,
-            ghost_point,
-        ) {
-            Some(change) => changes.push(change),
-            None => {
-                match check_connection_for_ghost_point_transform(
-                    mesh,
-                    connections[1],
-                    block_idx,
-                    ghost_point,
-                ) {
-                    Some(change) => changes.push(change),
-                    None => {
-                        // TODO if the ghost point is not found, check for a potential
-                        // point connected to the connected points (in case the point
-                        // is in 4 domains)
-
-                        panic!("Owner could not be found")
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// checks the given connection index (mesh edge index) to transform the ghost
-/// point within block with block_idx to its owner point. If this is the case,
-/// the change is returned
-fn check_connection_for_ghost_point_transform(
-    mesh: &Mesh,
-    connection_idx: usize,
-    block_idx: usize,
-    ghost_point: [isize; 2],
-) -> Option<(MeshPoint, MeshPoint)> {
-    match &mesh.edges[connection_idx] {
-        BlockBoundary::Connection(connection) => {
-            let donor_point = connection.get_index_in_receiver_block(&ghost_point);
-
-            // check of donor_point exists and is thus the target
-            // point
-            let owner_block = if connection.donor.block == block_idx {
-                connection.receiver.block
-            } else {
-                connection.donor.block
-            };
-
-            let owner_dim = mesh.blocks[owner_block].points();
-
-            if donor_point.0 >= 0
-                && donor_point.0 < owner_dim[0] as isize
-                && donor_point.1 >= 0
-                && donor_point.1 < owner_dim[1] as isize
-            {
-                // point found
-                Some((
-                    MeshPoint::new(
-                        block_idx,
-                        ((ghost_point[0] + 1) as usize, (ghost_point[1] + 1) as usize),
-                    ),
-                    MeshPoint::new(
-                        owner_block,
-                        ((donor_point.0 + 1) as usize, (donor_point.1 + 1) as usize),
-                    ),
-                ))
-            } else {
-                None
-            }
-        }
-        _ => panic!("Connection was expected"),
-    }
-}
-
-/// finds both mesh edges containing the connection for the given point (corner
-/// given w/ ghost point indexing)
-fn find_edge_connections_for_corner(
-    mesh: &Mesh,
-    corner: &MeshPoint,
-) -> Result<[usize; 2], Box<dyn Error>> {
-    // TODO check if given point is a corner
-
-    let block = corner.block;
-
-    // index w/o ghost layer
-    let point = (corner.point.0 as isize - 1, corner.point.1 as isize - 1);
-
-    let mut edge_indices = Vec::<usize>::with_capacity(2);
-
-    let res = mesh
-        .edges
-        .iter()
-        .enumerate()
-        .try_for_each(|(edge_index, edge)| match edge {
-            BlockBoundary::Connection(connection) => {
-                if (connection.donor.block == block && connection.donor.contains(point))
-                    || (connection.receiver.block == block && connection.receiver.contains(point))
-                {
-                    edge_indices.push(edge_index);
-
-                    if edge_indices.len() == 2 {
-                        ControlFlow::Break(())
-                    } else {
-                        ControlFlow::Continue(())
-                    }
-                } else {
-                    ControlFlow::Continue(())
-                }
-            }
-            // BlockBoundary::PeriodicConnection(_) => todo!(),
-            // TODO add check for periodic connections
-            _ => ControlFlow::Continue(()),
-        });
-
-    match res {
-        ControlFlow::Continue(()) => {
-            Err("Two connections for the corner point could not be found".into())
-        }
-        ControlFlow::Break(()) => Ok([edge_indices[0], edge_indices[1]]),
-    }
+    matrix_entries_new
 }
 
 pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
     let iterations = 20;
 
     // fields with ghost points
-    let (entries, _) = matrix_entries(&mesh);
+    let entries = matrix_entries(&mesh);
     let mut coords = coordinates_with_ghost_points(&mesh);
 
     // allocations
