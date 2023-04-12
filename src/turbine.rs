@@ -209,14 +209,6 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
             EdgeIndex::IMin,
             0..=1,
         )));
-
-        // TODO remove temporarily
-        mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
-            &mesh,
-            0,
-            EdgeIndex::IMax,
-            0..1,
-        )));
     }
 
     {
