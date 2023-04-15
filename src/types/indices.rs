@@ -3,6 +3,7 @@
 
 /// represents a point index in a block. INCLUDES_GHOST_LAYER indicates if the
 /// ghost point layer is included or not.
+#[derive(Debug, Clone, PartialEq)]
 pub struct PointIndex<
     IndexT: num_traits::int::PrimInt,
     const INCLUDES_GHOST_LAYER: bool,
@@ -36,5 +37,25 @@ impl<IndexT: num_traits::int::PrimInt + std::ops::AddAssign, const DIMS: usize>
         let mut index = self.index.clone();
         index.iter_mut().for_each(|x| *x += IndexT::one());
         PointIndex::<IndexT, true, DIMS>::new(index)
+    }
+}
+
+/// represents a point index including the block. INCLUDES_GHOST_LAYER indicates if the
+/// ghost point layer is included or not.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BlockPointIndex<
+    IndexT: num_traits::int::PrimInt,
+    const INCLUDES_GHOST_LAYER: bool,
+    const DIMS: usize = 2,
+> {
+    pub block: usize,
+    pub point: PointIndex<IndexT, INCLUDES_GHOST_LAYER, DIMS>,
+}
+
+impl<IndexT: num_traits::int::PrimInt, const INCLUDES_GHOST_LAYER: bool, const DIMS: usize>
+    BlockPointIndex<IndexT, INCLUDES_GHOST_LAYER, DIMS>
+{
+    pub fn new(block: usize, point: PointIndex<IndexT, INCLUDES_GHOST_LAYER, DIMS>) -> Self {
+        Self { block, point }
     }
 }

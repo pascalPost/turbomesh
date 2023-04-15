@@ -8,7 +8,7 @@ pub mod block_boundary_props;
 // runs based on slightly modified repo https://github.com/cpmech/russell
 
 use crate::{
-    smoothing::block_boundary_props::block_boundary_points_solver_props,
+    smoothing::block_boundary_props::{block_boundary_points_solver_props, ConnectionData},
     types::{BlockBoundary, BlockConnection, PeriodicBlockConnection},
     Block2d, Mesh, Scalar, Vec2d,
 };
@@ -493,41 +493,29 @@ fn matrix_entries(mesh: &Mesh) -> Vec<Array2<MatrixEntry>> {
             let dim = block.points();
 
             BlockCorner::all_corners().into_iter().for_each(|corner| {
-                let point_idx = BlockCorner::corner_index(corner, dim);
+                let point_idx_internal = BlockCorner::corner_index(corner, dim);
                 // transform to contain ghost layer
-                let point_idx = (point_idx.0 + 1, point_idx.1 + 1);
+                let point_idx = (point_idx_internal.0 + 1, point_idx_internal.1 + 1);
 
+                // the ghost point corner that potentionaly needs to be set
+                let ghost_point_corner =
+                    BlockCorner::corner_index(corner, [dim[0] + 2, dim[1] + 2]);
+
+                // the ghost point corner needs to be set if the corner point is
+                // to be solved and it is not yet set (still usize::MAX)
                 if matrix_entries_new[block_idx][[point_idx.0, point_idx.1]].prop
                     == PointProps::Solve
+                    && matrix_entries_new[block_idx][[ghost_point_corner.0, ghost_point_corner.1]]
+                        .index
+                        == usize::MAX
                 {
-                    // the ghost cell corner needs to be set
-                    let ghost_cell_corner =
-                        BlockCorner::corner_index(corner, [dim[0] + 2, dim[1] + 2]);
-
-                    // check both neighbor points to connect to the block that
-                    // the ghost cell corner is in
-                    for neighbor in BlockCorner::corner_neighbors(corner, dim).into_iter() {
-                        let connection = boundary_props[block_idx]
-                            .get(neighbor)
-                            .expect("neighbor to be a boundary point");
-
-                        let connections = match connection {
-                            BlockBoundaryPointSolverProp::Undefined => &[],
-                            BlockBoundaryPointSolverProp::Fixed => &[],
-                            BlockBoundaryPointSolverProp::Solved(connections) => {
-                                connections.as_slice()
-                            }
-                            BlockBoundaryPointSolverProp::Connected(connection) => {
-                                std::slice::from_ref(connection)
-                            }
-                            BlockBoundaryPointSolverProp::ConnectedPeriodic { donor, .. } => {
-                                std::slice::from_ref(donor)
-                            }
-                        };
-
-                        // if let BlockBoundaryPointSolverProp::Connected(donor)
-                        // | BlockBoundaryPointSolverProp::ConnectedPeriodic { donor, .. } =
-                        //     connection
+                    // loop over all connections to the corner point
+                    let mut found = false;
+                    if let BlockBoundaryPointSolverProp::Solved(connections) = boundary_props
+                        [block_idx]
+                        .get(point_idx_internal)
+                        .expect("corner to be a boundary point")
+                    {
                         for connection in connections {
                             match &mesh.edges[connection.edge] {
                                 BlockBoundary::Connection(connection) => {
@@ -535,7 +523,7 @@ fn matrix_entries(mesh: &Mesh) -> Vec<Array2<MatrixEntry>> {
                                         mesh,
                                         block_idx,
                                         connection,
-                                        ghost_cell_corner,
+                                        ghost_point_corner,
                                     ) {
                                         let index = matrix_entries_new
                                             [ghost_cell_corner_donor.block][[
@@ -544,12 +532,15 @@ fn matrix_entries(mesh: &Mesh) -> Vec<Array2<MatrixEntry>> {
                                         ]]
                                         .index;
                                         matrix_entries_new[block_idx]
-                                            [[ghost_cell_corner.0, ghost_cell_corner.1]]
+                                            [[ghost_point_corner.0, ghost_point_corner.1]]
                                         .index = index;
                                         matrix_entries_new[block_idx]
-                                            [[ghost_cell_corner.0, ghost_cell_corner.1]]
+                                            [[ghost_point_corner.0, ghost_point_corner.1]]
                                         .prop = PointProps::Connect { donor_index: index };
 
+                                        todo!("Set the corner in the matched block as well.");
+
+                                        found = true;
                                         break;
                                     }
                                 }
@@ -561,7 +552,7 @@ fn matrix_entries(mesh: &Mesh) -> Vec<Array2<MatrixEntry>> {
                                         mesh,
                                         block_idx,
                                         connection,
-                                        ghost_cell_corner,
+                                        ghost_point_corner,
                                     ) {
                                         let index = matrix_entries_new
                                             [ghost_cell_corner_donor.block][[
@@ -570,32 +561,253 @@ fn matrix_entries(mesh: &Mesh) -> Vec<Array2<MatrixEntry>> {
                                         ]]
                                         .index;
                                         matrix_entries_new[block_idx]
-                                            [[ghost_cell_corner.0, ghost_cell_corner.1]]
+                                            [[ghost_point_corner.0, ghost_point_corner.1]]
                                         .index = index;
                                         matrix_entries_new[block_idx]
-                                            [[ghost_cell_corner.0, ghost_cell_corner.1]]
+                                            [[ghost_point_corner.0, ghost_point_corner.1]]
                                         .prop = PointProps::ConnectPeriodic {
                                             donor_index: index,
                                             translation: *translation,
                                         };
 
+                                        todo!("Set the corner in the matched block as well.");
+
+                                        found = true;
                                         break;
                                     }
                                 }
                                 _ => (),
                             }
                         }
+
+                        if !found {
+                            for connection in connections {
+                                let connection_2nd_level = boundary_props[connection.index.block]
+                                    .get(connection.index.point)
+                                    .expect("corner to be a boundary point");
+
+                                println!("{:?}", connection_2nd_level);
+
+                                // if the point is not identical to the corner
+                                // point
+                                let conn_to_check = match connection_2nd_level {
+                                    BlockBoundaryPointSolverProp::Undefined => todo!(),
+                                    BlockBoundaryPointSolverProp::Fixed => todo!(),
+                                    BlockBoundaryPointSolverProp::Solved(_) => todo!(),
+                                    BlockBoundaryPointSolverProp::Connected(conn) => conn,
+                                    BlockBoundaryPointSolverProp::ConnectedPeriodic {
+                                        donor,
+                                        ..
+                                    } => donor,
+                                };
+
+                                match &mesh.edges[conn_to_check.edge] {
+                                    BlockBoundary::Connection(connection) => {
+                                        if let Some(ghost_cell_corner_donor) =
+                                            find_ghost_point_corner(
+                                                mesh,
+                                                block_idx,
+                                                connection,
+                                                ghost_point_corner,
+                                            )
+                                        {
+                                            let index = matrix_entries_new
+                                                [ghost_cell_corner_donor.block][[
+                                                ghost_cell_corner_donor.point.0,
+                                                ghost_cell_corner_donor.point.1,
+                                            ]]
+                                            .index;
+                                            matrix_entries_new[block_idx]
+                                                [[ghost_point_corner.0, ghost_point_corner.1]]
+                                            .index = index;
+                                            matrix_entries_new[block_idx]
+                                                [[ghost_point_corner.0, ghost_point_corner.1]]
+                                            .prop = PointProps::Connect { donor_index: index };
+
+                                            todo!("Set the corner in the matched block as well.");
+
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+                                    BlockBoundary::PeriodicConnection(
+                                        PeriodicBlockConnection {
+                                            connection,
+                                            translation,
+                                        },
+                                    ) => {
+                                        if let Some(ghost_cell_corner_donor) =
+                                            find_ghost_point_corner(
+                                                mesh,
+                                                block_idx,
+                                                connection,
+                                                ghost_point_corner,
+                                            )
+                                        {
+                                            let index = matrix_entries_new
+                                                [ghost_cell_corner_donor.block][[
+                                                ghost_cell_corner_donor.point.0,
+                                                ghost_cell_corner_donor.point.1,
+                                            ]]
+                                            .index;
+                                            matrix_entries_new[block_idx]
+                                                [[ghost_point_corner.0, ghost_point_corner.1]]
+                                            .index = index;
+                                            matrix_entries_new[block_idx]
+                                                [[ghost_point_corner.0, ghost_point_corner.1]]
+                                            .prop = PointProps::ConnectPeriodic {
+                                                donor_index: index,
+                                                translation: *translation,
+                                            };
+
+                                            todo!("Set the corner in the matched block as well.");
+
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+                                    _ => (),
+                                }
+                            }
+                        }
+
+                        if !found {
+                            todo!("check 3rd level connection to corner point");
+                        }
+                    } else {
+                        panic!("corner point not solved");
                     }
 
+                    // check both neighbor points to connect to the block that
+                    // the ghost cell corner is in
+                    // for neighbor in BlockCorner::corner_neighbors(corner, dim).into_iter() {
+                    //     let connection = boundary_props[block_idx]
+                    //         .get(neighbor)
+                    //         .expect("neighbor to be a boundary point");
+
+                    //     let mut connections = match connection {
+                    //         BlockBoundaryPointSolverProp::Undefined => &[],
+                    //         BlockBoundaryPointSolverProp::Fixed => &[],
+                    //         BlockBoundaryPointSolverProp::Solved(connections) => {
+                    //             connections.as_slice()
+                    //         }
+                    //         BlockBoundaryPointSolverProp::Connected(connection) => {
+                    //             std::slice::from_ref(connection)
+                    //         }
+                    //         BlockBoundaryPointSolverProp::ConnectedPeriodic { donor, .. } => {
+                    //             std::slice::from_ref(donor)
+                    //         }
+                    //     }
+                    //     .to_vec();
+
+                    //     // add 2nd level connections (connections of connections to neighbors)
+                    //     let mut connections_2nd_level: Vec<_> = connections
+                    //         .iter()
+                    //         .map(|connection: &ConnectionData| -> Vec<ConnectionData> {
+                    //             let conns = boundary_props[connection.index.block]
+                    //                 .get(connection.index.point)
+                    //                 .expect("connection point to neighbor to be a boundary point");
+
+                    //             match conns {
+                    //                 BlockBoundaryPointSolverProp::Undefined => vec![],
+                    //                 BlockBoundaryPointSolverProp::Fixed => vec![],
+                    //                 BlockBoundaryPointSolverProp::Solved(connections) => {
+                    //                     connections.clone()
+                    //                 }
+                    //                 BlockBoundaryPointSolverProp::Connected(connection) => {
+                    //                     vec![connection.clone()]
+                    //                 }
+                    //                 BlockBoundaryPointSolverProp::ConnectedPeriodic {
+                    //                     donor,
+                    //                     ..
+                    //                 } => vec![donor.clone()],
+                    //             }
+                    //         })
+                    //         .collect();
+
+                    //     connections_2nd_level
+                    //         .iter_mut()
+                    //         .for_each(|conn| connections.append(conn));
+
+                    //     println!(
+                    //         "block {} corner {:?} neighbor {:?} connections: {:?}",
+                    //         block_idx, corner, neighbor, connections
+                    //     );
+
+                    //     for connection in connections {
+                    //         match &mesh.edges[connection.edge] {
+                    //             BlockBoundary::Connection(connection) => {
+                    //                 if let Some(ghost_cell_corner_donor) = find_ghost_point_corner(
+                    //                     mesh,
+                    //                     block_idx,
+                    //                     connection,
+                    //                     ghost_point_corner,
+                    //                 ) {
+                    //                     let index = matrix_entries_new
+                    //                         [ghost_cell_corner_donor.block][[
+                    //                         ghost_cell_corner_donor.point.0,
+                    //                         ghost_cell_corner_donor.point.1,
+                    //                     ]]
+                    //                     .index;
+                    //                     matrix_entries_new[block_idx]
+                    //                         [[ghost_point_corner.0, ghost_point_corner.1]]
+                    //                     .index = index;
+                    //                     matrix_entries_new[block_idx]
+                    //                         [[ghost_point_corner.0, ghost_point_corner.1]]
+                    //                     .prop = PointProps::Connect { donor_index: index };
+
+                    //                     break;
+                    //                 }
+                    //             }
+                    //             BlockBoundary::PeriodicConnection(PeriodicBlockConnection {
+                    //                 connection,
+                    //                 translation,
+                    //             }) => {
+                    //                 if let Some(ghost_cell_corner_donor) = find_ghost_point_corner(
+                    //                     mesh,
+                    //                     block_idx,
+                    //                     connection,
+                    //                     ghost_point_corner,
+                    //                 ) {
+                    //                     let index = matrix_entries_new
+                    //                         [ghost_cell_corner_donor.block][[
+                    //                         ghost_cell_corner_donor.point.0,
+                    //                         ghost_cell_corner_donor.point.1,
+                    //                     ]]
+                    //                     .index;
+                    //                     matrix_entries_new[block_idx]
+                    //                         [[ghost_point_corner.0, ghost_point_corner.1]]
+                    //                     .index = index;
+                    //                     matrix_entries_new[block_idx]
+                    //                         [[ghost_point_corner.0, ghost_point_corner.1]]
+                    //                     .prop = PointProps::ConnectPeriodic {
+                    //                         donor_index: index,
+                    //                         translation: *translation,
+                    //                     };
+
+                    //                     break;
+                    //                 }
+                    //             }
+                    //             _ => (),
+                    //         }
+                    //     }
+                    // }
+
                     assert!(
-                        matrix_entries_new[block_idx][[ghost_cell_corner.0, ghost_cell_corner.1]]
+                        matrix_entries_new[block_idx][[ghost_point_corner.0, ghost_point_corner.1]]
                             .index
                             != usize::MAX,
-                        "ghost cell corner not found"
+                        "ghost cell corner not found in block {} ghost point {:?}",
+                        block_idx,
+                        ghost_point_corner
                     );
                 }
             });
         });
+
+    println!("1 (20, 10) {:?}", boundary_props[1].get((20, 10)));
+    println!("2 ( 0, 10) {:?}", boundary_props[2].get((0, 10)));
+    println!("6 (20,  0) {:?}", boundary_props[6].get((20, 0)));
 
     // write matrix_entries to file
     {
