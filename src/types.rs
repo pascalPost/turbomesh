@@ -4,7 +4,6 @@
 mod block2d;
 mod boundary;
 mod edge;
-mod indices;
 mod segment;
 mod vec2d;
 

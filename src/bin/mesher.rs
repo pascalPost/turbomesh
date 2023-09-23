@@ -18,7 +18,7 @@ fn main() {
         renderer: eframe::Renderer::Glow,
         ..Default::default()
     };
-    eframe::run_native(
+    let _ = eframe::run_native(
         "turbomesh",
         options,
         Box::new(|cc| Box::new(TurbomeshApp::new(cc))),
