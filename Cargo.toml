@@ -22,3 +22,5 @@ eframe = { version = "0.22" , features = [ "__screenshot" ] }
 num-traits = "0.2"
 rfd = "0.12.0"
 subslice_index = "0.5.0"
+env_logger = "0.10.0"
+log = "0.4.16"

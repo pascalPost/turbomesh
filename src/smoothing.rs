@@ -7,16 +7,16 @@ pub mod block_boundary_props;
 
 // runs based on slightly modified repo https://github.com/cpmech/russell
 
+use self::block_boundary_props::{BlockBoundaryPointProp, BoundaryProps};
 use crate::{
     types::{BlockBoundary, BlockConnection, PeriodicBlockConnection},
     Block2d, Mesh, Scalar, Vec2d,
 };
+use log::debug;
 use ndarray::{s, Array2};
 use russell_lab::Vector;
 use russell_sparse::{ConfigSolver, Solver, SparseTriplet, Symmetry};
 use std::error::Error;
-
-use self::block_boundary_props::{BlockBoundaryPointProp, BoundaryProps};
 
 pub enum SmoothingMethod {
     Global,
@@ -295,12 +295,6 @@ fn update_ghost_point_locations(
             });
         }
     });
-
-    // // fill corners
-    // corners.iter().for_each(|(target, source)| {
-    //     let x = coords[source.block][[source.point.0, source.point.1]];
-    //     coords[target.block][[target.point.0, target.point.1]] = x;
-    // });
 }
 
 fn try_set_ghost_point_data(
@@ -337,7 +331,7 @@ fn try_set_ghost_point_data(
             },
         );
 
-        println!(
+        debug!(
             " . . . . . . . Found GhostPoint donor for block {}, ghost point ({}, {}) in block {}, point ({}, {}) (excluding ghost layer), matrix index {}",
             block_idx, ghost_point.0,ghost_point.1,
             connection.receiver.block, potential_donor.0, potential_donor.1, index
@@ -357,8 +351,6 @@ fn is_point_fixed(
     checked_edges: &mut Vec<usize>,
 ) -> bool {
     for bc in boundary_props.data[block_id].points[boundary_point_id].iter() {
-        // println!(" . . . . . Checking {:?}", bc);
-
         match bc {
             BlockBoundaryPointProp::Undefined => {
                 panic!("undefined block boundary point encountered.")
@@ -403,14 +395,14 @@ fn set_solve(
         .point_index(boundary_point_id)
         .unwrap();
 
-    println!(
+    debug!(
         " . . . . Setting block {} boundaryPoint {} / ({}, {}) to solve.",
         block_id, boundary_point_id, point_id.0, point_id.1
     );
 
     matrix_entries[block_id][[point_id.0 + 1, point_id.1 + 1]].prop = PointProps::Solve;
 
-    println!(
+    debug!(
         " . . . . . matrix entry {}, ({}, {}) {:?}",
         block_id,
         point_id.0 + 1,
@@ -429,10 +421,6 @@ fn connect_points(
     donor_index: usize,
     mesh: &Mesh,
 ) {
-    // let point_id = boundary_props.data[block_id]
-    //     .point_index(boundary_point_id)
-    //     .unwrap();
-
     // check for connected points
     for bc in boundary_props.data[block_id].points[boundary_point_id].iter() {
         match bc {
@@ -446,7 +434,7 @@ fn connect_points(
                 let con_point_id = con_block.boundary_point_index(con_idx.point).unwrap();
 
                 if data.donor {
-                    println!(
+                    debug!(
                         " . . . . Setting block {} boundaryPoint {} / ({}, {}) to connect.",
                         con_idx.block, con_point_id, con_idx.point.0, con_idx.point.1
                     );
@@ -454,7 +442,7 @@ fn connect_points(
                     matrix_entries[con_idx.block][[con_idx.point.0 + 1, con_idx.point.1 + 1]]
                         .prop = PointProps::Connect { donor_index };
 
-                    println!(
+                    debug!(
                         " . . . . . matrix entry {}, ({}, {}) {:?}",
                         con_idx.block,
                         con_idx.point.0 + 1,
@@ -479,7 +467,7 @@ fn connect_points(
                 let con_point_id = con_block.boundary_point_index(con_idx.point).unwrap();
 
                 if data.donor {
-                    println!(
+                    debug!(
                         " . . . . Setting block {} point {} / ({}, {}) to ConnectPeriodic.",
                         con_idx.block, con_point_id, con_idx.point.0, con_idx.point.1
                     );
@@ -497,7 +485,7 @@ fn connect_points(
                         translation,
                     };
 
-                    println!(
+                    debug!(
                         " . . . . . matrix entry {}, ({}, {}) {:?}",
                         con_idx.block,
                         con_idx.point.0 + 1,
@@ -536,7 +524,7 @@ fn set_matrix_entry(
     if let PointProps::Connect { .. } | PointProps::ConnectPeriodic { .. } =
         matrix_entries[block_id][[point_id.0 + 1, point_id.1 + 1]].prop
     {
-        println!(
+        debug!(
             " . . . . . matrix entry {}, ({}, {}) {:?}",
             block_id,
             point_id.0 + 1,
@@ -547,7 +535,6 @@ fn set_matrix_entry(
     }
 
     // (1.1) check tree for fixed points
-    // println!(" . . . . Checking for fixed points");
     let mut checked_edges = Vec::<usize>::with_capacity(10);
     if is_point_fixed(
         block_id,
@@ -555,16 +542,11 @@ fn set_matrix_entry(
         boundary_props,
         &mut checked_edges,
     ) {
-        // println!(" . . . . Point is to be fixed.");
-        println!(" . . . . Point remains fixed.");
+        debug!(" . . . . Point remains fixed.");
 
         // (1.2) set all connected points to fixed
 
-        // TODO does not need to be done as matrix entries are by default fixed
-        // set_point_fixed(block_id, boundary_point_id, boundary_props,
-        // matrix_entries);
-
-        println!(
+        debug!(
             " . . . . . matrix entry {}, ({}, {}) {:?}",
             block_id,
             point_id.0 + 1,
@@ -644,24 +626,24 @@ impl MatrixEntries {
         // boundary points
         let boundary_props = BoundaryProps::new(mesh);
 
-        println!("Setting block boundary point matirx properties.");
+        debug!("Setting block boundary point matirx properties.");
 
         boundary_props
             .data
             .iter()
             .enumerate()
             .for_each(|(block_id, block_boundary_props)| {
-                println!(" . Block {}", block_id);
+                debug!(" . Block {}", block_id);
 
                 block_boundary_props.iter().enumerate().for_each(
                     |(boundary_point_id, point_props)| {
-                        println!(
+                        debug!(
                             " . . Block {} BoundaryPoint {} / {:?}",
                             block_id,
                             boundary_point_id,
                             block_boundary_props.point_index(boundary_point_id).unwrap()
                         );
-                        println!(" . . . BCs: {:?}", point_props);
+                        debug!(" . . . BCs: {:?}", point_props);
 
                         set_matrix_entry(
                             block_id,
@@ -674,29 +656,29 @@ impl MatrixEntries {
                 );
             });
 
-        println!("Searching ghost points for solution points.");
+        debug!("Searching ghost points for solution points.");
 
         boundary_props
             .data
             .iter()
             .enumerate()
             .for_each(|(block_id, block_boundary_props)| {
-                println!(" . Block {}", block_id);
+                debug!(" . Block {}", block_id);
 
                 block_boundary_props.iter().enumerate().for_each(
                     |(boundary_point_id, point_props)| {
                         let (i, j) = block_boundary_props.point_index(boundary_point_id).unwrap();
 
-                        println!(
+                        debug!(
                             " . . Block {} BoundaryPoint {} / ({}, {}) or ({}, {}) including ghost point layers",
                             block_id, boundary_point_id, i, j, i + 1, j + 1
                         );
 
-                        println!(
+                        debug!(
                             " . . . Prop: {:?}",
                             matrix_entries[block_id][[i + 1, j + 1]]
                         );
-                        println!(" . . . BCs: {:?}", point_props);
+                        debug!(" . . . BCs: {:?}", point_props);
 
                         if let PointProps::Solve = matrix_entries[block_id][[i + 1, j + 1]].prop {
                             fill_ghost_points(mesh, &boundary_props, block_id, boundary_point_id, &mut matrix_entries);
@@ -744,31 +726,29 @@ fn fill_ghost_points(
         panic!("ghost point index out of bounds")
     };
 
-    println!(
+    debug!(
         " . . . Needed GhostPoints (index space including ghost point layes): {:?}",
         ghost_points
     );
 
     // search for ghost points donor in all connections to this point
     for ghost_point in ghost_points.iter() {
-        println!(" . . . . Searching GhostPoint {:?}", ghost_point);
+        debug!(" . . . . Searching GhostPoint {:?}", ghost_point);
 
         let mut found = false;
 
         for bc in boundary_props.data[block_id].points[boundary_point_id].iter() {
-            println!(" . . . . . Checking BC {:?}", bc);
+            debug!(" . . . . . Checking BC {:?}", bc);
 
             match bc {
                 BlockBoundaryPointProp::Undefined => todo!(),
                 BlockBoundaryPointProp::Fixed => todo!(),
                 BlockBoundaryPointProp::Connected(connection)
                 | BlockBoundaryPointProp::Periodic(connection) => {
-                    println!(" . . . . . . ConnectionData {:?}", connection);
-                    // println!(" . . . . . . EdgeData {:?}",
-                    // mesh.edges[connection.edge]);
+                    debug!(" . . . . . . ConnectionData {:?}", connection);
 
                     if !connection.donor {
-                        println!(" . . . . . . Skipping as not a donor connection");
+                        debug!(" . . . . . . Skipping as not a donor connection");
                         continue;
                     }
 
@@ -777,7 +757,7 @@ fn fill_ghost_points(
 
                     match edge {
                         BlockBoundary::Connection(connection) => {
-                            println!(
+                            debug!(
                                 " . . . . . . Checking connection to block {} via edge {}",
                                 connection.receiver.block, edge_id
                             );
@@ -801,7 +781,7 @@ fn fill_ghost_points(
                             connection,
                             translation,
                         }) => {
-                            println!(
+                            debug!(
                                 " . . . . . . Checking periodic connection to block {} via edge {}",
                                 connection.receiver.block, edge_id
                             );
