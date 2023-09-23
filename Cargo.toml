@@ -12,15 +12,13 @@ dierckx-sys = "0.1.0"
 cgns-sys = "0.2.1"
 csv = "1.1"
 libc = "0.2"
-plotters = "0.3.1"
+plotters = "0.3.3"
 ndarray = "0.15"
 float-cmp = "0.9"
-egui = "0.20"
-egui_glow = "0.20"
-glow = "0.11"
-eframe = { version = "0.20" , features = [ "__screenshot" ] }
+egui = "0.22"
+egui_glow = "0.22"
+glow = "0.12.3"
+eframe = { version = "0.22" , features = [ "__screenshot" ] }
 num-traits = "0.2"
-rfd = "0.10.0"
-russell_sparse = { git = "https://github.com/pascalPost/russell.git", branch = "feature/enhanced_build" }
-russell_lab = { git = "https://github.com/pascalPost/russell.git", branch = "feature/enhanced_build" }
+rfd = "0.12.0"
 subslice_index = "0.5.0"

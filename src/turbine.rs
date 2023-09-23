@@ -684,6 +684,8 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
 
     mesh.smooth(SmoothingMethod::Global);
 
+    mesh.save("turbomesh.cgns").unwrap();
+
     // plot blocking
     let ps_spline_int = ps_spline.interpolate(Array::linspace(0., 1., 1000).as_slice().unwrap());
     let ss_spline_int = ss_spline.interpolate(Array::linspace(0., 1., 1000).as_slice().unwrap());
@@ -752,8 +754,5 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
         .unwrap();
 
     root.present().unwrap();
-
-    mesh.save("turbomesh.cgns").unwrap();
-
     (Geometry {}, mesh)
 }

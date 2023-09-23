@@ -25,6 +25,7 @@ pub enum EdgeIndex {
 // #[derive(Debug)]
 pub struct Block2d {
     pub name: String,
+    pub point_size: (Index, Index),
     pub coords: Array2<Vec2d>,
 
     // TODO change the edge data to array of size 4
@@ -97,6 +98,7 @@ impl Block2d {
 
         Block2d {
             name,
+            point_size: n_points,
             coords: x,
             edge_i_min,
             edge_i_max,

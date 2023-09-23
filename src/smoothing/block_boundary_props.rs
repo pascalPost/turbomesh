@@ -3,8 +3,9 @@
 
 use crate::types::{BlockBoundary, BlockBoundaryRange, BlockConnection, PeriodicBlockConnection};
 use crate::{Block2d, Mesh, Vec2d};
+use std::fmt;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BlockPointIndex {
     pub block: usize,
     pub point: (usize, usize),
@@ -38,18 +39,19 @@ pub enum BlockBoundaryPointProp {
 }
 
 /// stores the block boundary point edge mapping for all blocks
+#[derive(Debug, Clone)]
 pub struct BoundaryProps {
-    pub blocks: Vec<BlockBoundaryProps<Vec<BlockBoundaryPointProp>>>,
+    pub data: Vec<BlockBoundaryArray<Vec<BlockBoundaryPointProp>>>,
 }
 
 impl BoundaryProps {
     pub fn new(mesh: &Mesh) -> Self {
-        let mut blocks = Vec::<BlockBoundaryProps<Vec<BlockBoundaryPointProp>>>::with_capacity(
+        let mut blocks = Vec::<BlockBoundaryArray<Vec<BlockBoundaryPointProp>>>::with_capacity(
             mesh.blocks.len(),
         );
 
         mesh.blocks.iter().for_each(|block| {
-            blocks.push(BlockBoundaryProps::<Vec<BlockBoundaryPointProp>>::new(
+            blocks.push(BlockBoundaryArray::<Vec<BlockBoundaryPointProp>>::new(
                 block,
                 || Vec::<BlockBoundaryPointProp>::with_capacity(4),
             ));
@@ -72,13 +74,49 @@ impl BoundaryProps {
 
         blocks.iter_mut().for_each(|bound| bound.shrink_to_fit());
 
-        Self { blocks }
+        Self { data: blocks }
+    }
+}
+
+impl std::ops::Index<&BlockPointIndex> for BoundaryProps {
+    type Output = Vec<BlockBoundaryPointProp>;
+    fn index<'a>(&'a self, i: &BlockPointIndex) -> &'a Self::Output {
+        &self.data[i.block].get(i.point).unwrap()
+    }
+}
+
+impl fmt::Display for BoundaryProps {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.data
+            .iter()
+            .enumerate()
+            .try_for_each(|(block_idx, block)| {
+                writeln!(f, "block: {block_idx}")?;
+                block
+                    .iter()
+                    .enumerate()
+                    .try_for_each(|(point_idx, point)| -> Result<(), _> {
+                        writeln!(f, " . point: {point_idx}")?;
+                        writeln!(f, " . . index: {:?}", block.point_index(point_idx).unwrap())?;
+                        writeln!(f, " . . data: {:#?}", point)
+                        // ControlFlow::Continue(())
+                        // Ok(())
+                    })
+                // println!(" . props: {:#?}", block);
+                // Ok(())
+            })
+
+        // write!(f, "Point [{} {}]", self.x, self.y)
+        // f.debug_struct("Point")
+        //  .field("x", &self.x)
+        //  .field("y", &self.y)
+        //  .finish()
     }
 }
 
 /// adds the fixed points to the block boundary point edge mapping
 fn add_fixed_points(
-    blocks: &mut Vec<BlockBoundaryProps<Vec<BlockBoundaryPointProp>>>,
+    blocks: &mut Vec<BlockBoundaryArray<Vec<BlockBoundaryPointProp>>>,
     range: &BlockBoundaryRange,
 ) {
     let block_boundary = &mut blocks[range.block];
@@ -92,7 +130,7 @@ fn add_fixed_points(
 
 /// adds the connected points to the block boundary point edge mapping
 fn add_connected_points(
-    blocks: &mut Vec<BlockBoundaryProps<Vec<BlockBoundaryPointProp>>>,
+    blocks: &mut Vec<BlockBoundaryArray<Vec<BlockBoundaryPointProp>>>,
     connection: &BlockConnection,
     edge_idx: usize,
 ) {
@@ -123,7 +161,7 @@ fn add_connected_points(
 /// adds the periodic points to the block boundary point edge mapping, where the
 /// donor is set to periodic and the receiver is set to connected
 fn add_periodic_points(
-    blocks: &mut Vec<BlockBoundaryProps<Vec<BlockBoundaryPointProp>>>,
+    blocks: &mut Vec<BlockBoundaryArray<Vec<BlockBoundaryPointProp>>>,
     per: &PeriodicBlockConnection,
     edge_idx: usize,
 ) {
@@ -153,17 +191,37 @@ fn add_periodic_points(
         });
 }
 
-/// stores for every block boundary point the edges it is contained in
-#[derive(Debug)]
-pub struct BlockBoundaryProps<T> {
+pub struct MeshBoundaryArray<T> {
+    pub blocks: Vec<BlockBoundaryArray<T>>,
+}
+
+impl<T> MeshBoundaryArray<T> {
+    pub fn new<F>(mesh: &Mesh, init: F) -> Self
+    where
+        F: FnMut() -> T + Copy,
+    {
+        let mut blocks = Vec::<BlockBoundaryArray<T>>::with_capacity(mesh.blocks.len());
+
+        mesh.blocks.iter().for_each(|block| {
+            blocks.push(BlockBoundaryArray::<T>::new(block, init));
+        });
+
+        Self { blocks }
+    }
+}
+
+/// block boundary point array
+#[derive(Debug, Clone)]
+pub struct BlockBoundaryArray<T> {
+    /// block dimension
     pub dim: [usize; 2],
 
-    // saves for every point on the block boundary the mesh edges the point is
-    // contained in
+    /// vector containing every block boundary point
     pub points: Vec<T>,
 }
 
-impl<T> BlockBoundaryProps<T> {
+impl<T> BlockBoundaryArray<T> {
+    /// creates a new block boundary array given a block and an initializer function
     fn new<F>(block: &Block2d, init: F) -> Self
     where
         F: FnMut() -> T,
@@ -194,6 +252,10 @@ impl<T> BlockBoundaryProps<T> {
 
     pub fn point_index(&self, boundary_point_index: usize) -> Option<(usize, usize)> {
         boundary_point_to_point(boundary_point_index, (self.dim[0], self.dim[1]))
+    }
+
+    pub fn boundary_point_index(&self, point: (usize, usize)) -> Option<usize> {
+        boundary_point_index(point, (self.dim[0], self.dim[1]))
     }
 
     fn shrink_to_fit(&mut self) {
@@ -329,6 +391,242 @@ pub fn boundary_point_to_point(
     }
 }
 
+struct BlockBoundaryIndex {
+    pub block_index: usize,
+    pub boundary_index: usize,
+}
+
+struct BoundaryPointConnections {
+    pub shadow_points: Vec<BlockPointIndex>,
+    pub edges: Vec<usize>,
+}
+
+// pub fn block_boundary_points_solver_props_test(mesh: &Mesh) {
+//     // collect all boundary points
+
+//     // either
+//     // in the middle of an edge
+//     // edge of the edge
+//     // edges of edges generally overlap
+
+//     // let mut data = Vec::<BlockBoundaryProps<Vec<BlockBoundaryPointProp>>>;
+
+//     // let boundary_props = MeshBoundaryArray::<BoundaryPointConnections>::new(mesh, || {
+//     //     // BlockBoundaryPointProp::Undefined
+//     // });
+
+//     // // init all points to undefined
+//     // let mut data = mesh
+//     //     .blocks
+//     //     .iter()
+//     //     .map(|block| BlockBoundaryProps::new(block, || BlockBoundaryPointSolverProp::Undefined))
+//     //     .collect::<Vec<_>>();
+
+//     // // set all fixed points to fixed
+//     // boundary_props.blocks.iter().zip(data.iter_mut()).for_each(
+//     //     |(block_data, block_solver_data)| {
+//     //         block_data
+//     //             .iter()
+//     //             .zip(block_solver_data.iter_mut())
+//     //             .for_each(|(point_data, point_solver_data)| {
+//     //                 for p in point_data.iter() {
+//     //                     assert!(*p != BlockBoundaryPointProp::Undefined);
+//     //                     if let BlockBoundaryPointProp::Fixed = p {
+//     //                         *point_solver_data = BlockBoundaryPointSolverProp::Fixed;
+//     //                         break;
+//     //                     }
+//     //                 }
+//     //             });
+//     //     },
+//     // );
+
+//     // // loop over all points and checks
+//     // // (0) if the point is still undefined
+//     // // (1) if one connected point is fixed
+//     // // (2) if one connected point is periodic
+//     // // (3) set points to solve and connected
+//     // for (block_idx, block) in boundary_props.blocks.iter().enumerate() {
+//     //     for (point_idx, point) in block.iter().enumerate() {
+//     //         // check if point props need to be defined
+//     //         if data[block_idx].points[point_idx] == BlockBoundaryPointSolverProp::Undefined {
+//     //             // loop over all connected points and check for a fixed point. If
+//     //             // there is a fixed point, set all the current point and all
+//     //             // connected points to fixed
+//     //             let mut is_fixed = false;
+//     //             for p in point.iter() {
+//     //                 if let BlockBoundaryPointProp::Connected(con)
+//     //                 | BlockBoundaryPointProp::Periodic(con) = &p
+//     //                 {
+//     //                     if *data[con.index.block].get(con.index.point).unwrap()
+//     //                         == BlockBoundaryPointSolverProp::Fixed
+//     //                     {
+//     //                         is_fixed = true;
+//     //                         break;
+//     //                     }
+//     //                 }
+//     //             }
+//     //             if is_fixed {
+//     //                 // set the point and all connected points to fixed
+//     //                 data[block_idx].points[point_idx] = BlockBoundaryPointSolverProp::Fixed;
+//     //                 for p in point.iter() {
+//     //                     if let BlockBoundaryPointProp::Connected(con)
+//     //                     | BlockBoundaryPointProp::Periodic(con) = &p
+//     //                     {
+//     //                         *data[con.index.block].get_mut(con.index.point).unwrap() =
+//     //                             BlockBoundaryPointSolverProp::Fixed;
+//     //                     }
+//     //                 }
+//     //             } else {
+//     //                 // loop over all connected points and check for a periodic point. If
+//     //                 // there is a periodic point, set all the current point and all
+//     //                 // connected points to fixed
+//     //                 let mut is_periodic = false;
+
+//     //                 for p in point.iter() {
+//     //                     if let BlockBoundaryPointProp::Periodic(_) = &p {
+//     //                         is_periodic = true;
+//     //                     }
+//     //                 }
+//     //                 if is_periodic {
+//     //                     let mut connected_points = Vec::<ConnectionData>::with_capacity(4);
+//     //                     for p in point.iter() {
+//     //                         if let BlockBoundaryPointProp::Connected(con) = &p {
+//     //                             *data[con.index.block].get_mut(con.index.point).unwrap() =
+//     //                                 BlockBoundaryPointSolverProp::Connected(ConnectionData::new(
+//     //                                     BlockPointIndex::new(
+//     //                                         block_idx,
+//     //                                         block.point_index(point_idx).unwrap(),
+//     //                                     ),
+//     //                                     con.edge,
+//     //                                     con.donor,
+//     //                                 ));
+
+//     //                             connected_points.push(ConnectionData::new(
+//     //                                 BlockPointIndex::new(con.index.block, con.index.point),
+//     //                                 con.edge,
+//     //                                 con.donor,
+//     //                             ));
+//     //                         } else if let BlockBoundaryPointProp::Periodic(con) = &p {
+//     //                             *data[con.index.block].get_mut(con.index.point).unwrap() =
+//     //                                 BlockBoundaryPointSolverProp::ConnectedPeriodic {
+//     //                                     donor: ConnectionData::new(
+//     //                                         BlockPointIndex::new(
+//     //                                             block_idx,
+//     //                                             block.point_index(point_idx).unwrap(),
+//     //                                         ),
+//     //                                         con.edge,
+//     //                                         con.donor,
+//     //                                     ),
+//     //                                     translation: if let BlockBoundary::PeriodicConnection(per) =
+//     //                                         &mesh.edges[con.edge]
+//     //                                     {
+//     //                                         per.translation
+//     //                                     } else {
+//     //                                         panic!("edge is not periodic");
+//     //                                     },
+//     //                                 };
+
+//     //                             connected_points.push(ConnectionData::new(
+//     //                                 BlockPointIndex::new(con.index.block, con.index.point),
+//     //                                 con.edge,
+//     //                                 con.donor,
+//     //                             ));
+//     //                         } else {
+//     //                             panic!("point is not connected");
+//     //                         }
+//     //                     }
+
+//     //                     connected_points.shrink_to_fit();
+
+//     //                     data[block_idx].points[point_idx] =
+//     //                         BlockBoundaryPointSolverProp::Solved(connected_points);
+//     //                 } else {
+//     //                     // set the current point to be solved and the connected
+//     //                     // points to be connected
+//     //                     let mut connected_points = Vec::<ConnectionData>::with_capacity(4);
+//     //                     for p in point.iter() {
+//     //                         if let BlockBoundaryPointProp::Connected(con) = &p {
+//     //                             *data[con.index.block].get_mut(con.index.point).unwrap() =
+//     //                                 BlockBoundaryPointSolverProp::Connected(ConnectionData::new(
+//     //                                     BlockPointIndex::new(
+//     //                                         block_idx,
+//     //                                         block.point_index(point_idx).unwrap(),
+//     //                                     ),
+//     //                                     con.edge,
+//     //                                     con.donor,
+//     //                                 ));
+
+//     //                             connected_points.push(ConnectionData::new(
+//     //                                 BlockPointIndex::new(con.index.block, con.index.point),
+//     //                                 con.edge,
+//     //                                 con.donor,
+//     //                             ));
+//     //                         } else {
+//     //                             panic!("point is not connected");
+//     //                         }
+//     //                     }
+
+//     //                     connected_points.shrink_to_fit();
+
+//     //                     data[block_idx].points[point_idx] =
+//     //                         BlockBoundaryPointSolverProp::Solved(connected_points);
+//     //                 }
+//     //             }
+//     //         }
+//     //     }
+//     // }
+
+//     // // check corners for additional connected points
+//     // for (block_idx, _) in data.iter().enumerate() {
+//     //     for corner in BlockCorner::all_corners() {
+//     //         let dim = mesh.blocks[block_idx].points();
+//     //         let corner_idx = BlockCorner::corner_index(corner, dim);
+
+//     //         if let BlockBoundaryPointSolverProp::Solved(connections) = data[block_idx]
+//     //             .get(corner_idx)
+//     //             .expect("corner to be a boundary point")
+//     //         {
+//     //             for connection in connections.iter() {
+//     //                 let connected_point = data[connection.index.block]
+//     //                     .get(connection.index.point)
+//     //                     .expect("connected point must also be on a block boundary");
+
+//     //                 match connected_point {
+//     //                     BlockBoundaryPointSolverProp::Connected(con) => {
+//     //                         if con.
+//     //                     },
+//     //                     BlockBoundaryPointSolverProp::ConnectedPeriodic { donor, translation } => {}
+//     //                     _ => panic!("Not allowed point state."),
+//     //                 }
+//     //             }
+//     //         }
+//     //     }
+//     // }
+
+//     // println!(
+//     //     "5 (40, 10) {:?}",
+//     //     data[5]
+//     //         .get((40, 10))
+//     //         .expect("corner to be a boundary point")
+//     // );
+
+//     // println!(
+//     //     "2 (0, 10) {:?}",
+//     //     data[2].get((0, 10)).expect("corner to be a boundary point")
+//     // );
+
+//     // println!(
+//     //     "6 (20, 40) {:?}",
+//     //     data[6]
+//     //         .get((20, 40))
+//     //         .expect("corner to be a boundary point")
+//     // );
+
+//     // std::process::exit(0);
+
+//     boundary_props
+// }
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum BlockBoundaryPointSolverProp {
     Undefined,
@@ -341,22 +639,101 @@ pub enum BlockBoundaryPointSolverProp {
     },
 }
 
+fn move_connected_point_to_current(props: &BoundaryProps, data: &ConnectionData) {
+    // check if connected point is already marked as connected
+    println!("connected point: {:?}", data);
+    println!(
+        "connected point data: {:?}",
+        props.data[data.index.block].get(data.index.point)
+    );
+
+    // add the data of the connected point and set it to connected
+
+    todo!();
+}
+
+// // return true if connected point is fixed
+// fn check_connected_point(
+//     point: &Vec<BlockBoundaryPointProp>,
+//     boundary_props: &BoundaryProps,
+//     node: &mut TreeNode<BlockBoundaryPointProp>,
+//     root: &mut TreeNode<BlockBoundaryPointProp>,
+//     fixed: &mut bool,
+// ) {
+//     for entry in point {
+//         match entry {
+//             BlockBoundaryPointProp::Undefined => todo!(),
+//             BlockBoundaryPointProp::Fixed => {
+//                 // if fixed is false set all nodes starting from root to false.
+//                 // indicate with bool that all added chiled nodes are also set
+//                 // to fixed
+//                 if !*fixed {
+//                     // set root and all children to fixed
+
+//                     for node in root.iter_mut() {
+//                         node.value = BlockBoundaryPointProp::Fixed;
+//                     }
+
+//                     *fixed = true;
+//                 }
+//             }
+//             BlockBoundaryPointProp::Connected(data) => {
+//                 // add the point as child if it not part of the point hirarchy
+//                 // yet
+//                 let check_child = |child: &TreeNode<BlockBoundaryPointProp>| {
+//                     if child.value.index == data.index {
+//                         return false;
+//                     }
+
+//                     true
+//                 };
+
+//                 let mut add = true;
+//                 for child in root {
+//                     if child.data.index == data.index {
+//                         add = false;
+//                         break;
+//                     }
+
+//                     // check also every child
+//                 }
+
+//                 fixed = check_connected_point(
+//                     boundary_props.blocks[data.index.block]
+//                         .get(data.index.point)
+//                         .unwrap(),
+//                     boundary_props,
+//                 );
+//             }
+//             BlockBoundaryPointProp::Periodic(data) => {
+//                 // connected_points.blocks[block_idx].points[point_idx].value =
+//                 //     Some(BlockBoundaryPointProp::Periodic(data.clone()));
+//             }
+//         }
+//     }
+
+//     fixed
+// }
+
 /// compute the matrix treatment for every mesh point
 pub fn block_boundary_points_solver_props(
     mesh: &Mesh,
-) -> Vec<BlockBoundaryProps<BlockBoundaryPointSolverProp>> {
+) -> Vec<BlockBoundaryArray<BlockBoundaryPointSolverProp>> {
     let boundary_props = BoundaryProps::new(mesh);
 
     // init all points to undefined
     let mut data = mesh
         .blocks
         .iter()
-        .map(|block| BlockBoundaryProps::new(block, || BlockBoundaryPointSolverProp::Undefined))
+        .map(|block| BlockBoundaryArray::new(block, || BlockBoundaryPointSolverProp::Undefined))
         .collect::<Vec<_>>();
 
     // set all fixed points to fixed
-    boundary_props.blocks.iter().zip(data.iter_mut()).for_each(
-        |(block_data, block_solver_data)| {
+    boundary_props
+        .data
+        .iter()
+        .zip(data.iter_mut())
+        .for_each(|(block_data, block_solver_data)| {
             block_data
                 .iter()
                 .zip(block_solver_data.iter_mut())
@@ -369,15 +746,14 @@ pub fn block_boundary_points_solver_props(
                         }
                     }
                 });
-        },
-    );
+        });
 
     // loop over all points and checks
     // (0) if the point is still undefined
     // (1) if one connected point is fixed
     // (2) if one connected point is periodic
     // (3) set points to solve and connected
-    for (block_idx, block) in boundary_props.blocks.iter().enumerate() {
+    for (block_idx, block) in boundary_props.data.iter().enumerate() {
         for (point_idx, point) in block.iter().enumerate() {
             // check if point props need to be defined
             if data[block_idx].points[point_idx] == BlockBoundaryPointSolverProp::Undefined {
@@ -508,5 +884,93 @@ pub fn block_boundary_points_solver_props(
         }
     }
 
+    // // check corners for additional connected points
+    // for (block_idx, _) in data.iter().enumerate() {
+    //     for corner in BlockCorner::all_corners() {
+    //         let dim = mesh.blocks[block_idx].points();
+    //         let corner_idx = BlockCorner::corner_index(corner, dim);
+
+    //         if let BlockBoundaryPointSolverProp::Solved(connections) = data[block_idx]
+    //             .get(corner_idx)
+    //             .expect("corner to be a boundary point")
+    //         {
+    //             for connection in connections.iter() {
+    //                 let connected_point = data[connection.index.block]
+    //                     .get(connection.index.point)
+    //                     .expect("connected point must also be on a block boundary");
+
+    //                 match connected_point {
+    //                     BlockBoundaryPointSolverProp::Connected(con) => {
+    //                         if con.
+    //                     },
+    //                     BlockBoundaryPointSolverProp::ConnectedPeriodic { donor, translation } => {}
+    //                     _ => panic!("Not allowed point state."),
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
+    // println!(
+    //     "5 (40, 10) {:?}",
+    //     data[5]
+    //         .get((40, 10))
+    //         .expect("corner to be a boundary point")
+    // );
+
+    // println!(
+    //     "2 (0, 10) {:?}",
+    //     data[2].get((0, 10)).expect("corner to be a boundary point")
+    // );
+
+    // println!(
+    //     "6 (20, 40) {:?}",
+    //     data[6]
+    //         .get((20, 40))
+    //         .expect("corner to be a boundary point")
+    // );
+
+    // std::process::exit(0);
+
     data
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BlockCorner {
+    BottomLeft,
+    BottomRight,
+    TopLeft,
+    TopRight,
+}
+
+impl BlockCorner {
+    /// returns all possible block corners for iteration
+    pub fn all_corners() -> [Self; 4] {
+        [
+            BlockCorner::BottomLeft,
+            BlockCorner::BottomRight,
+            BlockCorner::TopLeft,
+            BlockCorner::TopRight,
+        ]
+    }
+
+    /// returns the index of the corner given the block dimensions
+    pub fn corner_index(corner: BlockCorner, dim: [usize; 2]) -> (usize, usize) {
+        match corner {
+            BlockCorner::BottomLeft => (0, 0),
+            BlockCorner::BottomRight => (dim[0] - 1, 0),
+            BlockCorner::TopLeft => (0, dim[1] - 1),
+            BlockCorner::TopRight => (dim[0] - 1, dim[1] - 1),
+        }
+    }
+
+    /// returns the two neighbor points of the corner
+    fn corner_neighbors(corner: BlockCorner, dim: [usize; 2]) -> [(usize, usize); 2] {
+        match corner {
+            BlockCorner::BottomLeft => [(1, 0), (0, 1)],
+            BlockCorner::BottomRight => [(dim[0] - 2, 0), (dim[0] - 1, 1)],
+            BlockCorner::TopLeft => [(0, dim[1] - 2), (1, dim[1] - 1)],
+            BlockCorner::TopRight => [(dim[0] - 1, dim[1] - 2), (dim[0] - 2, dim[1] - 1)],
+        }
+    }
 }
