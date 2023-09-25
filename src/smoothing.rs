@@ -7,7 +7,7 @@ pub mod block_boundary_props;
 
 // runs based on slightly modified repo https://github.com/cpmech/russell
 
-use self::block_boundary_props::{BlockBoundaryPointProp, BoundaryProps};
+use self::block_boundary_props::{BlockBoundaryPointProp, BlockPointIndex, BoundaryProps};
 use crate::{
     types::{BlockBoundary, BlockConnection, PeriodicBlockConnection},
     Block2d, Mesh, Scalar, Vec2d,
@@ -295,52 +295,6 @@ fn update_ghost_point_locations(
             });
         }
     });
-}
-
-fn try_set_ghost_point_data(
-    matrix_entries: &mut Vec<Array2<MatrixEntry>>,
-    mesh: &Mesh,
-    block_idx: usize,
-    ghost_point: &(usize, usize),
-    connection: &BlockConnection,
-    translation: Option<Vec2d>,
-) -> bool {
-    let potential_donor = connection
-        .get_index_in_receiver_block(&[ghost_point.0 as isize - 1, ghost_point.1 as isize - 1]);
-
-    // check if potential donor is a
-    // valid point
-    let rec_dim = mesh.blocks[connection.receiver.block].points();
-    if (potential_donor.0 >= 0 && potential_donor.0 < rec_dim[0] as isize)
-        && (potential_donor.1 >= 0 && potential_donor.1 < rec_dim[1] as isize)
-    {
-        let index = matrix_entries[connection.receiver.block][[
-            potential_donor.0 as usize + 1,
-            potential_donor.1 as usize + 1,
-        ]]
-        .index;
-
-        assert!(index != usize::MAX);
-
-        matrix_entries[block_idx][[ghost_point.0, ghost_point.1]].index = index;
-        matrix_entries[block_idx][[ghost_point.0, ghost_point.1]].prop = translation.map_or_else(
-            || PointProps::Connect { donor_index: index },
-            |trans| PointProps::ConnectPeriodic {
-                donor_index: index,
-                translation: trans,
-            },
-        );
-
-        debug!(
-            " . . . . . . . Found GhostPoint donor for block {}, ghost point ({}, {}) in block {}, point ({}, {}) (excluding ghost layer), matrix index {}",
-            block_idx, ghost_point.0,ghost_point.1,
-            connection.receiver.block, potential_donor.0, potential_donor.1, index
-        );
-
-        true
-    } else {
-        false
-    }
 }
 
 /// returns true if the given point is to be fixed
@@ -693,8 +647,167 @@ impl MatrixEntries {
     }
 }
 
+enum GhostPointCheckResult {
+    Found { index: usize },
+    NotFound { potential_donor: (isize, isize) },
+}
+
+/// if the ghost point is not found, the potential donor is returned for subsequent searches
+fn check_ghost_point(
+    matrix_entries: &mut Vec<Array2<MatrixEntry>>,
+    mesh: &Mesh,
+    block_idx: usize,
+    ghost_point: &(usize, usize),
+    connection: &BlockConnection,
+) -> GhostPointCheckResult {
+    let potential_donor = connection
+        .get_index_in_receiver_block(&[ghost_point.0 as isize - 1, ghost_point.1 as isize - 1]);
+
+    // check if potential donor is a
+    // valid point
+    let rec_dim = mesh.blocks[connection.receiver.block].points();
+    if (potential_donor.0 >= 0 && potential_donor.0 < rec_dim[0] as isize)
+        && (potential_donor.1 >= 0 && potential_donor.1 < rec_dim[1] as isize)
+    {
+        let index = matrix_entries[connection.receiver.block][[
+            potential_donor.0 as usize + 1,
+            potential_donor.1 as usize + 1,
+        ]]
+        .index;
+
+        assert!(index != usize::MAX);
+
+        // matrix_entries[block_idx][[ghost_point.0, ghost_point.1]].index = index;
+        // matrix_entries[block_idx][[ghost_point.0, ghost_point.1]].prop = translation.map_or_else(
+        //     || PointProps::Connect { donor_index: index },
+        //     |trans| PointProps::ConnectPeriodic {
+        //         donor_index: index,
+        //         translation: trans,
+        //     },
+        // );
+
+        debug!(
+            " . . . . . . . Found GhostPoint donor for block {}, ghost point ({}, {}) in block {}, point ({}, {}) (excluding ghost layer), matrix index {}",
+            block_idx, ghost_point.0,ghost_point.1,
+            connection.receiver.block, potential_donor.0, potential_donor.1, index
+        );
+
+        GhostPointCheckResult::Found {
+            index: index,
+            translation,
+        }
+    } else {
+        GhostPointCheckResult::NotFound { potential_donor }
+    }
+}
+
 /// function to recursively find the donor of the given ghost point
-// fn search_ghost_point_donor() {}
+fn recursive_search_and_set_ghost_point(
+    block_id: usize,
+    boundary_point_id: usize,
+    ghost_point: &(usize, usize),
+    mesh: &Mesh,
+    boundary_props: &BoundaryProps,
+    matrix_entries: &mut Vec<Array2<MatrixEntry>>,
+    checked_edges: &mut Vec<usize>,
+) -> Option<(usize, Option<Vec2d>)> {
+    debug!(
+        " . . . . . Checking BCs of block {} boundaryPoint {}: {:?}",
+        block_id, boundary_point_id, boundary_props.data[block_id].points[boundary_point_id]
+    );
+
+    for bc in boundary_props.data[block_id].points[boundary_point_id].iter() {
+        match bc {
+            BlockBoundaryPointProp::Connected(connection)
+            | BlockBoundaryPointProp::Periodic(connection) => {
+                debug!(" . . . . . . ConnectionData {:?}", connection);
+
+                let edge_id = connection.edge;
+                let edge = &mesh.edges[edge_id];
+
+                if !checked_edges.contains(&edge_id) {
+                    match edge {
+                        BlockBoundary::Connection(connection) => {
+                            debug!(
+                                " . . . . . . Checking connection to block {} via edge {}",
+                                connection.receiver.block, edge_id
+                            );
+
+                            assert!(connection.donor.block == block_id);
+                            // TODO assert if point is in donor range
+
+                            match check_ghost_point(
+                                matrix_entries,
+                                mesh,
+                                block_id,
+                                ghost_point,
+                                connection,
+                                None,
+                            ) {
+                                GhostPointCheckResult::Found { index, translation } => {
+                                    return Some((index, translation));
+                                }
+                                GhostPointCheckResult::NotFound { potential_donor } => {}
+                            }
+
+                            // if result.is_none() {
+                            //     return true;
+                            // }
+
+                            // else {
+                            //     let potential_donor = result.unwrap();
+                            //     checked_edges.push(edge_id);
+                            //     if recursive_search_and_set_ghost_point(
+                            //         connection.receiver.block,
+                            //         receiver_boundaryPoint_id,
+                            //         potential_donor,
+                            //         mesh,
+                            //         boundary_props,
+                            //         matrix_entries,
+                            //         checked_edges,
+                            //     ) {
+                            //         return true;
+                            //     }
+                            // }
+                        }
+                        BlockBoundary::PeriodicConnection(PeriodicBlockConnection {
+                            connection,
+                            translation,
+                        }) => {
+                            debug!(
+                                " . . . . . . Checking periodic connection to block {} via edge {}",
+                                connection.receiver.block, edge_id
+                            );
+
+                            assert!(connection.donor.block == block_id);
+                            // TODO assert if point is in donor range
+
+                            match check_ghost_point(
+                                matrix_entries,
+                                mesh,
+                                block_id,
+                                ghost_point,
+                                connection,
+                                Some(translation.clone()),
+                            ) {
+                                GhostPointCheckResult::Found { index, translation } => {
+                                    return Some((index, translation));
+                                }
+                                GhostPointCheckResult::NotFound { potential_donor } => {}
+                            }
+                        }
+                        _ => todo!(),
+                    }
+                } else {
+                    debug!(" . . . . . . Skipping already checked edge {}", edge_id);
+                }
+            }
+            _ => todo!(),
+        }
+    }
+
+    return false;
+}
 
 /// fill the ghost points for the given boundary point in ghost layer including
 /// point index
@@ -735,82 +848,33 @@ fn fill_ghost_points(
     for ghost_point in ghost_points.iter() {
         debug!(" . . . . Searching GhostPoint {:?}", ghost_point);
 
-        let mut found = false;
+        let mut checked_edges = Vec::<usize>::with_capacity(10);
+        let donor = recursive_search_and_set_ghost_point(
+            block_id,
+            boundary_point_id,
+            ghost_point,
+            mesh,
+            boundary_props,
+            matrix_entries,
+            &mut checked_edges,
+        );
 
-        for bc in boundary_props.data[block_id].points[boundary_point_id].iter() {
-            debug!(" . . . . . Checking BC {:?}", bc);
-
-            match bc {
-                BlockBoundaryPointProp::Undefined => todo!(),
-                BlockBoundaryPointProp::Fixed => todo!(),
-                BlockBoundaryPointProp::Connected(connection)
-                | BlockBoundaryPointProp::Periodic(connection) => {
-                    debug!(" . . . . . . ConnectionData {:?}", connection);
-
-                    if !connection.donor {
-                        debug!(" . . . . . . Skipping as not a donor connection");
-                        continue;
-                    }
-
-                    let edge_id = connection.edge;
-                    let edge = &mesh.edges[edge_id];
-
-                    match edge {
-                        BlockBoundary::Connection(connection) => {
-                            debug!(
-                                " . . . . . . Checking connection to block {} via edge {}",
-                                connection.receiver.block, edge_id
-                            );
-
-                            assert!(connection.donor.block == block_id);
-                            // TODO assert if point is in donor range
-
-                            if try_set_ghost_point_data(
-                                matrix_entries,
-                                mesh,
-                                block_id,
-                                ghost_point,
-                                connection,
-                                None,
-                            ) {
-                                found = true;
-                                break;
-                            }
-                        }
-                        BlockBoundary::PeriodicConnection(PeriodicBlockConnection {
-                            connection,
-                            translation,
-                        }) => {
-                            debug!(
-                                " . . . . . . Checking periodic connection to block {} via edge {}",
-                                connection.receiver.block, edge_id
-                            );
-
-                            assert!(connection.donor.block == block_id);
-                            // TODO assert if point is in donor range
-
-                            if try_set_ghost_point_data(
-                                matrix_entries,
-                                mesh,
-                                block_id,
-                                ghost_point,
-                                connection,
-                                Some(translation.clone()),
-                            ) {
-                                found = true;
-                                break;
-                            }
-                        }
-                        BlockBoundary::Inlet(_) => todo!(),
-                        BlockBoundary::Outlet(_) => todo!(),
-                        BlockBoundary::Wall(_) => todo!(),
-                    }
-                }
-            }
-        }
-
-        if !found {
-            panic!("no donor found for ghost point");
+        if donor.is_none() {
+            panic!(
+                "no donor found for ghost point block {} ({}, {}) [index including ghost layers]",
+                block_id, ghost_point.0, ghost_point.1
+            );
+        } else {
+            let (index, translation) = donor.unwrap();
+            matrix_entries[block_id][[ghost_point.0, ghost_point.1]].index = index;
+            matrix_entries[block_id][[ghost_point.0, ghost_point.1]].prop = translation
+                .map_or_else(
+                    || PointProps::Connect { donor_index: index },
+                    |trans| PointProps::ConnectPeriodic {
+                        donor_index: index,
+                        translation: trans,
+                    },
+                );
         }
     }
 }
