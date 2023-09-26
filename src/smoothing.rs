@@ -252,48 +252,17 @@ fn coordinates_with_ghost_points(mesh: &Mesh) -> Vec<Array2<Vec2d>> {
 }
 
 fn update_ghost_point_locations(
-    mesh: &Mesh,
     coords: &mut Vec<ndarray::Array2<Vec2d>>,
-    // _corners: &Vec<(MeshPoint, MeshPoint)>,
+    updates: &Vec<(BlockPointIndex, BlockPointIndex, Option<Vec2d>)>,
 ) {
-    mesh.edges.iter().for_each(|edge| {
-        if let BlockBoundary::Connection(connection) = edge {
-            let ghost_point_modifyer = connection.donor.get_ghost_layer_modifyer();
+    updates.iter().for_each(|update| {
+        let target = update.0;
+        let source = update.1;
 
-            connection.donor.iter().for_each(|(i, j)| {
-                let i = i as isize + ghost_point_modifyer.0;
-                let j = j as isize + ghost_point_modifyer.1;
+        let x = coords[source.block][[source.point.0, source.point.1]];
 
-                // TODO check if this is still correct for complicated
-                // connection. Perhaps we have to save a transform matrix.
-                let (i_rec, j_rec) = connection.get_index_in_receiver_block(&[i, j]);
-
-                let x =
-                    mesh.blocks[connection.receiver.block].coords[[i_rec as usize, j_rec as usize]];
-
-                coords[connection.donor.block][[(i + 1) as usize, (j + 1) as usize]] = x;
-            });
-        }
-        // TODO reduce code duplication
-        else if let BlockBoundary::PeriodicConnection(periodic_connection) = edge {
-            let connection = &periodic_connection.connection;
-            let translation = &periodic_connection.translation;
-
-            let ghost_point_modifyer = connection.donor.get_ghost_layer_modifyer();
-
-            connection.donor.iter().for_each(|(i, j)| {
-                let i = i as isize + ghost_point_modifyer.0;
-                let j = j as isize + ghost_point_modifyer.1;
-
-                let (i_rec, j_rec) = connection.get_index_in_receiver_block(&[i, j]);
-
-                let x =
-                    mesh.blocks[connection.receiver.block].coords[[i_rec as usize, j_rec as usize]];
-
-                coords[connection.donor.block][[(i + 1) as usize, (j + 1) as usize]] =
-                    x + *translation;
-            });
-        }
+        coords[target.block][[target.point.0, target.point.1]] =
+            update.2.map_or_else(|| x, |translation| x + translation);
     });
 }
 
@@ -729,6 +698,7 @@ fn recursive_search_and_set_ghost_point(
                                 connection.receiver.block, edge_id
                             );
 
+                            // the transformation does only work from donor to receiver
                             assert!(connection.donor.block == block_id);
                             // TODO assert if point is in donor range
 
@@ -742,28 +712,46 @@ fn recursive_search_and_set_ghost_point(
                                 GhostPointCheckResult::Found { index } => {
                                     return Some((index, None));
                                 }
-                                GhostPointCheckResult::NotFound { potential_donor } => {}
+                                GhostPointCheckResult::NotFound { potential_donor } => {
+                                    checked_edges.push(edge_id);
+
+                                    // convert donor boundary point to
+                                    // overlapping boundary point on receiver
+                                    // block
+
+                                    let donor_bc_point = boundary_props.data[block_id]
+                                        .point_index(boundary_point_id)
+                                        .unwrap();
+
+                                    let receiver_bc_point =
+                                        connection.get_index_in_receiver_block(&[
+                                            donor_bc_point.0 as isize,
+                                            donor_bc_point.1 as isize,
+                                        ]);
+
+                                    let receiver_boundary_point_id = boundary_props.data
+                                        [connection.receiver.block]
+                                        .boundary_point_index((
+                                            receiver_bc_point.0.try_into().unwrap(),
+                                            receiver_bc_point.1.try_into().unwrap(),
+                                        ))
+                                        .unwrap();
+
+                                    let res = recursive_search_and_set_ghost_point(
+                                        potential_donor.block,
+                                        receiver_boundary_point_id,
+                                        &potential_donor.point,
+                                        mesh,
+                                        boundary_props,
+                                        matrix_entries,
+                                        checked_edges,
+                                    );
+
+                                    if res.is_some() {
+                                        return res;
+                                    }
+                                }
                             }
-
-                            // if result.is_none() {
-                            //     return true;
-                            // }
-
-                            // else {
-                            //     let potential_donor = result.unwrap();
-                            //     checked_edges.push(edge_id);
-                            //     if recursive_search_and_set_ghost_point(
-                            //         connection.receiver.block,
-                            //         receiver_boundaryPoint_id,
-                            //         potential_donor,
-                            //         mesh,
-                            //         boundary_props,
-                            //         matrix_entries,
-                            //         checked_edges,
-                            //     ) {
-                            //         return true;
-                            //     }
-                            // }
                         }
                         BlockBoundary::PeriodicConnection(PeriodicBlockConnection {
                             connection,
@@ -873,6 +861,124 @@ fn fill_ghost_points(
     }
 }
 
+struct SingleIndexConverter {
+    block_sizes: Vec<(usize, usize)>,
+}
+
+impl SingleIndexConverter {
+    fn new(mesh: &Mesh) -> Self {
+        let mut block_sizes = Vec::<(usize, usize)>::with_capacity(mesh.blocks.len());
+
+        mesh.blocks.iter().for_each(|block| {
+            block_sizes.push(block.point_size);
+        });
+
+        Self { block_sizes }
+    }
+
+    /// returns the block point index for the given index
+    fn get_block_point_index(&self, index: usize) -> BlockPointIndex {
+        let mut buf = 0;
+
+        for (block_id, block_dim) in self.block_sizes.iter().enumerate() {
+            let block_size = block_dim.0 * block_dim.1;
+            if index < buf + block_size {
+                let block_index = index - buf;
+                let j: usize = block_index % block_dim.1;
+                let i: usize = block_index / block_dim.1;
+                return BlockPointIndex::new(block_id, (i, j));
+            }
+            buf += block_size;
+        }
+
+        panic!("Could not convert the given index.");
+    }
+}
+
+fn compute_ghost_point_updates(
+    mesh: &Mesh,
+    matrix_entries: &Vec<Array2<MatrixEntry>>,
+) -> Vec<(BlockPointIndex, BlockPointIndex, Option<Vec2d>)> {
+    let max_size = matrix_entries
+        .iter()
+        .map(|block| {
+            let dim = block.dim();
+            2 * dim.0 + 2 * (dim.1 - 2)
+        })
+        .sum();
+
+    let mut updates =
+        Vec::<(BlockPointIndex, BlockPointIndex, Option<Vec2d>)>::with_capacity(max_size);
+
+    let single_index_converter = SingleIndexConverter::new(mesh);
+
+    matrix_entries
+        .iter()
+        .enumerate()
+        .for_each(|(block_id, block_matrix_entries)| {
+            let dim = block_matrix_entries.dim();
+
+            // TODO optimize traversal based on matrix storage format for coord
+            // access down the line
+
+            let mut func = |target_index: BlockPointIndex, prop: &PointProps| match prop {
+                PointProps::Connect { donor_index } => {
+                    let source_block_point_index =
+                        single_index_converter.get_block_point_index(*donor_index);
+                    updates.push((target_index, source_block_point_index, None));
+                }
+                PointProps::ConnectPeriodic {
+                    donor_index,
+                    translation,
+                } => {
+                    let source_block_point_index =
+                        single_index_converter.get_block_point_index(*donor_index);
+                    updates.push((
+                        target_index,
+                        source_block_point_index,
+                        Some(translation.clone()),
+                    ));
+                }
+                _ => (),
+            };
+
+            // loop left
+            for i in 0..dim.1 {
+                func(
+                    BlockPointIndex::new(block_id, (0, i)),
+                    &block_matrix_entries[[0, i]].prop,
+                );
+            }
+
+            // loop right
+            for i in 0..dim.1 {
+                func(
+                    BlockPointIndex::new(block_id, (dim.0 - 1, i)),
+                    &block_matrix_entries[[dim.0 - 1, i]].prop,
+                );
+            }
+
+            // loop top
+            for i in 1..(dim.0 - 1) {
+                func(
+                    BlockPointIndex::new(block_id, (i, 0)),
+                    &block_matrix_entries[[i, 0]].prop,
+                );
+            }
+
+            // loop bottom
+            for i in 1..(dim.0 - 1) {
+                func(
+                    BlockPointIndex::new(block_id, (i, dim.1 - 1)),
+                    &block_matrix_entries[[i, dim.1 - 1]].prop,
+                );
+            }
+        });
+
+    updates.shrink_to_fit();
+    updates
+}
+
 pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
     let iterations = 20;
 
@@ -892,8 +998,8 @@ pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
         }
     }
 
-    // let entries = matrix_entries(&mesh);
     let mut coords = coordinates_with_ghost_points(&mesh);
+    let ghost_point_coord_updates = compute_ghost_point_updates(mesh, &entries);
 
     // allocations
     let dof = mesh.points();
@@ -905,7 +1011,7 @@ pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
     for n in 0..iterations {
         print!("  iteration\t{n}");
 
-        update_ghost_point_locations(mesh, &mut coords /* , &corners */);
+        update_ghost_point_locations(&mut coords, &ghost_point_coord_updates);
 
         lhs.reset();
         rhs_x.fill(0.0);
