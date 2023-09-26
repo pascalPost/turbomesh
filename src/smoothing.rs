@@ -886,7 +886,7 @@ impl SingleIndexConverter {
                 let block_index = index - buf;
                 let j: usize = block_index % block_dim.1;
                 let i: usize = block_index / block_dim.1;
-                return BlockPointIndex::new(block_id, (i, j));
+                return BlockPointIndex::new(block_id, (i + 1, j + 1));
             }
             buf += block_size;
         }
