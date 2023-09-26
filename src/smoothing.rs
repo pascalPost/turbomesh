@@ -649,7 +649,7 @@ impl MatrixEntries {
 
 enum GhostPointCheckResult {
     Found { index: usize },
-    NotFound { potential_donor: (isize, isize) },
+    NotFound { potential_donor: BlockPointIndex },
 }
 
 /// if the ghost point is not found, the potential donor is returned for subsequent searches
@@ -677,27 +677,23 @@ fn check_ghost_point(
 
         assert!(index != usize::MAX);
 
-        // matrix_entries[block_idx][[ghost_point.0, ghost_point.1]].index = index;
-        // matrix_entries[block_idx][[ghost_point.0, ghost_point.1]].prop = translation.map_or_else(
-        //     || PointProps::Connect { donor_index: index },
-        //     |trans| PointProps::ConnectPeriodic {
-        //         donor_index: index,
-        //         translation: trans,
-        //     },
-        // );
-
         debug!(
             " . . . . . . . Found GhostPoint donor for block {}, ghost point ({}, {}) in block {}, point ({}, {}) (excluding ghost layer), matrix index {}",
             block_idx, ghost_point.0,ghost_point.1,
             connection.receiver.block, potential_donor.0, potential_donor.1, index
         );
 
-        GhostPointCheckResult::Found {
-            index: index,
-            translation,
-        }
+        GhostPointCheckResult::Found { index }
     } else {
-        GhostPointCheckResult::NotFound { potential_donor }
+        GhostPointCheckResult::NotFound {
+            potential_donor: BlockPointIndex {
+                block: connection.receiver.block,
+                point: (
+                    (potential_donor.0 + 1).try_into().unwrap(),
+                    (potential_donor.1 + 1).try_into().unwrap(),
+                ),
+            },
+        }
     }
 }
 
@@ -742,10 +738,9 @@ fn recursive_search_and_set_ghost_point(
                                 block_id,
                                 ghost_point,
                                 connection,
-                                None,
                             ) {
-                                GhostPointCheckResult::Found { index, translation } => {
-                                    return Some((index, translation));
+                                GhostPointCheckResult::Found { index } => {
+                                    return Some((index, None));
                                 }
                                 GhostPointCheckResult::NotFound { potential_donor } => {}
                             }
@@ -788,10 +783,9 @@ fn recursive_search_and_set_ghost_point(
                                 block_id,
                                 ghost_point,
                                 connection,
-                                Some(translation.clone()),
                             ) {
-                                GhostPointCheckResult::Found { index, translation } => {
-                                    return Some((index, translation));
+                                GhostPointCheckResult::Found { index } => {
+                                    return Some((index, Some(translation.clone())));
                                 }
                                 GhostPointCheckResult::NotFound { potential_donor } => {}
                             }
@@ -806,7 +800,7 @@ fn recursive_search_and_set_ghost_point(
         }
     }
 
-    return false;
+    None
 }
 
 /// fill the ghost points for the given boundary point in ghost layer including
