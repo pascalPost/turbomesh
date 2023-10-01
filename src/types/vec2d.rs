@@ -83,6 +83,14 @@ impl std::ops::Mul<Vec2d> for Scalar {
     }
 }
 
+impl std::ops::Neg for Vec2d {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self(-self.0, -self.1)
+    }
+}
+
 pub trait From<T>: Sized {
     fn from(value: T) -> Self;
 }

@@ -12,7 +12,7 @@ use crate::{
     types::{BlockBoundary, BlockConnection, PeriodicBlockConnection},
     Block2d, Mesh, Scalar, Vec2d,
 };
-use log::debug;
+use log::{debug, log_enabled, Level};
 use ndarray::{s, Array2};
 use russell_lab::Vector;
 use russell_sparse::{ConfigSolver, Solver, SparseTriplet, Symmetry};
@@ -496,10 +496,15 @@ struct MatrixEntries {
     /// matrix entries as vector of blocks containing the matrix entries for
     /// every 2d block point
     pub data: Vec<Array2<MatrixEntry>>,
+
+    /// number of degrees of freedom (number of mesh points + periodic ghost points)
+    pub dof: usize,
 }
 
 impl MatrixEntries {
     fn new(mesh: &Mesh) -> MatrixEntries {
+        let mut dof = mesh.points();
+
         let start_indices: Vec<usize> = mesh
             .blocks
             .iter()
@@ -549,7 +554,7 @@ impl MatrixEntries {
         // boundary points
         let boundary_props = BoundaryProps::new(mesh);
 
-        debug!("Setting block boundary point matirx properties.");
+        debug!("Setting block boundary point matrix properties.");
 
         boundary_props
             .data
@@ -604,7 +609,7 @@ impl MatrixEntries {
                         debug!(" . . . BCs: {:?}", point_props);
 
                         if let PointProps::Solve = matrix_entries[block_id][[i + 1, j + 1]].prop {
-                            fill_ghost_points(mesh, &boundary_props, block_id, boundary_point_id, &mut matrix_entries);
+                            fill_ghost_points(mesh, &boundary_props, block_id, boundary_point_id, &mut matrix_entries, &mut dof);
                         }
                     },
                 );
@@ -612,6 +617,7 @@ impl MatrixEntries {
 
         MatrixEntries {
             data: matrix_entries,
+            dof,
         }
     }
 }
@@ -775,7 +781,7 @@ fn recursive_search_and_set_ghost_point(
                                 GhostPointCheckResult::Found { index } => {
                                     return Some((index, Some(translation.clone())));
                                 }
-                                GhostPointCheckResult::NotFound { potential_donor } => {}
+                                GhostPointCheckResult::NotFound { potential_donor: _ } => {}
                             }
                         }
                         _ => todo!(),
@@ -799,6 +805,7 @@ fn fill_ghost_points(
     block_id: usize,
     boundary_point_id: usize,
     matrix_entries: &mut Vec<Array2<MatrixEntry>>,
+    dof: &mut usize,
 ) {
     let point_id = boundary_props.data[block_id]
         .point_index(boundary_point_id)
@@ -830,6 +837,20 @@ fn fill_ghost_points(
     for ghost_point in ghost_points.iter() {
         debug!(" . . . . Searching GhostPoint {:?}", ghost_point);
 
+        // check if ghost point is already set
+        if let PointProps::Connect { .. } | PointProps::ConnectPeriodic { .. } =
+            matrix_entries[block_id][[ghost_point.0, ghost_point.1]].prop
+        {
+            debug!(
+                " . . . . . ghost point block {} ({}, {}) already set: {:?}.",
+                block_id,
+                ghost_point.0,
+                ghost_point.1,
+                matrix_entries[block_id][[ghost_point.0, ghost_point.1]]
+            );
+            continue;
+        }
+
         let mut checked_edges = Vec::<usize>::with_capacity(10);
         let donor = recursive_search_and_set_ghost_point(
             block_id,
@@ -848,15 +869,22 @@ fn fill_ghost_points(
             );
         } else {
             let (index, translation) = donor.unwrap();
-            matrix_entries[block_id][[ghost_point.0, ghost_point.1]].index = index;
-            matrix_entries[block_id][[ghost_point.0, ghost_point.1]].prop = translation
-                .map_or_else(
-                    || PointProps::Connect { donor_index: index },
-                    |trans| PointProps::ConnectPeriodic {
+
+            if translation.is_none() {
+                matrix_entries[block_id][[ghost_point.0, ghost_point.1]].index = index;
+                matrix_entries[block_id][[ghost_point.0, ghost_point.1]].prop =
+                    PointProps::Connect { donor_index: index };
+            } else {
+                // introduce new matrix index
+                matrix_entries[block_id][[ghost_point.0, ghost_point.1]].index = *dof;
+                matrix_entries[block_id][[ghost_point.0, ghost_point.1]].prop =
+                    PointProps::ConnectPeriodic {
                         donor_index: index,
-                        translation: trans,
-                    },
-                );
+                        translation: -translation.unwrap(),
+                    };
+
+                *dof += 1;
+            }
         }
     }
 }
@@ -979,17 +1007,99 @@ fn compute_ghost_point_updates(
     updates
 }
 
+/// represents the info needed to add the periodic ghost point to the matrix
+#[derive(Debug)]
+struct PeriodicGhostPointMatrixData {
+    ghost_point_index: usize,
+    donor_index: usize,
+    translation: Vec2d,
+}
+
+impl PeriodicGhostPointMatrixData {
+    fn new(
+        ghost_point_index: usize,
+        donor_index: usize,
+        translation: Vec2d,
+    ) -> PeriodicGhostPointMatrixData {
+        PeriodicGhostPointMatrixData {
+            ghost_point_index,
+            donor_index,
+            translation,
+        }
+    }
+}
+
+fn collect_periodic_ghost_points(
+    matrix_entries: &Vec<Array2<MatrixEntry>>,
+    dof: usize,
+    num_mesh_points: usize,
+) -> Vec<PeriodicGhostPointMatrixData> {
+    let size = dof - num_mesh_points;
+    let mut periodic_ghost_points = Vec::<PeriodicGhostPointMatrixData>::with_capacity(size);
+
+    matrix_entries
+        .iter()
+        .enumerate()
+        .for_each(|(block_id, block_matrix_entries)| {
+            let dim = block_matrix_entries.dim();
+
+            let mut func = |i, j| {
+                if matrix_entries[block_id][[i, j]].index >= num_mesh_points
+                    && matrix_entries[block_id][[i, j]].index < usize::MAX
+                {
+                    if let PointProps::ConnectPeriodic {
+                        donor_index,
+                        translation,
+                    } = matrix_entries[block_id][[i, j]].prop
+                    {
+                        periodic_ghost_points.push(PeriodicGhostPointMatrixData::new(
+                            matrix_entries[block_id][[i, j]].index,
+                            donor_index,
+                            translation,
+                        ));
+                    } else {
+                        panic!("Ghost point to add to matrix is not periodic.");
+                    }
+                }
+            };
+
+            // loop left
+            for i in 0..dim.1 {
+                func(0, i);
+            }
+
+            // loop right
+            for i in 0..dim.1 {
+                func(dim.0 - 1, i);
+            }
+
+            // loop top
+            for i in 1..(dim.0 - 1) {
+                func(i, 0);
+            }
+
+            // loop bottom
+            for i in 1..(dim.0 - 1) {
+                func(i, dim.1 - 1);
+            }
+        });
+
+    assert!(periodic_ghost_points.len() == size);
+    periodic_ghost_points
+}
+
 pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
     let iterations = 20;
 
     // fields with ghost points
-    let entries = MatrixEntries::new(mesh).data;
+    let matrix_data = MatrixEntries::new(mesh);
+    let entries = &matrix_data.data;
 
-    // TODO remove
-    // write matrix_entries to file
-    {
+    if log_enabled!(Level::Trace) {
+        // write matrix_entries to file
+
         use std::io::Write;
-        let mut file = std::fs::File::create("matrix_entries_new_algo.txt").unwrap();
+        let mut file = std::fs::File::create("matrix_entries.txt").unwrap();
         for (block_idx, block) in entries.iter().enumerate() {
             writeln!(file, "block {}", block_idx).unwrap();
             for ((i, j), entry) in block.indexed_iter() {
@@ -998,11 +1108,14 @@ pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
         }
     }
 
+    let peridic_ghost_points =
+        collect_periodic_ghost_points(&entries, matrix_data.dof, mesh.points());
+
     let mut coords = coordinates_with_ghost_points(&mesh);
     let ghost_point_coord_updates = compute_ghost_point_updates(mesh, &entries);
 
     // allocations
-    let dof = mesh.points();
+    let dof = matrix_data.dof;
     let mut lhs = SparseTriplet::new(dof, dof, dof * 9, Symmetry::No)?;
     let mut rhs_x = Vector::new(dof);
     let mut rhs_y = Vector::new(dof);
@@ -1013,12 +1126,33 @@ pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
 
         update_ghost_point_locations(&mut coords, &ghost_point_coord_updates);
 
+        if log_enabled!(Level::Trace) {
+            // write coords to file
+
+            use std::io::Write;
+            let mut file = std::fs::File::create("coords.txt").unwrap();
+            for (block_idx, block) in coords.iter().enumerate() {
+                writeln!(file, "block {}", block_idx).unwrap();
+                for ((i, j), entry) in block.indexed_iter() {
+                    writeln!(file, "{}, ({}, {}) = {:?}", block_idx, i, j, entry).unwrap();
+                }
+            }
+
+            // write periodic ghost point entries to file
+
+            let mut file = std::fs::File::create("periodic_ghost_points.txt").unwrap();
+            peridic_ghost_points.iter().for_each(|line| {
+                writeln!(file, "{:?}", line).unwrap();
+            });
+        }
+
         lhs.reset();
         rhs_x.fill(0.0);
         rhs_y.fill(0.0);
 
         // assemble LHS and RHS
 
+        // add all mesh points
         entries
             .iter()
             .enumerate()
@@ -1132,6 +1266,22 @@ pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
                     });
             });
 
+        // add all periodic ghost points
+        peridic_ghost_points.iter().for_each(
+            |PeriodicGhostPointMatrixData {
+                 ghost_point_index,
+                 donor_index,
+                 translation,
+             }| {
+                let index = *ghost_point_index;
+
+                lhs.put(index, index, 1.0).unwrap();
+                lhs.put(index, *donor_index, -1.0).unwrap();
+                rhs_x[index] = translation.0;
+                rhs_y[index] = translation.1;
+            },
+        );
+
         // write matrix to ascii file for debugging
         // let (m, n) = lhs.dims();
         // let mut a = Matrix::new(m, n);
@@ -1187,7 +1337,7 @@ pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
         println!("\tresidual {norm}");
     }
 
-    // update mesh coordinates
+    // update (internal) mesh coordinates
     coords
         .iter()
         .zip(mesh.blocks.iter_mut())
