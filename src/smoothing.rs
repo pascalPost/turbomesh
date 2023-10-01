@@ -768,9 +768,6 @@ fn recursive_search_and_set_ghost_point(
                                 connection.receiver.block, edge_id
                             );
 
-                            assert!(connection.donor.block == block_id);
-                            // TODO assert if point is in donor range
-
                             match check_ghost_point(
                                 matrix_entries,
                                 mesh,

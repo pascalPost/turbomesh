@@ -362,14 +362,6 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
                     BlockBoundaryRange::new(&mesh, 3, EdgeIndex::JMin, 0..1),
                 ),
             )));
-
-        // TODO remove
-        mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
-            &mesh,
-            2,
-            EdgeIndex::JMax,
-            0..1,
-        )));
     }
 
     {
@@ -413,14 +405,6 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
                     BlockBoundaryRange::new(&mesh, 4, EdgeIndex::JMin, 0..1),
                 ),
             )));
-
-        // TODO remove
-        mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
-            &mesh,
-            3,
-            EdgeIndex::IMax,
-            0..1,
-        )));
     }
 
     {
@@ -488,14 +472,6 @@ pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, 
                     BlockBoundaryRange::new(&mesh, 5, EdgeIndex::IMin, 1..2),
                 ),
             )));
-
-        // TODO remove
-        mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
-            &mesh,
-            4,
-            EdgeIndex::IMax,
-            0..1,
-        )));
     }
 
     {
