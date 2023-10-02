@@ -200,5 +200,3 @@ impl Rectangle {
         Line2d::new(x0, x0 + Vec2d(0.0, self.size.1))
     }
 }
-
-pub struct Geometry {}

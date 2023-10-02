@@ -16,11 +16,15 @@ use log::{debug, log_enabled, Level};
 use ndarray::{s, Array2};
 use russell_lab::Vector;
 use russell_sparse::{ConfigSolver, Solver, SparseTriplet, Symmetry};
+use serde::Deserialize;
 use std::error::Error;
 
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
 pub enum SmoothingMethod {
-    Global,
-    BlockInternal,
+    None,
+    Global { iterations: usize },
+    BlockInternal { iterations: usize },
 }
 
 fn matrix_index(i: usize, j: usize, i_size: usize) -> usize {
@@ -1085,9 +1089,7 @@ fn collect_periodic_ghost_points(
     periodic_ghost_points
 }
 
-pub fn smooth_mesh(mesh: &mut Mesh) -> Result<(), Box<dyn Error>> {
-    let iterations = 20;
-
+pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Error>> {
     // fields with ghost points
     let matrix_data = MatrixEntries::new(mesh);
     let entries = &matrix_data.data;

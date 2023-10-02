@@ -30,13 +30,15 @@ impl Mesh {
         self.blocks.iter().position(|block| block.name == name)
     }
 
-    pub fn smooth(&mut self, method: SmoothingMethod) {
+    /// smooth the given mesh with the specified method
+    pub fn smooth(&mut self, method: &SmoothingMethod) {
         match method {
-            SmoothingMethod::Global => smooth_mesh(self).unwrap(),
-            SmoothingMethod::BlockInternal => {
+            SmoothingMethod::None => {}
+            SmoothingMethod::Global { iterations } => smooth_mesh(self, *iterations).unwrap(),
+            SmoothingMethod::BlockInternal { iterations } => {
                 self.blocks.iter_mut().for_each(|block| {
                     println!("block: {}", block.name);
-                    smooth_block(block, 25).unwrap()
+                    smooth_block(block, *iterations).unwrap()
                 });
             }
         }

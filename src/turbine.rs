@@ -9,7 +9,7 @@ use crate::types::{
     BlockBoundary, BlockBoundaryRange, BlockConnection, Edge, EdgeIndex, EdgeView,
     PeriodicBlockConnection,
 };
-use crate::{Block2d, Geometry, Mesh, Segment, Vec2d};
+use crate::{Block2d, Mesh, Segment, Vec2d};
 use ndarray::Array;
 use plotters::prelude::*;
 use serde::Deserialize;
@@ -95,6 +95,7 @@ pub fn blade_profile(
 pub struct TurbineTemplate {
     ps_csv_path: std::path::PathBuf,
     ss_csv_path: std::path::PathBuf,
+    smoothing: SmoothingMethod,
 }
 
 impl TurbineTemplate {
@@ -105,7 +106,7 @@ impl TurbineTemplate {
     }
 
     /// runs the template and returns the resulting geometry and mesh
-    pub fn run(&self) -> (Geometry, Mesh) {
+    pub fn run(&self) {
         let ps_csv_path = self.ps_csv_path.to_str().unwrap();
         let ss_csv_path = self.ss_csv_path.to_str().unwrap();
         // let mut geometry = Geometry {};
@@ -669,7 +670,7 @@ impl TurbineTemplate {
 
         mesh.save("turbomesh_linear.cgns").unwrap();
 
-        mesh.smooth(SmoothingMethod::Global);
+        mesh.smooth(&self.smoothing);
 
         mesh.save("turbomesh.cgns").unwrap();
 
@@ -743,6 +744,5 @@ impl TurbineTemplate {
             .unwrap();
 
         root.present().unwrap();
-        (Geometry {}, mesh)
     }
 }
