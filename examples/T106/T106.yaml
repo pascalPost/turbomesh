@@ -1,2 +1,3 @@
+template: Turbine
 ps_csv_path: T106_ps.dat
 ss_csv_path: T106_ss.dat
