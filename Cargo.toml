@@ -26,3 +26,7 @@ env_logger = "0.10.0"
 log = "0.4.16"
 russell_sparse = { git = "https://github.com/pascalPost/russell.git", branch = "feature/enhanced_build" }
 russell_lab = { git = "https://github.com/pascalPost/russell.git", branch = "feature/enhanced_build" }
+serde = "1.0"
+serde_yaml = "0.9"
+clap = { version = "4.0", features = ["derive"] }
+figment = { version = "0.10", features = ["yaml"] }

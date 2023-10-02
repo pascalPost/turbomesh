@@ -12,6 +12,7 @@ use crate::types::{
 use crate::{Block2d, Geometry, Mesh, Segment, Vec2d};
 use ndarray::Array;
 use plotters::prelude::*;
+use serde::Deserialize;
 use std::error::Error;
 
 /// read the profile coordinates from given file and returns them as a vec
@@ -88,6 +89,33 @@ pub fn blade_profile(
     // TODO enhance interpolation by enforcing matching derivatives at the boundaries
 
     Ok((Spline::new(ps_spline), Spline::new(ss_spline)))
+}
+
+#[derive(Deserialize, Debug)]
+pub struct TurbineTemplate {
+    ps_csv_path: std::path::PathBuf,
+    ss_csv_path: std::path::PathBuf,
+}
+
+impl TurbineTemplate {
+    // pub fn new(ps_csv_path: &str, ss_csv_path: &str) -> Self {
+    //     Self {
+    //         ps_csv_path: ps_csv_path.to_owned(),
+    //         ss_csv_path: ss_csv_path.to_owned(),
+    //     }
+    // }
+
+    pub fn append_root_path(&mut self, root_path: &std::path::Path) {
+        self.ps_csv_path = root_path.join(&self.ps_csv_path);
+        self.ss_csv_path = root_path.join(&self.ss_csv_path);
+    }
+
+    pub fn run(&self) -> (Geometry, Mesh) {
+        run_turbine_template(
+            self.ps_csv_path.to_str().unwrap(),
+            self.ss_csv_path.to_str().unwrap(),
+        )
+    }
 }
 
 pub fn run_turbine_template(ps_csv_path: &str, ss_csv_path: &str) -> (Geometry, Mesh) {
