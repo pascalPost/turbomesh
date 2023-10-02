@@ -1,6 +1,9 @@
 // Copyright (c) 2022 Pascal Post
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
+use dierckx_sys::curev_;
+use libc::{c_double, c_int};
+
 extern "C" {
     // given the ordered set of m points x(i) in the idim-dimensional space
     // and given also a corresponding set of strictly increasing values u(i)
@@ -40,7 +43,7 @@ extern "C" {
         // preceded by another call with iopt=1 or iopt=0. unchanged on exit.
         iopt: *const c_int,
         // integer flag. on entry ipar must specify whether (ipar=1)
-        // the user will supply the parameter values u(i),ub and ue
+        // the user will supply the parameter values u(i), ub and ue
         // or whether (ipar=0) these values are to be calculated by
         // parcur. unchanged on exit.
         ipar: *const c_int,
@@ -52,7 +55,7 @@ extern "C" {
         m: *const c_int,
         // real array of dimension at least (m). in case ipar=1, before
         // entry, u(i) must be set to the i-th value of the parameter
-        // variable u for i=1,2,...,m. these values must then be
+        // variable u for i=1,2,...,m. These values must then be
         // supplied in strictly ascending order and will be unchanged
         // on exit. in case ipar=0, on exit, array u will contain the
         // values u(i) as determined by parcur.
@@ -190,8 +193,32 @@ extern "C" {
         //           case there is no approximation returned.
         ier: *mut c_int,
     );
+
+    // function splint calculates the integral of a spline function s(x)
+    // of degree k, which is given in its normalized b-spline representation
+    pub fn splint_(
+        // array,length n,which contains the position of the knots
+        // of s(x).
+        t: *const c_double,
+        // integer, giving the total number of knots of s(x).
+        n: *const c_int,
+        // array,length n, containing the b-spline coefficients.
+        c: *const c_double,
+        // integer, giving the degree of s(x).
+        k: *const c_int,
+        // a,b: real values, containing the end points of the integration
+        // interval. s(x) is considered to be identically zero outside
+        // the interval (t(k+1),t(n-k)).
+        a: *const c_double,
+        b: *const c_double,
+        // real array, length n.  used as working space
+        // on output, wrk will contain the integrals of the normalized
+        // b-splines defined on the set of knots.
+        wrk: *mut c_double,
+    ) -> c_double;
 }
 
+#[derive(Clone)]
 pub struct FittingSpline<const DIM: usize> {
     /// knots
     t: Box<[f64]>,
@@ -249,7 +276,6 @@ impl<const DIM: usize> FittingSpline<DIM> {
         };
 
         unsafe {
-            use libc::{c_double, c_int};
             let iopt: c_int = 0;
             let idim = DIM as c_int;
 
@@ -325,9 +351,14 @@ impl<const DIM: usize> FittingSpline<DIM> {
 
     pub fn interpolate(&self, u: &[f64]) -> Box<[[f64; DIM]]> {
         let mut res = vec![[f64::NAN; DIM]; u.len()];
+        self.interpolate_into(u, res.as_mut_slice());
+        res.into_boxed_slice()
+    }
+
+    pub fn interpolate_into(&self, u: &[f64], res: &mut [[f64; DIM]]) {
+        assert!(u.len() == res.len());
 
         unsafe {
-            use libc::{c_double, c_int};
             let idim = DIM as c_int;
             let mut ier: c_int = 0;
             curev_(
@@ -346,7 +377,21 @@ impl<const DIM: usize> FittingSpline<DIM> {
 
             assert!(ier == 0);
         }
+    }
 
-        res.into_boxed_slice()
+    pub fn integrate(&self, start: f64, end: f64) -> f64 {
+        let mut wrk = vec![0.0; self.t.len()];
+
+        unsafe {
+            splint_(
+                self.t.as_ptr(),
+                &(self.t.len() as c_int),
+                self.c.as_ptr(),
+                &(self.k as c_int),
+                &start as *const c_double,
+                &end as *const c_double,
+                wrk.as_mut_ptr(),
+            )
+        }
     }
 }

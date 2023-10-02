@@ -2,17 +2,49 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 use crate::cgns::interface::*;
-use crate::types::Block2d;
+use crate::smoothing::{smooth_block, smooth_mesh, SmoothingMethod};
+use crate::types::{Block2d, BlockBoundary};
 
 /// mesh data structure
 pub struct Mesh {
     pub blocks: Vec<Block2d>,
+    pub edges: Vec<BlockBoundary>,
 }
 
 impl Mesh {
     /// creates a new mesh instance
     pub fn new() -> Self {
-        Self { blocks: vec![] }
+        Self {
+            blocks: vec![],
+            edges: vec![],
+        }
+    }
+
+    /// add the given block to the mesh
+    pub fn add_block(&mut self, block: Block2d) {
+        self.blocks.push(block);
+    }
+
+    /// returns the index of the block w/ given name if found
+    pub fn block_id(&self, name: &str) -> Option<usize> {
+        self.blocks.iter().position(|block| block.name == name)
+    }
+
+    pub fn smooth(&mut self, method: SmoothingMethod) {
+        match method {
+            SmoothingMethod::Global => smooth_mesh(self).unwrap(),
+            SmoothingMethod::BlockInternal => {
+                self.blocks.iter_mut().for_each(|block| {
+                    println!("block: {}", block.name);
+                    smooth_block(block, 25).unwrap()
+                });
+            }
+        }
+    }
+
+    /// returns the total number of points of the mesh
+    pub fn points(&self) -> usize {
+        self.blocks.iter().map(|b| b.coords.len()).sum()
     }
 
     /// writes the mesh to a structured cgns
@@ -39,13 +71,12 @@ impl Mesh {
             )?;
 
             {
-                let mut coords_x = vec![0.0; block.coords.size()];
-                let mut coords_y = vec![0.0; block.coords.size()];
+                // assumption coordinates in row-major (C) ordering -> needs
+                // transformation for cgns
+                // TODO add detection
 
-                for i in 0..block.coords.size() {
-                    coords_x[i] = block.coords.as_slice()[i].0;
-                    coords_y[i] = block.coords.as_slice()[i].1;
-                }
+                let coords_x: Vec<f64> = block.coords.t().iter().map(|x| x.0).collect();
+                let coords_y: Vec<f64> = block.coords.t().iter().map(|x| x.1).collect();
 
                 coord_write(i_file, i_base, i_zone, "CoordinateX", &coords_x.as_slice())?;
                 coord_write(i_file, i_base, i_zone, "CoordinateY", &coords_y.as_slice())?;
