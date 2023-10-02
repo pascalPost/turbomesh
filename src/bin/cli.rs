@@ -6,13 +6,22 @@ use figment::{
     providers::{Format, Yaml},
     Figment,
 };
+use serde::Deserialize;
 use turbomesh::turbine::TurbineTemplate;
 
+/// struct representing the CLI arguments
 #[derive(Parser)]
 #[command(author = "Pascal Post", about = "turbomesh CLI", long_about = None)]
 struct Cli {
     /// The path to the config file to read
     path: std::path::PathBuf,
+}
+
+/// enum listing all available meshing templates
+#[derive(Deserialize, Debug)]
+#[serde(tag = "template")]
+enum Template {
+    Turbine(TurbineTemplate),
 }
 
 fn main() {
@@ -21,15 +30,19 @@ fn main() {
 
     let config_file_path = args.path;
 
-    let mut turbine_template: TurbineTemplate = Figment::new()
+    let template: Template = Figment::new()
         .merge(Yaml::file(config_file_path.to_str().unwrap()))
         .extract()
         .unwrap();
 
-    // update file pathes to be relative to config file
-    turbine_template.append_root_path(config_file_path.parent().unwrap());
+    println!("{:?}", template);
 
-    println!("{:?}", turbine_template);
+    match template {
+        Template::Turbine(mut turbine_template) => {
+            // update file pathes to be relative to config file
+            turbine_template.append_root_path(config_file_path.parent().unwrap());
 
-    turbine_template.run();
+            turbine_template.run();
+        }
+    }
 }
