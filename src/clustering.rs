@@ -2,6 +2,7 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 use crate::types::{ClusteringFunction, Scalar};
+use serde::Deserialize;
 
 pub struct UniformClustering {}
 
@@ -36,7 +37,7 @@ impl ClusteringFunction for UniformClustering {
 /// alpha = 0.0 cluster toward t=1.0
 /// stretching factor 1.0 < beta < +inf, closer to 1.0 gives stronger clustering.
 /// for free function implementation, see roberts_clustering
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 pub struct RobertsClustering {
     alpha: Scalar,
     beta: Scalar,

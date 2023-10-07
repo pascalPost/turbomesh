@@ -627,7 +627,7 @@ impl MatrixEntries {
 }
 
 enum GhostPointCheckResult {
-    Found { index: usize },
+    Found { index: usize, donor: bool },
     NotFound { potential_donor: BlockPointIndex },
 }
 
@@ -639,16 +639,24 @@ fn check_ghost_point(
     ghost_point: &(usize, usize),
     connection: &BlockConnection,
 ) -> GhostPointCheckResult {
-    let potential_donor = connection
-        .get_index_in_receiver_block(&[ghost_point.0 as isize - 1, ghost_point.1 as isize - 1]);
+    let potential_donor = connection.get_index_in_connected_block(
+        block_idx,
+        &[ghost_point.0 as isize - 1, ghost_point.1 as isize - 1],
+    );
+
+    let (potential_donor_block, donor) = if block_idx == connection.donor.block {
+        (connection.receiver.block, true)
+    } else {
+        (connection.donor.block, false)
+    };
 
     // check if potential donor is a
     // valid point
-    let rec_dim = mesh.blocks[connection.receiver.block].points();
-    if (potential_donor.0 >= 0 && potential_donor.0 < rec_dim[0] as isize)
-        && (potential_donor.1 >= 0 && potential_donor.1 < rec_dim[1] as isize)
+    let target_dim = mesh.blocks[potential_donor_block].points();
+    if (potential_donor.0 >= 0 && potential_donor.0 < target_dim[0] as isize)
+        && (potential_donor.1 >= 0 && potential_donor.1 < target_dim[1] as isize)
     {
-        let index = matrix_entries[connection.receiver.block][[
+        let index = matrix_entries[potential_donor_block][[
             potential_donor.0 as usize + 1,
             potential_donor.1 as usize + 1,
         ]]
@@ -659,14 +667,14 @@ fn check_ghost_point(
         debug!(
             " . . . . . . . Found GhostPoint donor for block {}, ghost point ({}, {}) in block {}, point ({}, {}) (excluding ghost layer), matrix index {}",
             block_idx, ghost_point.0,ghost_point.1,
-            connection.receiver.block, potential_donor.0, potential_donor.1, index
+            potential_donor_block, potential_donor.0, potential_donor.1, index
         );
 
-        GhostPointCheckResult::Found { index }
+        GhostPointCheckResult::Found { index, donor }
     } else {
         GhostPointCheckResult::NotFound {
             potential_donor: BlockPointIndex {
-                block: connection.receiver.block,
+                block: potential_donor_block,
                 point: (
                     (potential_donor.0 + 1).try_into().unwrap(),
                     (potential_donor.1 + 1).try_into().unwrap(),
@@ -719,7 +727,7 @@ fn recursive_search_and_set_ghost_point(
                                 ghost_point,
                                 connection,
                             ) {
-                                GhostPointCheckResult::Found { index } => {
+                                GhostPointCheckResult::Found { index, .. } => {
                                     return Some((index, None));
                                 }
                                 GhostPointCheckResult::NotFound { potential_donor } => {
@@ -767,9 +775,15 @@ fn recursive_search_and_set_ghost_point(
                             connection,
                             translation,
                         }) => {
+                            let target_block = if block_id == connection.donor.block {
+                                connection.donor.block
+                            } else {
+                                connection.receiver.block
+                            };
+
                             debug!(
                                 " . . . . . . Checking periodic connection to block {} via edge {}",
-                                connection.receiver.block, edge_id
+                                target_block, edge_id
                             );
 
                             match check_ghost_point(
@@ -779,8 +793,13 @@ fn recursive_search_and_set_ghost_point(
                                 ghost_point,
                                 connection,
                             ) {
-                                GhostPointCheckResult::Found { index } => {
-                                    return Some((index, Some(translation.clone())));
+                                GhostPointCheckResult::Found { index, donor } => {
+                                    let translation = if donor {
+                                        -translation.clone()
+                                    } else {
+                                        translation.clone()
+                                    };
+                                    return Some((index, Some(translation)));
                                 }
                                 GhostPointCheckResult::NotFound { potential_donor: _ } => {}
                             }
@@ -881,7 +900,7 @@ fn fill_ghost_points(
                 matrix_entries[block_id][[ghost_point.0, ghost_point.1]].prop =
                     PointProps::ConnectPeriodic {
                         donor_index: index,
-                        translation: -translation.unwrap(),
+                        translation: translation.unwrap(),
                     };
 
                 *dof += 1;

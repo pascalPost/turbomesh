@@ -1,6 +1,17 @@
 template: Turbine
 ps_csv_path: T106_ps.dat
 ss_csv_path: T106_ss.dat
+pitch: 0.08836 # m
+blade_clustering_function:
+  type: RobertsClustering
+  alpha: 0.5
+  beta: 1.1
+num_cells_blade_half: 60
+num_cells_middle_blocks_on_blade_half: 5
+num_cells_next_to_middle_blocks_on_blade: 20
+num_cells_away_from_blade: 10
+num_cells_inlet: 20
+num_cells_outlet: 20
 # smoothing:
 #   type: None
 smoothing:

@@ -393,4 +393,23 @@ impl BlockConnection {
         let receiver_index = self.transform.dot(&delta) + self.receiver.start.clone();
         (receiver_index[[0, 0]], receiver_index[[1, 0]])
     }
+
+    pub fn get_index_in_donor_block(&self, receiver_index: &[isize; 2]) -> (isize, isize) {
+        let receiver_index = Array2::from_shape_vec((2, 1), receiver_index.to_vec()).unwrap();
+        let delta = receiver_index - self.receiver.start.clone();
+        let donor_index = self.transform.t().dot(&delta) + self.donor.start.clone();
+        (donor_index[[0, 0]], donor_index[[1, 0]])
+    }
+
+    pub fn get_index_in_connected_block(
+        &self,
+        current_block: usize,
+        current_index: &[isize; 2],
+    ) -> (isize, isize) {
+        if current_block == self.donor.block {
+            self.get_index_in_receiver_block(current_index)
+        } else {
+            self.get_index_in_donor_block(current_index)
+        }
+    }
 }

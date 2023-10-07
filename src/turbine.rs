@@ -92,9 +92,23 @@ pub fn blade_profile(
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(tag = "type")]
+enum BladeClusteringFunction {
+    RobertsClustering(RobertsClustering),
+}
+
+#[derive(Deserialize, Debug)]
 pub struct TurbineTemplate {
     ps_csv_path: std::path::PathBuf,
     ss_csv_path: std::path::PathBuf,
+    pitch: f64,
+    blade_clustering_function: BladeClusteringFunction,
+    num_cells_blade_half: usize,
+    num_cells_middle_blocks_on_blade_half: usize,
+    num_cells_next_to_middle_blocks_on_blade: usize,
+    num_cells_away_from_blade: usize,
+    num_cells_inlet: usize,
+    num_cells_outlet: usize,
     smoothing: SmoothingMethod,
 }
 
@@ -109,24 +123,25 @@ impl TurbineTemplate {
     pub fn run(&self) {
         let ps_csv_path = self.ps_csv_path.to_str().unwrap();
         let ss_csv_path = self.ss_csv_path.to_str().unwrap();
-        // let mut geometry = Geometry {};
 
-        // TODO move all of these parameters to function input
-        let pitch = 88.36 * 1e-3; //m
-        let num_cells_blade_half: usize = 60;
-        let num_cells_middle_blocks_on_blade_half: usize = 5;
-        let num_cells_next_to_middle_blocks_on_blade: usize = 20;
-        let num_cells_away_from_blade: usize = 10;
+        let pitch = self.pitch;
+        let num_cells_blade_half = self.num_cells_blade_half;
+        let num_cells_middle_blocks_on_blade_half = self.num_cells_middle_blocks_on_blade_half;
+        let num_cells_next_to_middle_blocks_on_blade =
+            self.num_cells_next_to_middle_blocks_on_blade;
+        let num_cells_away_from_blade = self.num_cells_away_from_blade;
 
         // TODO can be computed automatically based on the average size
-        let num_cells_inlet = 20;
-        let num_cells_outlet = 20;
+        let num_cells_inlet = self.num_cells_inlet;
+        let num_cells_outlet = self.num_cells_outlet;
 
         let (ps_spline, ss_spline) = blade_profile(ps_csv_path, ss_csv_path)
             .expect("Error in profile input and interpolation");
 
         // blade discretization on which the 2d blocking is based
-        let blade_clustering_function = RobertsClustering::new(0.5, 1.01);
+        let blade_clustering_function = match self.blade_clustering_function {
+            BladeClusteringFunction::RobertsClustering(roberts_clustering) => roberts_clustering,
+        };
 
         let ps_edge = EdgeView::new(Edge::new(
             "Pressure_Side_Edge".to_string(),
