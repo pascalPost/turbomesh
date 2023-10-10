@@ -12,6 +12,7 @@ use crate::{
     types::{BlockBoundary, BlockConnection, PeriodicBlockConnection},
     Block2d, Mesh, Scalar, Vec2d,
 };
+// use float_cmp::{approx_eq, ApproxEq};
 use log::{debug, log_enabled, Level};
 use ndarray::{s, Array2};
 use russell_lab::Vector;
@@ -347,6 +348,8 @@ fn connect_points(
     matrix_entries: &mut Vec<Array2<MatrixEntry>>,
     donor_index: usize,
     mesh: &Mesh,
+    checked_edges: &mut Vec<usize>,
+    transform: &mut Vec2d,
 ) {
     // check for connected points
     for bc in boundary_props.data[block_id].points[boundary_point_id].iter() {
@@ -355,19 +358,49 @@ fn connect_points(
             BlockBoundaryPointProp::Fixed => {
                 panic!("Fixed point must not be encountered when setting connected points")
             }
+
+            // TODO merge Connected and Periodic options
             BlockBoundaryPointProp::Connected(data) => {
+                let edge_id = data.edge;
                 let con_idx = data.index;
                 let con_block = &boundary_props.data[con_idx.block];
                 let con_point_id = con_block.boundary_point_index(con_idx.point).unwrap();
 
-                if data.donor {
+                if !checked_edges.contains(&edge_id) {
                     debug!(
                         " . . . . Setting block {} boundaryPoint {} / ({}, {}) to connect.",
                         con_idx.block, con_point_id, con_idx.point.0, con_idx.point.1
                     );
 
-                    matrix_entries[con_idx.block][[con_idx.point.0 + 1, con_idx.point.1 + 1]]
-                        .prop = PointProps::Connect { donor_index };
+                    checked_edges.push(edge_id);
+
+                    if matrix_entries[con_idx.block][[con_idx.point.0 + 1, con_idx.point.1 + 1]]
+                        .index
+                        == donor_index
+                    {
+                        continue;
+                    }
+
+                    // TODO define epsilon and ulps globaly and user changable
+                    // if transform.approx_ne(&Vec2d(0.0, 0.0), (1e-10, 2)) {
+                    // }
+
+                    // if         approx_eq!(
+                    //     &Vec2d,
+                    //     &x_0_0,
+                    //     coords_j_min.first().unwrap(),
+                    //     epsilon = EPSILON // ulps = ULPS
+                    // ),
+                    if transform != &Vec2d(0.0, 0.0) {
+                        matrix_entries[con_idx.block][[con_idx.point.0 + 1, con_idx.point.1 + 1]]
+                            .prop = PointProps::ConnectPeriodic {
+                            donor_index,
+                            translation: *transform,
+                        };
+                    } else {
+                        matrix_entries[con_idx.block][[con_idx.point.0 + 1, con_idx.point.1 + 1]]
+                            .prop = PointProps::Connect { donor_index };
+                    }
 
                     debug!(
                         " . . . . . matrix entry {}, ({}, {}) {:?}",
@@ -377,7 +410,6 @@ fn connect_points(
                         matrix_entries[con_idx.block][[con_idx.point.0 + 1, con_idx.point.1 + 1]]
                     );
 
-                    // for donor points, call recursively to set all connected point
                     connect_points(
                         con_idx.block,
                         con_point_id,
@@ -385,32 +417,56 @@ fn connect_points(
                         matrix_entries,
                         donor_index,
                         mesh,
+                        checked_edges,
+                        transform,
                     );
                 }
             }
             BlockBoundaryPointProp::Periodic(data) => {
+                let edge_id = data.edge;
                 let con_idx = data.index;
                 let con_block = &boundary_props.data[con_idx.block];
                 let con_point_id = con_block.boundary_point_index(con_idx.point).unwrap();
 
-                if data.donor {
+                if !checked_edges.contains(&edge_id) {
                     debug!(
                         " . . . . Setting block {} point {} / ({}, {}) to ConnectPeriodic.",
                         con_idx.block, con_point_id, con_idx.point.0, con_idx.point.1
                     );
 
-                    let translation =
-                        if let BlockBoundary::PeriodicConnection(data) = &mesh.edges[data.edge] {
-                            data.translation
-                        } else {
-                            panic!("Wrong boundary type encountered.");
-                        };
+                    checked_edges.push(edge_id);
 
-                    matrix_entries[con_idx.block][[con_idx.point.0 + 1, con_idx.point.1 + 1]]
-                        .prop = PointProps::ConnectPeriodic {
-                        donor_index,
-                        translation,
+                    if matrix_entries[con_idx.block][[con_idx.point.0 + 1, con_idx.point.1 + 1]]
+                        .index
+                        == donor_index
+                    {
+                        continue;
+                    }
+
+                    let translation = if let BlockBoundary::PeriodicConnection(per_data) =
+                        &mesh.edges[data.edge]
+                    {
+                        if data.donor {
+                            per_data.translation
+                        } else {
+                            -per_data.translation
+                        }
+                    } else {
+                        panic!("Wrong boundary type encountered.");
                     };
+
+                    *transform += translation;
+
+                    if transform != &Vec2d(0.0, 0.0) {
+                        matrix_entries[con_idx.block][[con_idx.point.0 + 1, con_idx.point.1 + 1]]
+                            .prop = PointProps::ConnectPeriodic {
+                            donor_index,
+                            translation: *transform,
+                        };
+                    } else {
+                        matrix_entries[con_idx.block][[con_idx.point.0 + 1, con_idx.point.1 + 1]]
+                            .prop = PointProps::Connect { donor_index };
+                    }
 
                     debug!(
                         " . . . . . matrix entry {}, ({}, {}) {:?}",
@@ -420,7 +476,6 @@ fn connect_points(
                         matrix_entries[con_idx.block][[con_idx.point.0 + 1, con_idx.point.1 + 1]]
                     );
 
-                    // for donor points, call recursively to set all connected point
                     connect_points(
                         con_idx.block,
                         con_point_id,
@@ -428,6 +483,8 @@ fn connect_points(
                         matrix_entries,
                         donor_index,
                         mesh,
+                        checked_edges,
+                        transform,
                     );
                 }
             }
@@ -442,6 +499,7 @@ fn set_matrix_entry(
     boundary_props: &BoundaryProps,
     matrix_entries: &mut Vec<Array2<MatrixEntry>>,
     mesh: &Mesh,
+    checked_edges: &mut Vec<usize>,
 ) {
     // check if the matrix entry is already set to connect or connect periodic
     let point_id = boundary_props.data[block_id]
@@ -462,13 +520,8 @@ fn set_matrix_entry(
     }
 
     // (1.1) check tree for fixed points
-    let mut checked_edges = Vec::<usize>::with_capacity(10);
-    if is_point_fixed(
-        block_id,
-        boundary_point_id,
-        boundary_props,
-        &mut checked_edges,
-    ) {
+    checked_edges.clear();
+    if is_point_fixed(block_id, boundary_point_id, boundary_props, checked_edges) {
         debug!(" . . . . Point remains fixed.");
 
         // (1.2) set all connected points to fixed
@@ -484,6 +537,9 @@ fn set_matrix_entry(
         // (2.1) set minimal connected point to solve
         let donor_index = set_solve(block_id, boundary_point_id, boundary_props, matrix_entries);
 
+        checked_edges.clear();
+        let mut transform = Vec2d(0.0, 0.0);
+
         // (2.2) set all other connected points to connected or periodic connected
         connect_points(
             block_id,
@@ -492,6 +548,8 @@ fn set_matrix_entry(
             matrix_entries,
             donor_index,
             mesh,
+            checked_edges,
+            &mut transform,
         );
     }
 }
@@ -560,6 +618,7 @@ impl MatrixEntries {
 
         debug!("Setting block boundary point matrix properties.");
 
+        let mut checked_edges = Vec::<usize>::with_capacity(10);
         boundary_props
             .data
             .iter()
@@ -583,6 +642,7 @@ impl MatrixEntries {
                             &boundary_props,
                             &mut matrix_entries,
                             mesh,
+                            &mut checked_edges,
                         );
                     },
                 );
@@ -627,8 +687,13 @@ impl MatrixEntries {
 }
 
 enum GhostPointCheckResult {
-    Found { index: usize, donor: bool },
-    NotFound { potential_donor: BlockPointIndex },
+    Found {
+        index: usize,
+        donor: bool,
+    },
+    NotFound {
+        potential_donor: Option<BlockPointIndex>,
+    },
 }
 
 /// if the ghost point is not found, the potential donor is returned for subsequent searches
@@ -672,14 +737,20 @@ fn check_ghost_point(
 
         GhostPointCheckResult::Found { index, donor }
     } else {
-        GhostPointCheckResult::NotFound {
-            potential_donor: BlockPointIndex {
-                block: potential_donor_block,
-                point: (
-                    (potential_donor.0 + 1).try_into().unwrap(),
-                    (potential_donor.1 + 1).try_into().unwrap(),
-                ),
-            },
+        let i: Option<usize> = (potential_donor.0 + 1).try_into().ok();
+        let j: Option<usize> = (potential_donor.1 + 1).try_into().ok();
+
+        if i.is_some() && j.is_some() {
+            GhostPointCheckResult::NotFound {
+                potential_donor: Some(BlockPointIndex {
+                    block: potential_donor_block,
+                    point: (i.unwrap(), j.unwrap()),
+                }),
+            }
+        } else {
+            GhostPointCheckResult::NotFound {
+                potential_donor: None,
+            }
         }
     }
 }
@@ -711,14 +782,16 @@ fn recursive_search_and_set_ghost_point(
                 if !checked_edges.contains(&edge_id) {
                     match edge {
                         BlockBoundary::Connection(connection) => {
+                            let target_block = if block_id == connection.donor.block {
+                                connection.receiver.block
+                            } else {
+                                connection.donor.block
+                            };
+
                             debug!(
                                 " . . . . . . Checking connection to block {} via edge {}",
-                                connection.receiver.block, edge_id
+                                target_block, edge_id
                             );
-
-                            // the transformation does only work from donor to receiver
-                            assert!(connection.donor.block == block_id);
-                            // TODO assert if point is in donor range
 
                             match check_ghost_point(
                                 matrix_entries,
@@ -733,6 +806,8 @@ fn recursive_search_and_set_ghost_point(
                                 GhostPointCheckResult::NotFound { potential_donor } => {
                                     checked_edges.push(edge_id);
 
+                                    let potential_donor = potential_donor.unwrap();
+
                                     // convert donor boundary point to
                                     // overlapping boundary point on receiver
                                     // block
@@ -741,23 +816,22 @@ fn recursive_search_and_set_ghost_point(
                                         .point_index(boundary_point_id)
                                         .unwrap();
 
-                                    let receiver_bc_point =
-                                        connection.get_index_in_receiver_block(&[
-                                            donor_bc_point.0 as isize,
-                                            donor_bc_point.1 as isize,
-                                        ]);
+                                    let target_bc_point = connection.get_index_in_connected_block(
+                                        block_id,
+                                        &[donor_bc_point.0 as isize, donor_bc_point.1 as isize],
+                                    );
 
-                                    let receiver_boundary_point_id = boundary_props.data
-                                        [connection.receiver.block]
+                                    let target_boundary_point_id = boundary_props.data
+                                        [target_block]
                                         .boundary_point_index((
-                                            receiver_bc_point.0.try_into().unwrap(),
-                                            receiver_bc_point.1.try_into().unwrap(),
+                                            target_bc_point.0.try_into().unwrap(),
+                                            target_bc_point.1.try_into().unwrap(),
                                         ))
                                         .unwrap();
 
                                     let res = recursive_search_and_set_ghost_point(
                                         potential_donor.block,
-                                        receiver_boundary_point_id,
+                                        target_boundary_point_id,
                                         &potential_donor.point,
                                         mesh,
                                         boundary_props,
@@ -776,9 +850,9 @@ fn recursive_search_and_set_ghost_point(
                             translation,
                         }) => {
                             let target_block = if block_id == connection.donor.block {
-                                connection.donor.block
-                            } else {
                                 connection.receiver.block
+                            } else {
+                                connection.donor.block
                             };
 
                             debug!(

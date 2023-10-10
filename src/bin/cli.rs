@@ -6,6 +6,7 @@ use figment::{
     providers::{Format, Yaml},
     Figment,
 };
+use log::debug;
 use serde::Deserialize;
 use turbomesh::turbine::TurbineTemplate;
 
@@ -35,7 +36,7 @@ fn main() {
         .extract()
         .unwrap();
 
-    println!("{:?}", template);
+    debug!("cli arguments: {:?}", template);
 
     match template {
         Template::Turbine(mut turbine_template) => {
