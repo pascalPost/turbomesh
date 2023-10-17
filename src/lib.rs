@@ -14,7 +14,7 @@ mod output;
 pub mod smoothing;
 mod tfi;
 pub mod turbine;
-mod types;
+pub mod types;
 
 #[cfg(test)]
 mod test;

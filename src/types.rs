@@ -2,7 +2,7 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 mod block2d;
-mod boundary;
+pub mod boundary;
 mod edge;
 mod segment;
 mod vec2d;

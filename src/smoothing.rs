@@ -580,7 +580,7 @@ impl MatrixEntries {
 
         let mut matrix_entries: Vec<Array2<MatrixEntry>> = Vec::with_capacity(mesh.blocks.len());
 
-        // intialization
+        // initialization
         mesh.blocks
             .iter()
             .zip(start_indices.iter())
@@ -648,6 +648,19 @@ impl MatrixEntries {
                 );
             });
 
+        if log_enabled!(Level::Trace) {
+            // write matrix_entries to file
+
+            use std::io::Write;
+            let mut file = std::fs::File::create("matrix_entries.txt").unwrap();
+            for (block_idx, block) in matrix_entries.iter().enumerate() {
+                writeln!(file, "block {}", block_idx).unwrap();
+                for ((i, j), entry) in block.indexed_iter() {
+                    writeln!(file, "{}, ({}, {}) = {:?}", block_idx, i, j, entry).unwrap();
+                }
+            }
+        }
+
         debug!("Searching ghost points for solution points.");
 
         boundary_props
@@ -703,13 +716,14 @@ fn check_ghost_point(
     block_idx: usize,
     ghost_point: &(usize, usize),
     connection: &BlockConnection,
+    donor: bool,
 ) -> GhostPointCheckResult {
     let potential_donor = connection.get_index_in_connected_block(
-        block_idx,
         &[ghost_point.0 as isize - 1, ghost_point.1 as isize - 1],
+        donor,
     );
 
-    let (potential_donor_block, donor) = if block_idx == connection.donor.block {
+    let (potential_donor_block, donor) = if donor {
         (connection.receiver.block, true)
     } else {
         (connection.donor.block, false)
@@ -718,6 +732,12 @@ fn check_ghost_point(
     // check if potential donor is a
     // valid point
     let target_dim = mesh.blocks[potential_donor_block].points();
+
+    debug!(
+        " . . . . . . . Potential donor point {} ({:?}), with block size {:?}",
+        potential_donor_block, potential_donor, target_dim
+    );
+
     if (potential_donor.0 >= 0 && potential_donor.0 < target_dim[0] as isize)
         && (potential_donor.1 >= 0 && potential_donor.1 < target_dim[1] as isize)
     {
@@ -727,7 +747,7 @@ fn check_ghost_point(
         ]]
         .index;
 
-        assert!(index != usize::MAX);
+        assert_ne!(index, usize::MAX);
 
         debug!(
             " . . . . . . . Found GhostPoint donor for block {}, ghost point ({}, {}) in block {}, point ({}, {}) (excluding ghost layer), matrix index {}",
@@ -772,21 +792,25 @@ fn recursive_search_and_set_ghost_point(
 
     for bc in boundary_props.data[block_id].points[boundary_point_id].iter() {
         match bc {
-            BlockBoundaryPointProp::Connected(connection)
-            | BlockBoundaryPointProp::Periodic(connection) => {
-                debug!(" . . . . . . ConnectionData {:?}", connection);
+            BlockBoundaryPointProp::Connected(point_connection)
+            | BlockBoundaryPointProp::Periodic(point_connection) => {
+                debug!(" . . . . . . ConnectionData {:?}", point_connection);
 
-                let edge_id = connection.edge;
+                let edge_id = point_connection.edge;
                 let edge = &mesh.edges[edge_id];
+                let donor = point_connection.donor;
+                let target_block = point_connection.index.block;
 
                 if !checked_edges.contains(&edge_id) {
                     match edge {
                         BlockBoundary::Connection(connection) => {
-                            let target_block = if block_id == connection.donor.block {
+                            // TODO remove this check
+                            let target_block_test = if block_id == connection.donor.block {
                                 connection.receiver.block
                             } else {
                                 connection.donor.block
                             };
+                            assert_eq!(target_block, target_block_test);
 
                             debug!(
                                 " . . . . . . Checking connection to block {} via edge {}",
@@ -799,6 +823,7 @@ fn recursive_search_and_set_ghost_point(
                                 block_id,
                                 ghost_point,
                                 connection,
+                                donor,
                             ) {
                                 GhostPointCheckResult::Found { index, .. } => {
                                     return Some((index, None));
@@ -817,8 +842,8 @@ fn recursive_search_and_set_ghost_point(
                                         .unwrap();
 
                                     let target_bc_point = connection.get_index_in_connected_block(
-                                        block_id,
                                         &[donor_bc_point.0 as isize, donor_bc_point.1 as isize],
+                                        donor,
                                     );
 
                                     let target_boundary_point_id = boundary_props.data
@@ -849,11 +874,13 @@ fn recursive_search_and_set_ghost_point(
                             connection,
                             translation,
                         }) => {
-                            let target_block = if block_id == connection.donor.block {
+                            // TODO remove this check
+                            let target_block_test = if block_id == connection.donor.block {
                                 connection.receiver.block
                             } else {
                                 connection.donor.block
                             };
+                            assert_eq!(target_block, target_block_test);
 
                             debug!(
                                 " . . . . . . Checking periodic connection to block {} via edge {}",
@@ -866,6 +893,7 @@ fn recursive_search_and_set_ghost_point(
                                 block_id,
                                 ghost_point,
                                 connection,
+                                donor,
                             ) {
                                 GhostPointCheckResult::Found { index, donor } => {
                                     let translation = if donor {
@@ -923,7 +951,7 @@ fn fill_ghost_points(
     };
 
     debug!(
-        " . . . Needed GhostPoints (index space including ghost point layes): {:?}",
+        " . . . Needed GhostPoints (index space including ghost point layers): {:?}",
         ghost_points
     );
 
@@ -1200,7 +1228,7 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
         }
     }
 
-    let peridic_ghost_points =
+    let periodic_ghost_points =
         collect_periodic_ghost_points(&entries, matrix_data.dof, mesh.points());
 
     let mut coords = coordinates_with_ghost_points(&mesh);
@@ -1233,7 +1261,7 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
             // write periodic ghost point entries to file
 
             let mut file = std::fs::File::create("periodic_ghost_points.txt").unwrap();
-            peridic_ghost_points.iter().for_each(|line| {
+            periodic_ghost_points.iter().for_each(|line| {
                 writeln!(file, "{:?}", line).unwrap();
             });
         }
@@ -1263,7 +1291,7 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
 
                         match point.prop {
                             PointProps::Solve => {
-                                // laplace conditions (zero intialization)
+                                // laplace conditions (zero initialization)
                                 let s = 0.0;
                                 let t = 0.0;
 
@@ -1359,7 +1387,7 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
             });
 
         // add all periodic ghost points
-        peridic_ghost_points.iter().for_each(
+        periodic_ghost_points.iter().for_each(
             |PeriodicGhostPointMatrixData {
                  ghost_point_index,
                  donor_index,

@@ -404,13 +404,12 @@ impl BlockConnection {
     // TODO return connected block from this function
     pub fn get_index_in_connected_block(
         &self,
-        current_block: usize,
         current_index: &[isize; 2],
+        donor: bool,
     ) -> (isize, isize) {
-        if current_block == self.donor.block {
+        if donor {
             self.get_index_in_receiver_block(current_index)
         } else {
-            assert!(current_block == self.receiver.block);
             self.get_index_in_donor_block(current_index)
         }
     }
