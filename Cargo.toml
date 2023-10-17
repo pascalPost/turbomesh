@@ -10,7 +10,7 @@ license = "AGPL-3.0-or-newer"
 [dependencies]
 dierckx-sys = "0.1.0"
 cgns-sys = "0.2.1"
-csv = "1.1"
+csv = "1.3"
 libc = "0.2"
 plotters = "0.3.3"
 ndarray = "0.15"
@@ -23,10 +23,10 @@ num-traits = "0.2"
 rfd = "0.12.0"
 subslice_index = "0.5.0"
 env_logger = "0.10.0"
-log = "0.4.16"
+log = "0.4"
 russell_sparse = { git = "https://github.com/pascalPost/russell.git", branch = "feature/enhanced_build" }
 russell_lab = { git = "https://github.com/pascalPost/russell.git", branch = "feature/enhanced_build" }
 serde = "1.0"
 serde_yaml = "0.9"
-clap = { version = "4.0", features = ["derive"] }
+clap = { version = "4.4", features = ["derive"] }
 figment = { version = "0.10", features = ["yaml"] }
