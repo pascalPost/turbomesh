@@ -274,3 +274,41 @@ pub fn tfi_linear_2d(
         u
     }
 }
+
+// TODO if there is something like constexpr this function can be merged with the version including an intermediate grid
+pub fn tfi_linear_2d_simple(x: &mut Array2<Vec2d>) {
+    let (m, n) = x.dim();
+
+    let x_0_0 = x[[0, 0]];
+    let x_1_0 = x[[m - 1, 0]];
+    let x_0_1 = x[[0, n - 1]];
+    let x_1_1 = x[[m - 1, n - 1]];
+
+    // TODO switch to iterator syntax to get independent from mem layout and
+    // better suited for parallel exec
+
+    let (i_len, j_len) = x.dim();
+
+    // TODO refactor looping for higher efficiency
+    for j in 0..j_len {
+        let x_0_eta = x[[0, j]];
+        let x_1_eta = x[[m - 1, j]];
+
+        for i in 0..i_len {
+            let x_xi_0 = x[[i, 0]];
+            let x_xi_1 = x[[i, n - 1]];
+
+            let xi = i as Scalar / (i_len - 1) as Scalar;
+            let eta = j as Scalar / (j_len - 1) as Scalar;
+
+            let u_ij = (1.0 - xi) * x_0_eta + xi * x_1_eta;
+            let v_ij = (1.0 - eta) * x_xi_0 + eta * x_xi_1;
+            let uv_ij = xi * eta * x_1_1
+                + xi * (1.0 - eta) * x_1_0
+                + (1.0 - xi) * eta * x_0_1
+                + (1.0 - xi) * (1.0 - eta) * x_0_0;
+
+            x[[i, j]] = u_ij + v_ij - uv_ij
+        }
+    }
+}

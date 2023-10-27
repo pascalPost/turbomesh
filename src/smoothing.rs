@@ -13,6 +13,7 @@ use crate::{
     Block2d, Mesh, Scalar, Vec2d,
 };
 // use float_cmp::{approx_eq, ApproxEq};
+use crate::tfi::tfi_linear_2d_simple;
 use log::{debug, log_enabled, Level};
 use ndarray::{s, Array2};
 use russell_lab::Vector;
@@ -1211,6 +1212,9 @@ fn collect_periodic_ghost_points(
 }
 
 pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Error>> {
+    // TODO add it as variable
+    let laplace = false;
+
     // fields with ghost points
     let matrix_data = MatrixEntries::new(mesh);
     let entries = &matrix_data.data;
@@ -1233,6 +1237,204 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
 
     let mut coords = coordinates_with_ghost_points(&mesh);
     let ghost_point_coord_updates = compute_ghost_point_updates(mesh, &entries);
+
+    // field for orthogonal control functions P and Q (only allocated and used for non laplace)
+    let mut control_fn = Vec::<Array2<Vec2d>>::new();
+
+    if !laplace {
+        update_ghost_point_locations(&mut coords, &ghost_point_coord_updates);
+
+        // TODO performance can be enhanced if the control functions are only used for blocks with boundary layer control
+
+        // allocate control functions and initialize to (0.0, 0.0)
+        control_fn = Vec::<Array2<Vec2d>>::with_capacity(mesh.blocks.len());
+        mesh.blocks.iter().for_each(|block| {
+            let dim = block.points();
+            control_fn.push(Array2::<Vec2d>::zeros(dim));
+        });
+
+        // computation of the ghost point locations
+
+        for (block_id, block) in mesh.blocks.iter().enumerate() {
+            let dim = block.points();
+
+            // // left
+            // for j in 1..dim[1] {}
+            //
+            // // right
+            // for j in 1..dim[1] {}
+
+            // bottom excluding corners
+            for i in 1..dim[0] {
+                // coords includes ghost point indices
+                let Vec2d(x_i_0, y_i_0) = coords[block_id][[i + 1, 1]];
+                let Vec2d(x_i_1, y_i_1) = coords[block_id][[i + 1, 2]];
+
+                let Vec2d(x_ip1_0, y_ip1_0) = coords[block_id][[i + 2, 1]];
+                let Vec2d(x_im1_0, y_im1_0) = coords[block_id][[i, 1]];
+
+                // one sided gradient of initial algebraic grid
+                let x_eta_0 = x_i_1 - x_i_0;
+                let y_eta_0 = y_i_1 - y_i_0;
+
+                // gradients
+                let x_xi = 0.5 * (x_ip1_0 - x_im1_0);
+                let y_xi = 0.5 * (y_ip1_0 - y_im1_0);
+
+                let x_xi2 = x_ip1_0 - 2.0 * x_i_0 + x_im1_0;
+                let y_xi2 = y_ip1_0 - 2.0 * y_i_0 + y_im1_0;
+
+                let g_11 = x_xi * x_xi + y_xi * y_xi;
+
+                let x_eta = -y_xi / g_11 * (-y_xi * x_eta_0 + x_xi * y_eta_0);
+                let y_eta = x_xi / g_11 * (-y_xi * x_eta_0 + x_xi * y_eta_0);
+
+                let g_22 = x_eta * x_eta + y_eta * y_eta;
+
+                // ghost point
+                let x_i_m1 = x_i_0 - x_eta;
+                let y_i_m1 = y_i_0 - y_eta;
+
+                coords[block_id][[i + 1, 0]] = Vec2d(x_i_m1, y_i_m1);
+
+                // second derivative
+                let x_eta2 = x_i_1 - 2.0 * x_i_0 + x_i_m1;
+                let y_eta2 = y_i_1 - 2.0 * y_i_0 + y_i_m1;
+
+                // control function
+                let p =
+                    -(x_xi * x_xi2 + y_xi * y_xi2) / g_11 - (x_xi * x_eta2 + y_xi * y_eta2) / g_22;
+                let q = -(x_eta_0 * x_eta2 + y_eta_0 * y_eta2) / g_22
+                    - (x_eta_0 * x_xi2 + y_eta_0 * y_xi2) / g_11;
+
+                // let p = 0.0;
+                // let q = -0.5266124006706714;
+
+                control_fn[block_id][[i, 0]] = Vec2d(p, q);
+            }
+
+            // // top
+            // for i in 1..dim[0] {}
+
+            // handle corners (use one-sided differences and do not change during iteration)
+
+            // x_00
+            {
+                // coords includes ghost point indices
+                let Vec2d(x_0_0, y_0_0) = coords[block_id][[1, 1]];
+                let Vec2d(x_0_1, y_0_1) = coords[block_id][[1, 2]];
+                let Vec2d(x_0_2, y_0_2) = coords[block_id][[1, 3]];
+
+                let Vec2d(x_1_0, y_1_0) = coords[block_id][[2, 1]];
+                let Vec2d(x_2_0, y_2_0) = coords[block_id][[3, 1]];
+
+                // forward differences
+                let x_xi = x_1_0 - x_0_0;
+                let y_xi = y_1_0 - y_0_0;
+                let x_xi2 = x_2_0 - 2.0 * x_1_0 + x_0_0;
+                let y_xi2 = y_2_0 - 2.0 * y_1_0 + y_0_0;
+
+                // forward differences
+                let x_eta = x_0_1 - x_0_0;
+                let y_eta = y_0_1 - y_0_0;
+                let x_eta2 = x_0_2 - 2.0 * x_0_1 + x_0_0;
+                let y_eta2 = y_0_2 - 2.0 * y_0_1 + y_0_0;
+
+                let g_11 = x_xi * x_xi + y_xi * y_xi;
+                let g_22 = x_eta * x_eta + y_eta * y_eta;
+
+                let p =
+                    -(x_xi * x_xi2 + y_xi * y_xi2) / g_11 - (x_xi * x_eta2 + y_xi * y_eta2) / g_22;
+                let q = -(x_eta * x_eta2 + y_eta * y_eta2) / g_22
+                    - (x_eta * x_xi2 + y_eta * y_xi2) / g_11;
+
+                // let p = 0.0;
+                // let q = -0.5266124006706714;
+
+                control_fn[block_id][[0, 0]] = Vec2d(p, q);
+            }
+
+            // x_m0
+            {
+                let m = dim[0] - 1;
+
+                let Vec2d(x_m_0, y_m_0) = coords[block_id][[m + 1, 1]];
+                let Vec2d(x_m_1, y_m_1) = coords[block_id][[m + 1, 2]];
+                let Vec2d(x_m_2, y_m_2) = coords[block_id][[m + 1, 3]];
+
+                let Vec2d(x_mm1_0, y_mm1_0) = coords[block_id][[m, 1]];
+                let Vec2d(x_mm2_0, y_mm2_0) = coords[block_id][[m - 1, 1]];
+
+                // backward differences
+                let x_xi = x_m_0 - x_mm1_0;
+                let y_xi = y_m_0 - y_mm1_0;
+                let x_xi2 = x_m_0 - 2.0 * x_mm1_0 + x_mm2_0;
+                let y_xi2 = y_m_0 - 2.0 * y_mm1_0 + y_mm2_0;
+
+                // forward differences
+                let x_eta = x_m_1 - x_m_0;
+                let y_eta = y_m_1 - y_m_0;
+                let x_eta2 = x_m_2 - 2.0 * x_m_1 + x_m_0;
+                let y_eta2 = y_m_2 - 2.0 * y_m_1 + y_m_0;
+
+                let g_11 = x_xi * x_xi + y_xi * y_xi;
+                let g_22 = x_eta * x_eta + y_eta * y_eta;
+
+                let p =
+                    -(x_xi * x_xi2 + y_xi * y_xi2) / g_11 - (x_xi * x_eta2 + y_xi * y_eta2) / g_22;
+                let q = -(x_eta * x_eta2 + y_eta * y_eta2) / g_22
+                    - (x_eta * x_xi2 + y_eta * y_xi2) / g_11;
+
+                // let p = 0.0;
+                // let q = -0.5266124006706714;
+
+                control_fn[block_id][[m, 0]] = Vec2d(p, q);
+            }
+        }
+
+        // compute field via tfi
+        tfi_linear_2d_simple(&mut control_fn[0]);
+
+        // write control function to file
+        {
+            use std::io::Write;
+            let mut file = std::fs::File::create("control_fn.txt").unwrap();
+            for (block_idx, block) in control_fn.iter().enumerate() {
+                writeln!(file, "block {}", block_idx).unwrap();
+                for ((i, j), Vec2d(p, q)) in block.indexed_iter() {
+                    writeln!(
+                        file,
+                        "{}, ({}, {}) : (P, Q) = ({}, {})",
+                        block_idx, i, j, p, q
+                    )
+                    .unwrap();
+                }
+            }
+        }
+
+        // write coordinates to file
+        {
+            use std::io::Write;
+            let mut file = std::fs::File::create("coords.txt").unwrap();
+            for (block_idx, block) in coords.iter().enumerate() {
+                writeln!(file, "block {}", block_idx).unwrap();
+                for ((i, j), x) in block.indexed_iter() {
+                    writeln!(
+                        file,
+                        "{}, ({}, {}) : ({}, {})",
+                        block_idx,
+                        i as isize - 1,
+                        j as isize - 1,
+                        x.0,
+                        x.1
+                    )
+                    .unwrap();
+                }
+            }
+        }
+
+        // std::process::exit(0);
+    }
 
     // allocations
     let dof = matrix_data.dof;
@@ -1292,8 +1494,13 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                         match point.prop {
                             PointProps::Solve => {
                                 // laplace conditions (zero initialization)
-                                let s = 0.0;
-                                let t = 0.0;
+                                let mut s = 0.0;
+                                let mut t = 0.0;
+
+                                if !laplace {
+                                    // read s and t from field
+                                    Vec2d(s, t) = control_fn[block_index][[i - 1, j - 1]];
+                                }
 
                                 let Vec2d(x_ip1_j, y_ip1_j) = coords[block_index][[i + 1, j]];
                                 let Vec2d(x_im1_j, y_im1_j) = coords[block_index][[i - 1, j]];
