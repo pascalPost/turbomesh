@@ -48,17 +48,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     mesh.add_block(block);
 
-    mesh.edges.push(BlockBoundary::PeriodicConnection(
-        PeriodicBlockConnection::new(
-            &mesh,
-            (
-                BlockBoundaryRange::new(&mesh, 0, EdgeIndex::JMin, 0..1),
-                BlockBoundaryRange::new(&mesh, 0, EdgeIndex::JMax, 0..1),
-            ),
-            Vec2d(pitch, 0.0),
-        ),
-    ));
-
     mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
         &mesh,
         0,
@@ -70,6 +59,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         &mesh,
         0,
         EdgeIndex::IMax,
+        0..1,
+    )));
+
+    mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+        &mesh,
+        0,
+        EdgeIndex::JMin,
+        0..1,
+    )));
+
+    mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+        &mesh,
+        0,
+        EdgeIndex::JMax,
         0..1,
     )));
 

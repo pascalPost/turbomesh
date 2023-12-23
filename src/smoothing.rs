@@ -13,7 +13,7 @@ use crate::{
     Block2d, Mesh, Scalar, Vec2d,
 };
 // use float_cmp::{approx_eq, ApproxEq};
-use crate::tfi::tfi_linear_2d_simple;
+use crate::tfi::{test_tfi, tfi_linear_2d_simple};
 use log::{debug, log_enabled, Level};
 use ndarray::{s, Array2};
 use russell_lab::Vector;
@@ -1236,6 +1236,7 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
         collect_periodic_ghost_points(&entries, matrix_data.dof, mesh.points());
 
     let mut coords = coordinates_with_ghost_points(&mesh);
+
     let ghost_point_coord_updates = compute_ghost_point_updates(mesh, &entries);
 
     // field for orthogonal control functions P and Q (only allocated and used for non laplace)
@@ -1259,7 +1260,7 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
             let dim = block.points();
 
             // left
-            for n in 1..dim[1] {
+            for n in 1..dim[1] - 1 {
                 let i = 1; // i = 0 including ghost layers
                 let j = n + 1; // j including ghost layers
 
@@ -1308,20 +1309,20 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
             }
 
             // right
-            for n in 1..dim[1] {
+            for n in 1..dim[1] - 1 {
                 let i = dim[0]; // i = m including ghost layers
                 let j = n + 1; // j including ghost layers
 
                 // coords includes ghost point indices
                 let Vec2d(x_i_j, y_i_j) = coords[block_id][[i, j]];
-                let Vec2d(x_ip1_j, y_ip1_j) = coords[block_id][[i + 1, j]];
+                let Vec2d(x_im1_j, y_im1_j) = coords[block_id][[i - 1, j]];
 
                 let Vec2d(x_i_jp1, y_i_jp1) = coords[block_id][[i, j + 1]];
                 let Vec2d(x_i_jm1, y_i_jm1) = coords[block_id][[i, j - 1]];
 
                 // one sided gradient of initial algebraic grid
-                let x_xi_0 = x_ip1_j - x_i_j;
-                let y_xi_0 = y_ip1_j - y_i_j;
+                let x_xi_0 = x_i_j - x_im1_j;
+                let y_xi_0 = y_i_j - y_im1_j;
 
                 // gradients
                 let x_eta = 0.5 * (x_i_jp1 - x_i_jm1);
@@ -1338,10 +1339,10 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                 let g_11 = x_xi_0 * x_xi_0 + y_xi_0 * y_xi_0;
 
                 // ghost point
-                let x_im1_j = x_i_j - x_xi;
-                let y_im1_j = y_i_j - y_xi;
+                let x_ip1_j = x_i_j + x_xi;
+                let y_ip1_j = y_i_j + y_xi;
 
-                coords[block_id][[i - 1, j]] = Vec2d(x_im1_j, y_im1_j);
+                coords[block_id][[i + 1, j]] = Vec2d(x_ip1_j, y_ip1_j);
 
                 // one sided second derivative
                 let x_xi2 = x_ip1_j - 2.0 * x_i_j + x_im1_j;
@@ -1357,7 +1358,7 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
             }
 
             // bottom excluding corners
-            for n in 1..dim[0] {
+            for n in 1..dim[0] - 1 {
                 let i: usize = n + 1; // i including ghost layers
                 let j: usize = 1; // j = 0 including ghost layers
 
@@ -1371,6 +1372,10 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                 // one sided gradient of initial algebraic grid
                 let x_eta_0 = x_i_jp1 - x_i_j;
                 let y_eta_0 = y_i_jp1 - y_i_j;
+
+                let Vec2d(x_i_jp2, y_i_jp2) = coords[block_id][[i, j + 2]];
+                let x_eta2_0 = x_i_j - 2.0 * x_i_jp1 + x_i_jp2;
+                let y_eta2_0 = y_i_j - 2.0 * y_i_jp1 + y_i_jp2;
 
                 // gradients
                 let x_xi = 0.5 * (x_ip1_j - x_im1_j);
@@ -1387,8 +1392,8 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                 let g_22 = x_eta * x_eta + y_eta * y_eta;
 
                 // ghost point
-                let x_i_jm1 = x_i_j - x_eta;
-                let y_i_jm1 = y_i_j - y_eta;
+                let x_i_jm1 = x_i_j - x_eta2_0;
+                let y_i_jm1 = y_i_j - y_eta2_0;
 
                 coords[block_id][[i, j - 1]] = Vec2d(x_i_jm1, y_i_jm1);
 
@@ -1406,7 +1411,7 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
             }
 
             // top
-            for n in 1..dim[0] {
+            for n in 1..dim[0] - 1 {
                 let i: usize = n + 1; // i including ghost layers
                 let j: usize = dim[1]; // j = n including ghost layers
 
@@ -1420,6 +1425,10 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                 // one sided gradient of initial algebraic grid
                 let x_eta_0 = x_i_j - x_i_jm1;
                 let y_eta_0 = y_i_j - y_i_jm1;
+
+                let Vec2d(x_i_jm2, y_i_jm2) = coords[block_id][[i, j - 2]];
+                let x_eta2_0 = x_i_j - 2.0 * x_i_jm1 + x_i_jm2;
+                let y_eta2_0 = y_i_j - 2.0 * y_i_jm1 + y_i_jm2;
 
                 // gradients
                 let x_xi = 0.5 * (x_ip1_j - x_im1_j);
@@ -1436,8 +1445,8 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                 let g_22 = x_eta * x_eta + y_eta * y_eta;
 
                 // ghost point
-                let x_i_jp1 = x_i_j - x_eta;
-                let y_i_jp1 = y_i_j - y_eta;
+                let x_i_jp1 = x_i_j - x_eta2_0;
+                let y_i_jp1 = y_i_j - y_eta2_0;
 
                 coords[block_id][[i, j + 1]] = Vec2d(x_i_jp1, y_i_jp1);
 
@@ -1486,9 +1495,6 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                 let q = -(x_eta * x_eta2 + y_eta * y_eta2) / g_22
                     - (x_eta * x_xi2 + y_eta * y_xi2) / g_11;
 
-                // let p = 0.0;
-                // let q = -0.5266124006706714;
-
                 control_fn[block_id][[0, 0]] = Vec2d(p, q);
             }
 
@@ -1523,15 +1529,97 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                 let q = -(x_eta * x_eta2 + y_eta * y_eta2) / g_22
                     - (x_eta * x_xi2 + y_eta * y_xi2) / g_11;
 
-                // let p = 0.0;
-                // let q = -0.5266124006706714;
-
                 control_fn[block_id][[m, 0]] = Vec2d(p, q);
             }
+
+            // x_0n
+            {
+                let n = dim[1] - 1;
+
+                // coords include ghost cells!
+
+                let Vec2d(x_0_n, y_0_n) = coords[block_id][[1, n + 1]];
+                let Vec2d(x_0_nm1, y_0_nm1) = coords[block_id][[1, n]];
+                let Vec2d(x_0_nm2, y_0_nm2) = coords[block_id][[1, n - 1]];
+
+                let Vec2d(x_1_n, y_1_n) = coords[block_id][[2, n + 1]];
+                let Vec2d(x_2_n, y_2_n) = coords[block_id][[3, n + 1]];
+
+                // forward differences
+                let x_xi = -x_0_n + x_1_n;
+                let y_xi = -y_0_n + y_1_n;
+                let x_xi2 = x_0_n - 2.0 * x_1_n + x_2_n;
+                let y_xi2 = y_0_n - 2.0 * y_1_n + y_2_n;
+
+                // backward differences
+                let x_eta = x_0_n - x_0_nm1;
+                let y_eta = y_0_n - y_0_nm1;
+                let x_eta2 = x_0_n - 2.0 * x_0_nm1 + x_0_nm2;
+                let y_eta2 = y_0_n - 2.0 * y_0_nm1 + y_0_nm2;
+
+                let g_11 = x_xi * x_xi + y_xi * y_xi;
+                let g_22 = x_eta * x_eta + y_eta * y_eta;
+
+                let p =
+                    -(x_xi * x_xi2 + y_xi * y_xi2) / g_11 - (x_xi * x_eta2 + y_xi * y_eta2) / g_22;
+                let q = -(x_eta * x_eta2 + y_eta * y_eta2) / g_22
+                    - (x_eta * x_xi2 + y_eta * y_xi2) / g_11;
+
+                control_fn[block_id][[0, n]] = Vec2d(p, q);
+            }
+
+            // x_mn
+            {
+                let m = dim[0] - 1;
+                let n = dim[1] - 1;
+
+                // coords include ghost cells!
+
+                let Vec2d(x_m_n, y_m_n) = coords[block_id][[m + 1, n + 1]];
+                let Vec2d(x_m_nm1, y_m_nm1) = coords[block_id][[m + 1, n]];
+                let Vec2d(x_m_nm2, y_m_nm2) = coords[block_id][[m + 1, n - 1]];
+
+                let Vec2d(x_mm1_n, y_mm1_n) = coords[block_id][[m, n + 1]];
+                let Vec2d(x_mm2_n, y_mm2_n) = coords[block_id][[m - 1, n + 1]];
+
+                // backward differences
+                let x_xi = x_m_n - x_mm1_n;
+                let y_xi = y_m_n - y_mm1_n;
+                let x_xi2 = x_m_n - 2.0 * x_mm1_n + x_mm2_n;
+                let y_xi2 = y_m_n - 2.0 * y_mm1_n + y_mm2_n;
+
+                // backward differences
+                let x_eta = x_m_n - x_m_nm1;
+                let y_eta = y_m_n - y_m_nm1;
+                let x_eta2 = x_m_n - 2.0 * x_m_nm1 + x_m_nm2;
+                let y_eta2 = y_m_n - 2.0 * y_m_nm1 + y_m_nm2;
+
+                let g_11 = x_xi * x_xi + y_xi * y_xi;
+                let g_22 = x_eta * x_eta + y_eta * y_eta;
+
+                let p =
+                    -(x_xi * x_xi2 + y_xi * y_xi2) / g_11 - (x_xi * x_eta2 + y_xi * y_eta2) / g_22;
+                let q = -(x_eta * x_eta2 + y_eta * y_eta2) / g_22
+                    - (x_eta * x_xi2 + y_eta * y_xi2) / g_11;
+
+                control_fn[block_id][[m, n]] = Vec2d(p, q);
+            }
+
+            // for i in 0..dim[0] {
+            //     let p = 0.0;
+            //     let q = -0.5;
+            //     control_fn[block_id][[i, 0]] = Vec2d(p, q);
+            // }
+            //
+            // for i in 0..dim[0] {
+            //     let p = 0.0;
+            //     let q = 0.5;
+            //     control_fn[block_id][[i, dim[1] - 1]] = Vec2d(p, q);
+            // }
         }
 
         // compute field via tfi
-        // tfi_linear_2d_simple(&mut control_fn[0]);
+        tfi_linear_2d_simple(&mut control_fn[0]);
 
         // write control function to file
         {
@@ -1571,7 +1659,7 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
             }
         }
 
-        std::process::exit(0);
+        // std::process::exit(0);
     }
 
     // allocations
@@ -1650,15 +1738,15 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                                 let y_xi = 0.5 * (y_ip1_j - y_im1_j);
                                 let y_eta = 0.5 * (y_i_jp1 - y_i_jm1);
 
-                                let p = x_eta * x_eta + y_eta * y_eta;
-                                let q = x_xi * x_eta + y_xi * y_eta;
-                                let r = x_xi * x_xi + y_xi * y_xi;
+                                let p = x_eta * x_eta + y_eta * y_eta; // g_22
+                                let q = x_xi * x_eta + y_xi * y_eta; // g_12
+                                let r = x_xi * x_xi + y_xi * y_xi; // g_11
 
                                 let a_i_j = -2.0 * p - 2.0 * r;
-                                let a_ip1_j = p + 0.5 * s;
-                                let a_im1_j = p - 0.5 * s;
-                                let a_i_jp1 = r + 0.5 * t;
-                                let a_i_jm1 = r - 0.5 * t;
+                                let a_ip1_j = p + 0.5 * s * p;
+                                let a_im1_j = p - 0.5 * s * p;
+                                let a_i_jp1 = r + 0.5 * t * r;
+                                let a_i_jm1 = r - 0.5 * t * r;
                                 let a_ip1_jp1 = -0.5 * q;
                                 let a_ip1_jm1 = 0.5 * q;
                                 let a_im1_jp1 = 0.5 * q;
