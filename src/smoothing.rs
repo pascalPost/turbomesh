@@ -664,34 +664,34 @@ impl MatrixEntries {
 
         debug!("Searching ghost points for solution points.");
 
-        boundary_props
-            .data
-            .iter()
-            .enumerate()
-            .for_each(|(block_id, block_boundary_props)| {
-                debug!(" . Block {}", block_id);
-
-                block_boundary_props.iter().enumerate().for_each(
-                    |(boundary_point_id, point_props)| {
-                        let (i, j) = block_boundary_props.point_index(boundary_point_id).unwrap();
-
-                        debug!(
-                            " . . Block {} BoundaryPoint {} / ({}, {}) or ({}, {}) including ghost point layers",
-                            block_id, boundary_point_id, i, j, i + 1, j + 1
-                        );
-
-                        debug!(
-                            " . . . Prop: {:?}",
-                            matrix_entries[block_id][[i + 1, j + 1]]
-                        );
-                        debug!(" . . . BCs: {:?}", point_props);
-
-                        if let PointProps::Solve = matrix_entries[block_id][[i + 1, j + 1]].prop {
-                            fill_ghost_points(mesh, &boundary_props, block_id, boundary_point_id, &mut matrix_entries, &mut dof);
-                        }
-                    },
-                );
-            });
+        // boundary_props
+        //     .data
+        //     .iter()
+        //     .enumerate()
+        //     .for_each(|(block_id, block_boundary_props)| {
+        //         debug!(" . Block {}", block_id);
+        //
+        //         block_boundary_props.iter().enumerate().for_each(
+        //             |(boundary_point_id, point_props)| {
+        //                 let (i, j) = block_boundary_props.point_index(boundary_point_id).unwrap();
+        //
+        //                 debug!(
+        //                     " . . Block {} BoundaryPoint {} / ({}, {}) or ({}, {}) including ghost point layers",
+        //                     block_id, boundary_point_id, i, j, i + 1, j + 1
+        //                 );
+        //
+        //                 debug!(
+        //                     " . . . Prop: {:?}",
+        //                     matrix_entries[block_id][[i + 1, j + 1]]
+        //                 );
+        //                 debug!(" . . . BCs: {:?}", point_props);
+        //
+        //                 if let PointProps::Solve = matrix_entries[block_id][[i + 1, j + 1]].prop {
+        //                     fill_ghost_points(mesh, &boundary_props, block_id, boundary_point_id, &mut matrix_entries, &mut dof);
+        //                 }
+        //             },
+        //         );
+        //     });
 
         MatrixEntries {
             data: matrix_entries,
@@ -746,7 +746,7 @@ fn check_ghost_point(
             potential_donor.0 as usize + 1,
             potential_donor.1 as usize + 1,
         ]]
-            .index;
+        .index;
 
         assert_ne!(index, usize::MAX);
 
@@ -872,9 +872,9 @@ fn recursive_search_and_set_ghost_point(
                             }
                         }
                         BlockBoundary::PeriodicConnection(PeriodicBlockConnection {
-                                                              connection,
-                                                              translation,
-                                                          }) => {
+                            connection,
+                            translation,
+                        }) => {
                             // TODO remove this check
                             let target_block_test = if block_id == connection.donor.block {
                                 connection.receiver.block
@@ -1046,6 +1046,7 @@ impl SingleIndexConverter {
     }
 }
 
+// compute ghost point updates (for connect & periodic BCs)
 fn compute_ghost_point_updates(
     mesh: &Mesh,
     matrix_entries: &Vec<Array2<MatrixEntry>>,
@@ -1287,7 +1288,7 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                 let x_xi = y_eta / g_22 * (y_eta * x_xi_0 - x_eta * y_xi_0);
                 let y_xi = -x_eta / g_22 * (y_eta * x_xi_0 - x_eta * y_xi_0);
 
-                let g_11 = x_xi_0 * x_xi_0 + y_xi_0 * y_xi_0;
+                // let g_11 = x_xi * x_xi + y_xi * y_xi;
 
                 // ghost point
                 let x_im1_j = x_i_j - x_xi;
@@ -1295,17 +1296,17 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
 
                 coords[block_id][[i - 1, j]] = Vec2d(x_im1_j, y_im1_j);
 
-                // one sided second derivative
-                let x_xi2 = x_ip1_j - 2.0 * x_i_j + x_im1_j;
-                let y_xi2 = y_ip1_j - 2.0 * y_i_j + y_im1_j;
-
-                // control function
-                let p =
-                    -(x_xi_0 * x_xi2 + y_xi_0 * y_xi2) / g_11 - (x_xi_0 * x_eta2 + y_xi_0 * y_eta2) / g_22;
-                let q = -(x_eta * x_eta2 + y_eta * y_eta2) / g_22
-                    - (x_eta * x_xi2 + y_eta * y_xi2) / g_11;
-
-                control_fn[block_id][[i - 1, j - 1]] = Vec2d(p, q); // field w/o ghost layers
+                // // one sided second derivative
+                // let x_xi2 = x_ip1_j - 2.0 * x_i_j + x_im1_j;
+                // let y_xi2 = y_ip1_j - 2.0 * y_i_j + y_im1_j;
+                //
+                // // control function
+                // let p =
+                //     -(x_xi_0 * x_xi2 + y_xi_0 * y_xi2) / g_11 - (x_xi_0 * x_eta2 + y_xi_0 * y_eta2) / g_22;
+                // let q = -(x_eta * x_eta2 + y_eta * y_eta2) / g_22
+                //     - (x_eta * x_xi2 + y_eta * y_xi2) / g_11;
+                //
+                // control_fn[block_id][[i - 1, j - 1]] = Vec2d(p, q); // field w/o ghost layers
             }
 
             // right
@@ -1336,7 +1337,7 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                 let x_xi = y_eta / g_22 * (y_eta * x_xi_0 - x_eta * y_xi_0);
                 let y_xi = -x_eta / g_22 * (y_eta * x_xi_0 - x_eta * y_xi_0);
 
-                let g_11 = x_xi_0 * x_xi_0 + y_xi_0 * y_xi_0;
+                // let g_11 = x_xi_0 * x_xi_0 + y_xi_0 * y_xi_0;
 
                 // ghost point
                 let x_ip1_j = x_i_j + x_xi;
@@ -1344,17 +1345,17 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
 
                 coords[block_id][[i + 1, j]] = Vec2d(x_ip1_j, y_ip1_j);
 
-                // one sided second derivative
-                let x_xi2 = x_ip1_j - 2.0 * x_i_j + x_im1_j;
-                let y_xi2 = y_ip1_j - 2.0 * y_i_j + y_im1_j;
-
-                // control function
-                let p =
-                    -(x_xi_0 * x_xi2 + y_xi_0 * y_xi2) / g_11 - (x_xi_0 * x_eta2 + y_xi_0 * y_eta2) / g_22;
-                let q = -(x_eta * x_eta2 + y_eta * y_eta2) / g_22
-                    - (x_eta * x_xi2 + y_eta * y_xi2) / g_11;
-
-                control_fn[block_id][[i - 1, j - 1]] = Vec2d(p, q); // field w/o ghost layers
+                // // central second derivative
+                // let x_xi2 = x_ip1_j - 2.0 * x_i_j + x_im1_j;
+                // let y_xi2 = y_ip1_j - 2.0 * y_i_j + y_im1_j;
+                //
+                // // control function
+                // let p =
+                //     -(x_xi_0 * x_xi2 + y_xi_0 * y_xi2) / g_11 - (x_xi_0 * x_eta2 + y_xi_0 * y_eta2) / g_22;
+                // let q = -(x_eta * x_eta2 + y_eta * y_eta2) / g_22
+                //     - (x_eta * x_xi2 + y_eta * y_xi2) / g_11;
+                //
+                // control_fn[block_id][[i - 1, j - 1]] = Vec2d(p, q); // field w/o ghost layers
             }
 
             // bottom excluding corners
@@ -1373,10 +1374,6 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                 let x_eta_0 = x_i_jp1 - x_i_j;
                 let y_eta_0 = y_i_jp1 - y_i_j;
 
-                let Vec2d(x_i_jp2, y_i_jp2) = coords[block_id][[i, j + 2]];
-                let x_eta2_0 = x_i_j - 2.0 * x_i_jp1 + x_i_jp2;
-                let y_eta2_0 = y_i_j - 2.0 * y_i_jp1 + y_i_jp2;
-
                 // gradients
                 let x_xi = 0.5 * (x_ip1_j - x_im1_j);
                 let y_xi = 0.5 * (y_ip1_j - y_im1_j);
@@ -1389,25 +1386,30 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                 let x_eta = -y_xi / g_11 * (-y_xi * x_eta_0 + x_xi * y_eta_0);
                 let y_eta = x_xi / g_11 * (-y_xi * x_eta_0 + x_xi * y_eta_0);
 
-                let g_22 = x_eta * x_eta + y_eta * y_eta;
+                // let g_22 = x_eta * x_eta + y_eta * y_eta;
 
                 // ghost point
-                let x_i_jm1 = x_i_j - x_eta2_0;
-                let y_i_jm1 = y_i_j - y_eta2_0;
+                let x_i_jm1 = x_i_j - x_eta;
+                let y_i_jm1 = y_i_j - y_eta;
 
                 coords[block_id][[i, j - 1]] = Vec2d(x_i_jm1, y_i_jm1);
 
-                // second derivative
-                let x_eta2 = x_i_jp1 - 2.0 * x_i_j + x_i_jm1;
-                let y_eta2 = y_i_jp1 - 2.0 * y_i_j + y_i_jm1;
-
-                // control function
-                let p =
-                    -(x_xi * x_xi2 + y_xi * y_xi2) / g_11 - (x_xi * x_eta2 + y_xi * y_eta2) / g_22;
-                let q = -(x_eta_0 * x_eta2 + y_eta_0 * y_eta2) / g_22
-                    - (x_eta_0 * x_xi2 + y_eta_0 * y_xi2) / g_11;
-
-                control_fn[block_id][[i - 1, j - 1]] = Vec2d(p, q); // field w/o ghost layers
+                // // second derivative
+                // let x_eta2 = x_i_jp1 - 2.0 * x_i_j + x_i_jm1;
+                // let y_eta2 = y_i_jp1 - 2.0 * y_i_j + y_i_jm1;
+                //
+                // let x_eta_c = 0.5 * (x_i_jp1 - x_i_jm1);
+                // let y_eta_c = 0.5 * (y_i_jp1 - y_i_jm1);
+                //
+                // let g_22_c = x_eta_c * x_eta_c + y_eta_c * y_eta_c;
+                //
+                // // control function
+                // let p =
+                //     -(x_xi * x_xi2 + y_xi * y_xi2) / g_11 - (x_xi * x_eta2 + y_xi * y_eta2) / g_22;
+                // let q = -(x_eta_0 * x_eta2 + y_eta_0 * y_eta2) / g_22
+                //     - (x_eta_0 * x_xi2 + y_eta_0 * y_xi2) / g_11;
+                //
+                // control_fn[block_id][[i - 1, j - 1]] = Vec2d(p, q); // field w/o ghost layers
             }
 
             // top
@@ -1426,9 +1428,9 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                 let x_eta_0 = x_i_j - x_i_jm1;
                 let y_eta_0 = y_i_j - y_i_jm1;
 
-                let Vec2d(x_i_jm2, y_i_jm2) = coords[block_id][[i, j - 2]];
-                let x_eta2_0 = x_i_j - 2.0 * x_i_jm1 + x_i_jm2;
-                let y_eta2_0 = y_i_j - 2.0 * y_i_jm1 + y_i_jm2;
+                // let Vec2d(x_i_jm2, y_i_jm2) = coords[block_id][[i, j - 2]];
+                // let x_eta2_0 = x_i_j - 2.0 * x_i_jm1 + x_i_jm2;
+                // let y_eta2_0 = y_i_j - 2.0 * y_i_jm1 + y_i_jm2;
 
                 // gradients
                 let x_xi = 0.5 * (x_ip1_j - x_im1_j);
@@ -1442,25 +1444,25 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                 let x_eta = -y_xi / g_11 * (-y_xi * x_eta_0 + x_xi * y_eta_0);
                 let y_eta = x_xi / g_11 * (-y_xi * x_eta_0 + x_xi * y_eta_0);
 
-                let g_22 = x_eta * x_eta + y_eta * y_eta;
+                // let g_22 = x_eta * x_eta + y_eta * y_eta;
 
                 // ghost point
-                let x_i_jp1 = x_i_j - x_eta2_0;
-                let y_i_jp1 = y_i_j - y_eta2_0;
+                let x_i_jp1 = x_i_j + x_eta_0;
+                let y_i_jp1 = y_i_j + y_eta_0;
 
                 coords[block_id][[i, j + 1]] = Vec2d(x_i_jp1, y_i_jp1);
 
-                // second derivative
-                let x_eta2 = x_i_jp1 - 2.0 * x_i_j + x_i_jm1;
-                let y_eta2 = y_i_jp1 - 2.0 * y_i_j + y_i_jm1;
-
-                // control function
-                let p =
-                    -(x_xi * x_xi2 + y_xi * y_xi2) / g_11 - (x_xi * x_eta2 + y_xi * y_eta2) / g_22;
-                let q = -(x_eta_0 * x_eta2 + y_eta_0 * y_eta2) / g_22
-                    - (x_eta_0 * x_xi2 + y_eta_0 * y_xi2) / g_11;
-
-                control_fn[block_id][[i - 1, j - 1]] = Vec2d(p, q); // field w/o ghost layers
+                // // second derivative
+                // let x_eta2 = x_i_jp1 - 2.0 * x_i_j + x_i_jm1;
+                // let y_eta2 = y_i_jp1 - 2.0 * y_i_j + y_i_jm1;
+                //
+                // // control function
+                // let p =
+                //     -(x_xi * x_xi2 + y_xi * y_xi2) / g_11 - (x_xi * x_eta2 + y_xi * y_eta2) / g_22;
+                // let q = -(x_eta_0 * x_eta2 + y_eta_0 * y_eta2) / g_22
+                //     - (x_eta_0 * x_xi2 + y_eta_0 * y_xi2) / g_11;
+                //
+                // control_fn[block_id][[i - 1, j - 1]] = Vec2d(p, q); // field w/o ghost layers
             }
 
             // handle corners (use one-sided differences and do not change during iteration)
@@ -1633,7 +1635,7 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                         "{}, ({}, {}) : (P, Q) = ({}, {})",
                         block_idx, i, j, p, q
                     )
-                        .unwrap();
+                    .unwrap();
                 }
             }
         }
@@ -1654,7 +1656,7 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                         x.0,
                         x.1
                     )
-                        .unwrap();
+                    .unwrap();
                 }
             }
         }
@@ -1673,6 +1675,188 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
         print!("  iteration\t{n}");
 
         update_ghost_point_locations(&mut coords, &ghost_point_coord_updates);
+
+        // compute control function if necessary
+        if !laplace {
+            for (block_id, block) in mesh.blocks.iter().enumerate() {
+                let dim = block.points();
+
+                // left
+                for n in 1..dim[1] - 1 {
+                    let i = 1; // i = 0 including ghost layers
+                    let j = n + 1; // j including ghost layers
+
+                    // coords includes ghost point indices
+                    let Vec2d(x_i_j, y_i_j) = coords[block_id][[i, j]];
+                    let Vec2d(x_ip1_j, y_ip1_j) = coords[block_id][[i + 1, j]];
+                    let Vec2d(x_im1_j, y_im1_j) = coords[block_id][[i - 1, j]];
+                    let Vec2d(x_i_jp1, y_i_jp1) = coords[block_id][[i, j + 1]];
+                    let Vec2d(x_i_jm1, y_i_jm1) = coords[block_id][[i, j - 1]];
+
+                    // normal one sided gradient
+                    let x_xi_0 = x_ip1_j - x_i_j;
+                    let y_xi_0 = y_ip1_j - y_i_j;
+
+                    // normal central derivatives including ghost point
+                    let x_xi = 0.5 * (x_ip1_j - x_im1_j);
+                    let y_xi = 0.5 * (y_ip1_j - y_im1_j);
+
+                    let x_xi2 = x_ip1_j - 2.0 * x_i_j + x_im1_j;
+                    let y_xi2 = y_ip1_j - 2.0 * y_i_j + y_im1_j;
+
+                    let g_11 = x_xi * x_xi + y_xi * y_xi;
+
+                    // tangential (central) gradients
+                    let x_eta = 0.5 * (x_i_jp1 - x_i_jm1);
+                    let y_eta = 0.5 * (y_i_jp1 - y_i_jm1);
+
+                    let x_eta2 = x_i_jp1 - 2.0 * x_i_j + x_i_jm1;
+                    let y_eta2 = y_i_jp1 - 2.0 * y_i_j + y_i_jm1;
+
+                    let g_22 = x_eta * x_eta + y_eta * y_eta;
+
+                    // control function
+                    let p = -(x_xi_0 * x_xi2 + y_xi_0 * y_xi2) / g_11
+                        - (x_xi_0 * x_eta2 + y_xi_0 * y_eta2) / g_22;
+                    let q = -(x_eta * x_eta2 + y_eta * y_eta2) / g_22
+                        - (x_eta * x_xi2 + y_eta * y_xi2) / g_11;
+
+                    control_fn[block_id][[i - 1, j - 1]] = Vec2d(p, q); // field w/o ghost layers
+                }
+
+                // right
+                for n in 1..dim[1] - 1 {
+                    let i = dim[0]; // i = m including ghost layers
+                    let j = n + 1; // j including ghost layers
+
+                    // coords includes ghost point indices
+                    let Vec2d(x_i_j, y_i_j) = coords[block_id][[i, j]];
+                    let Vec2d(x_im1_j, y_im1_j) = coords[block_id][[i - 1, j]];
+                    let Vec2d(x_ip1_j, y_ip1_j) = coords[block_id][[i + 1, j]];
+                    let Vec2d(x_i_jp1, y_i_jp1) = coords[block_id][[i, j + 1]];
+                    let Vec2d(x_i_jm1, y_i_jm1) = coords[block_id][[i, j - 1]];
+
+                    // normal one sided gradient
+                    let x_xi_0 = x_i_j - x_im1_j;
+                    let y_xi_0 = y_i_j - y_im1_j;
+
+                    // normal central derivatives including ghost point
+                    let x_xi = 0.5 * (x_ip1_j - x_im1_j);
+                    let y_xi = 0.5 * (y_ip1_j - y_im1_j);
+
+                    let x_xi2 = x_ip1_j - 2.0 * x_i_j + x_im1_j;
+                    let y_xi2 = y_ip1_j - 2.0 * y_i_j + y_im1_j;
+
+                    let g_11 = x_xi * x_xi + y_xi * y_xi;
+
+                    // tangential (central) gradients
+                    let x_eta = 0.5 * (x_i_jp1 - x_i_jm1);
+                    let y_eta = 0.5 * (y_i_jp1 - y_i_jm1);
+
+                    let x_eta2 = x_i_jp1 - 2.0 * x_i_j + x_i_jm1;
+                    let y_eta2 = y_i_jp1 - 2.0 * y_i_j + y_i_jm1;
+
+                    let g_22 = x_eta * x_eta + y_eta * y_eta;
+
+                    // control function
+                    let p = -(x_xi_0 * x_xi2 + y_xi_0 * y_xi2) / g_11
+                        - (x_xi_0 * x_eta2 + y_xi_0 * y_eta2) / g_22;
+                    let q = -(x_eta * x_eta2 + y_eta * y_eta2) / g_22
+                        - (x_eta * x_xi2 + y_eta * y_xi2) / g_11;
+
+                    control_fn[block_id][[i - 1, j - 1]] = Vec2d(p, q); // field w/o ghost layers
+                }
+
+                // bottom
+                for n in 1..dim[0] - 1 {
+                    let i: usize = n + 1; // i including ghost layers
+                    let j: usize = 1; // j = 0 including ghost layers
+
+                    // coords includes ghost point indices
+                    let Vec2d(x_i_j, y_i_j) = coords[block_id][[i, j]];
+                    let Vec2d(x_i_jp1, y_i_jp1) = coords[block_id][[i, j + 1]];
+                    let Vec2d(x_i_jm1, y_i_jm1) = coords[block_id][[i, j - 1]];
+                    let Vec2d(x_ip1_j, y_ip1_j) = coords[block_id][[i + 1, j]];
+                    let Vec2d(x_im1_j, y_im1_j) = coords[block_id][[i - 1, j]];
+
+                    // normal one sided gradient
+                    let x_eta_0 = x_i_jp1 - x_i_j;
+                    let y_eta_0 = y_i_jp1 - y_i_j;
+
+                    // normal central derivatives including ghost point
+                    let x_eta = 0.5 * (x_i_jp1 - x_i_jm1);
+                    let y_eta = 0.5 * (y_i_jp1 - y_i_jm1);
+
+                    let x_eta2 = x_i_jp1 - 2.0 * x_i_j + x_i_jm1;
+                    let y_eta2 = y_i_jp1 - 2.0 * y_i_j + y_i_jm1;
+
+                    let g_22 = x_eta * x_eta + y_eta * y_eta;
+
+                    // tangential (central) gradients
+                    let x_xi = 0.5 * (x_ip1_j - x_im1_j);
+                    let y_xi = 0.5 * (y_ip1_j - y_im1_j);
+
+                    let x_xi2 = x_ip1_j - 2.0 * x_i_j + x_im1_j;
+                    let y_xi2 = y_ip1_j - 2.0 * y_i_j + y_im1_j;
+
+                    let g_11 = x_xi * x_xi + y_xi * y_xi;
+
+                    // control function
+                    let p = -(x_xi * x_xi2 + y_xi * y_xi2) / g_11
+                        - (x_xi * x_eta2 + y_xi * y_eta2) / g_22;
+                    let q = -(x_eta_0 * x_eta2 + y_eta_0 * y_eta2) / g_22
+                        - (x_eta_0 * x_xi2 + y_eta_0 * y_xi2) / g_11;
+
+                    control_fn[block_id][[i - 1, j - 1]] = Vec2d(p, q); // field w/o ghost layers
+                }
+
+                // top
+                for n in 1..dim[0] - 1 {
+                    let i: usize = n + 1; // i including ghost layers
+                    let j: usize = dim[1]; // j = n including ghost layers
+
+                    // coords includes ghost point indices
+                    let Vec2d(x_i_j, y_i_j) = coords[block_id][[i, j]];
+                    let Vec2d(x_i_jm1, y_i_jm1) = coords[block_id][[i, j - 1]];
+                    let Vec2d(x_i_jp1, y_i_jp1) = coords[block_id][[i, j + 1]];
+
+                    let Vec2d(x_ip1_j, y_ip1_j) = coords[block_id][[i + 1, j]];
+                    let Vec2d(x_im1_j, y_im1_j) = coords[block_id][[i - 1, j]];
+
+                    // normal one sided gradient
+                    let x_eta_0 = x_i_j - x_i_jm1;
+                    let y_eta_0 = y_i_j - y_i_jm1;
+
+                    // normal central derivatives including ghost point
+                    let x_eta = 0.5 * (x_i_jp1 - x_i_jm1);
+                    let y_eta = 0.5 * (y_i_jp1 - y_i_jm1);
+
+                    let x_eta2 = x_i_jp1 - 2.0 * x_i_j + x_i_jm1;
+                    let y_eta2 = y_i_jp1 - 2.0 * y_i_j + y_i_jm1;
+
+                    let g_22 = x_eta * x_eta + y_eta * y_eta;
+
+                    // tangential (central) gradients
+                    let x_xi = 0.5 * (x_ip1_j - x_im1_j);
+                    let y_xi = 0.5 * (y_ip1_j - y_im1_j);
+
+                    let x_xi2 = x_ip1_j - 2.0 * x_i_j + x_im1_j;
+                    let y_xi2 = y_ip1_j - 2.0 * y_i_j + y_im1_j;
+
+                    let g_11 = x_xi * x_xi + y_xi * y_xi;
+
+                    // control function
+                    let p = -(x_xi * x_xi2 + y_xi * y_xi2) / g_11
+                        - (x_xi * x_eta2 + y_xi * y_eta2) / g_22;
+                    let q = -(x_eta_0 * x_eta2 + y_eta_0 * y_eta2) / g_22
+                        - (x_eta_0 * x_xi2 + y_eta_0 * y_xi2) / g_11;
+
+                    control_fn[block_id][[i - 1, j - 1]] = Vec2d(p, q); // field w/o ghost layers
+                }
+            }
+
+            tfi_linear_2d_simple(&mut control_fn[0]);
+        }
 
         if log_enabled!(Level::Trace) {
             // write coords to file
@@ -1763,38 +1947,151 @@ pub fn smooth_mesh(mesh: &mut Mesh, iterations: usize) -> Result<(), Box<dyn Err
                                 assert!(a_im1_jm1.is_finite());
 
                                 lhs.put(index, index, a_i_j).unwrap();
-                                lhs.put(index, entries[block_index][[i - 1, j]].index, a_im1_j)
+
+                                if i == 1 {
+                                    if j == 1 {
+                                        // lower left corner
+                                        lhs.put(
+                                            index,
+                                            entries[block_index][[i, j + 1]].index,
+                                            a_i_jp1,
+                                        )
+                                        .unwrap();
+                                        lhs.put(
+                                            index,
+                                            entries[block_index][[i + 1, j + 1]].index,
+                                            a_ip1_jp1,
+                                        )
+                                        .unwrap();
+                                        lhs.put(
+                                            index,
+                                            entries[block_index][[i + 1, j]].index,
+                                            a_ip1_j,
+                                        )
+                                        .unwrap();
+                                        return;
+                                    } else if j == dim.1 - 2 {
+                                        // upper left corner
+                                        lhs.put(
+                                            index,
+                                            entries[block_index][[i, j - 1]].index,
+                                            a_i_jm1,
+                                        )
+                                        .unwrap();
+                                        lhs.put(
+                                            index,
+                                            entries[block_index][[i + 1, j - 1]].index,
+                                            a_ip1_jm1,
+                                        )
+                                        .unwrap();
+                                        lhs.put(
+                                            index,
+                                            entries[block_index][[i + 1, j]].index,
+                                            a_ip1_j,
+                                        )
+                                        .unwrap();
+                                        return;
+                                    }
+                                }
+
+                                if i == dim.0 - 2 {
+                                    if j == 1 {
+                                        // lower right corner
+                                        lhs.put(
+                                            index,
+                                            entries[block_index][[i - 1, j]].index,
+                                            a_im1_j,
+                                        )
+                                        .unwrap();
+                                        lhs.put(
+                                            index,
+                                            entries[block_index][[i - 1, j - 1]].index,
+                                            a_im1_jm1,
+                                        )
+                                        .unwrap();
+                                        lhs.put(
+                                            index,
+                                            entries[block_index][[i, j + 1]].index,
+                                            a_i_jp1,
+                                        )
+                                        .unwrap();
+                                        return;
+                                    } else if j == dim.1 - 2 {
+                                        // upper right corner
+                                        lhs.put(
+                                            index,
+                                            entries[block_index][[i, j - 1]].index,
+                                            a_i_jm1,
+                                        )
+                                        .unwrap();
+                                        lhs.put(
+                                            index,
+                                            entries[block_index][[i - 1, j - 1]].index,
+                                            a_im1_jm1,
+                                        )
+                                        .unwrap();
+
+                                        lhs.put(
+                                            index,
+                                            entries[block_index][[i - 1, j]].index,
+                                            a_im1_j,
+                                        )
+                                        .unwrap();
+                                        return;
+                                    }
+                                }
+
+                                if i - 1 > 0 {
+                                    lhs.put(index, entries[block_index][[i - 1, j]].index, a_im1_j)
+                                        .unwrap();
+                                }
+                                if i + 1 < dim.0 - 1 {
+                                    lhs.put(index, entries[block_index][[i + 1, j]].index, a_ip1_j)
+                                        .unwrap();
+                                }
+                                if j - 1 > 0 {
+                                    lhs.put(index, entries[block_index][[i, j - 1]].index, a_i_jm1)
+                                        .unwrap();
+                                }
+                                if j + 1 < dim.1 - 1 {
+                                    lhs.put(index, entries[block_index][[i, j + 1]].index, a_i_jp1)
+                                        .unwrap();
+                                }
+                                if i + 1 < dim.0 - 1
+                                    && j + 1 < dim.1 - 1
+                                    && !(i == dim.0 - 3 && j == dim.1 - 3)
+                                {
+                                    lhs.put(
+                                        index,
+                                        entries[block_index][[i + 1, j + 1]].index,
+                                        a_ip1_jp1,
+                                    )
                                     .unwrap();
-                                lhs.put(index, entries[block_index][[i + 1, j]].index, a_ip1_j)
+                                }
+                                if i + 1 < dim.0 - 1 && j - 1 > 0 && !(i == dim.0 - 3 && j == 2) {
+                                    lhs.put(
+                                        index,
+                                        entries[block_index][[i + 1, j - 1]].index,
+                                        a_ip1_jm1,
+                                    )
                                     .unwrap();
-                                lhs.put(index, entries[block_index][[i, j - 1]].index, a_i_jm1)
+                                }
+                                if i - 1 > 0 && j + 1 < dim.1 - 1 && !(i == 2 && j == dim.1 - 3) {
+                                    lhs.put(
+                                        index,
+                                        entries[block_index][[i - 1, j + 1]].index,
+                                        a_im1_jp1,
+                                    )
                                     .unwrap();
-                                lhs.put(index, entries[block_index][[i, j + 1]].index, a_i_jp1)
+                                }
+                                if i - 1 > 0 && j - 1 > 0 && !(i == 2 && j == 2) {
+                                    lhs.put(
+                                        index,
+                                        entries[block_index][[i - 1, j - 1]].index,
+                                        a_im1_jm1,
+                                    )
                                     .unwrap();
-                                lhs.put(
-                                    index,
-                                    entries[block_index][[i + 1, j + 1]].index,
-                                    a_ip1_jp1,
-                                )
-                                    .unwrap();
-                                lhs.put(
-                                    index,
-                                    entries[block_index][[i + 1, j - 1]].index,
-                                    a_ip1_jm1,
-                                )
-                                    .unwrap();
-                                lhs.put(
-                                    index,
-                                    entries[block_index][[i - 1, j + 1]].index,
-                                    a_im1_jp1,
-                                )
-                                    .unwrap();
-                                lhs.put(
-                                    index,
-                                    entries[block_index][[i - 1, j - 1]].index,
-                                    a_im1_jm1,
-                                )
-                                    .unwrap();
+                                }
                             }
                             PointProps::Fix => {
                                 let Vec2d(x, y) = coords[block_index][[i, j]];
