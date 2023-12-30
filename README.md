@@ -32,6 +32,12 @@ Planned features:
         - [x] structured
         - [ ] unstructured
 
+## Verbosity
+
+The program uses the `env_logger` crate for logging. The verbosity can be set by
+the `RUST_LOG` environment variable, e.g.: `RUST_LOG=debug`,
+see https://docs.rs/env_logger/latest/env_logger/.
+
 ## Debugging w/ lldb
 
 To enhance the debugging experience, the `lldb/formatter.py` script can be used

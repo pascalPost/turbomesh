@@ -18,10 +18,15 @@ pub enum BlockBoundary {
     Wall(BlockBoundaryRange),
 }
 
+/// BlockBoundaryRange is an inclusive range (start <= x <= end) of indices on a block boundary.
 #[derive(Debug)]
 pub struct BlockBoundaryRange {
     pub block: usize,
+    // this is a 2x1 array (column vector, i.e. [i, j]^T)
+    // TODO change this to a 1D array
     pub start: Array2<isize>,
+    // this is a 2x1 array (column vector, i.e. [i, j]^T)
+    // TODO change this to a 1D array
     pub end: Array2<isize>,
 }
 
@@ -46,6 +51,10 @@ impl BlockBoundaryRange {
 
         let len: usize = segments.iter().map(|seg| seg.len()).sum();
         let end_idx = start_idx + len - segments.len();
+
+        // TODO remove this 2D array and replace with 1D array!!!
+        // The 2D array is unnecessary and makes the code more complicated, since we now have to differentiate
+        // between column and row vectors!
 
         let mut start = Array2::<isize>::zeros((2, 1));
         let mut end = Array2::<isize>::zeros((2, 1));

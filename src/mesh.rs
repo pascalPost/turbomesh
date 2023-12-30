@@ -2,7 +2,7 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 use crate::cgns::interface::*;
-use crate::smoothing::{smooth_block, smooth_mesh, SmoothingMethod};
+use crate::smoothing::{smooth_block, smooth_mesh, ControlFunctionAlgorithm, SmoothingMethod};
 use crate::types::{Block2d, BlockBoundary};
 
 /// mesh data structure
@@ -34,7 +34,9 @@ impl Mesh {
     pub fn smooth(&mut self, method: &SmoothingMethod) {
         match method {
             SmoothingMethod::None => {}
-            SmoothingMethod::Global { iterations } => smooth_mesh(self, *iterations).unwrap(),
+            SmoothingMethod::Global { iterations } => {
+                smooth_mesh(self, *iterations, ControlFunctionAlgorithm::None).unwrap()
+            }
             SmoothingMethod::BlockInternal { iterations } => {
                 self.blocks.iter_mut().for_each(|block| {
                     println!("block: {}", block.name);

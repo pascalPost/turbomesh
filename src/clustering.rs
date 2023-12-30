@@ -31,6 +31,32 @@ impl ClusteringFunction for UniformClustering {
 //     x.into_boxed_slice()
 // }
 
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct SingleExponentialClustering {
+    alpha: Scalar,
+}
+
+impl SingleExponentialClustering {
+    pub fn new(alpha: Scalar) -> Self {
+        Self { alpha }
+    }
+}
+
+impl ClusteringFunction for SingleExponentialClustering {
+    fn get_clustering(&self, points: usize) -> Vec<Scalar> {
+        let alpha = self.alpha;
+
+        let n = points;
+
+        let mut x: Vec<Scalar> = (0..n).map(|x| x as Scalar / (n - 1) as Scalar).collect();
+        for v in x.iter_mut() {
+            *v = ((alpha * *v).exp() - 1.0) / (alpha.exp() - 1.0);
+        }
+
+        x
+    }
+}
+
 /// Roberts cluster function, see
 /// https://github.com/luohancfd/CFCFD-NG/blob/dev/lib/nm/source/fobject.cxx
 /// alpha = 0.5 cluster at both ends

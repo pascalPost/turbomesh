@@ -275,17 +275,6 @@ pub fn tfi_linear_2d(
     }
 }
 
-pub fn test_tfi(r: Scalar, s: Scalar, x00: Vec2d, x10: Vec2d, x01: Vec2d, x11: Vec2d) -> Vec2d {
-    // 01-----------------11
-    // |                  |
-    // |                  |
-    // |........rs........|
-    // |                  |
-    // |                  |
-    // 00-----------------10
-    x00 + r * (-x00 + x10) + s * (-x00 + x01) + r * s * (x00 - x01 - x10 + x11)
-}
-
 // TODO if there is something like constexpr this function can be merged with the version including an intermediate grid
 pub fn tfi_linear_2d_simple(x: &mut Array2<Vec2d>) {
     let (m, n) = x.dim();
@@ -323,23 +312,3 @@ pub fn tfi_linear_2d_simple(x: &mut Array2<Vec2d>) {
         }
     }
 }
-
-// pub fn tfi_linear_2d_simple(x: &mut Array2<Vec2d>) {
-//     let (m, n) = x.dim();
-//
-//     let x_0_0 = x[[0, 0]];
-//     let x_1_0 = x[[m - 1, 0]];
-//     let x_0_1 = x[[0, n - 1]];
-//     let x_1_1 = x[[m - 1, n - 1]];
-//
-//     let (i_len, j_len) = x.dim();
-//
-//     for j in 1..j_len - 1 {
-//         let eta = j as Scalar / (j_len - 1) as Scalar;
-//
-//         for i in 1..i_len - 1 {
-//             let xi = i as Scalar / (i_len - 1) as Scalar;
-//             x[[i, j]] = test_tfi(xi, eta, x_0_0, x_1_0, x_0_1, x_1_1);
-//         }
-//     }
-// }
