@@ -9,12 +9,12 @@ pub mod block_boundary_props;
 
 use self::block_boundary_props::{BlockBoundaryPointProp, BlockPointIndex, BoundaryProps};
 use crate::{
+    smoothing::ControlFunctionAlgorithm::KhamaysehEtAl,
+    tfi::tfi_linear_2d_simple,
     types::{BlockBoundary, BlockConnection, PeriodicBlockConnection},
     Block2d, Mesh, Scalar, Vec2d,
 };
 // use float_cmp::{approx_eq, ApproxEq};
-use crate::smoothing::ControlFunctionAlgorithm::KhamaysehEtAl;
-use crate::tfi::tfi_linear_2d_simple;
 use log::{debug, log_enabled, Level};
 use ndarray::{s, Array2};
 use russell_lab::Vector;
@@ -665,34 +665,34 @@ impl MatrixEntries {
 
         debug!("Searching ghost points for solution points.");
 
-        // boundary_props
-        //     .data
-        //     .iter()
-        //     .enumerate()
-        //     .for_each(|(block_id, block_boundary_props)| {
-        //         debug!(" . Block {}", block_id);
-        //
-        //         block_boundary_props.iter().enumerate().for_each(
-        //             |(boundary_point_id, point_props)| {
-        //                 let (i, j) = block_boundary_props.point_index(boundary_point_id).unwrap();
-        //
-        //                 debug!(
-        //                     " . . Block {} BoundaryPoint {} / ({}, {}) or ({}, {}) including ghost point layers",
-        //                     block_id, boundary_point_id, i, j, i + 1, j + 1
-        //                 );
-        //
-        //                 debug!(
-        //                     " . . . Prop: {:?}",
-        //                     matrix_entries[block_id][[i + 1, j + 1]]
-        //                 );
-        //                 debug!(" . . . BCs: {:?}", point_props);
-        //
-        //                 if let PointProps::Solve = matrix_entries[block_id][[i + 1, j + 1]].prop {
-        //                     fill_ghost_points(mesh, &boundary_props, block_id, boundary_point_id, &mut matrix_entries, &mut dof);
-        //                 }
-        //             },
-        //         );
-        //     });
+        boundary_props
+            .data
+            .iter()
+            .enumerate()
+            .for_each(|(block_id, block_boundary_props)| {
+                debug!(" . Block {}", block_id);
+
+                block_boundary_props.iter().enumerate().for_each(
+                    |(boundary_point_id, point_props)| {
+                        let (i, j) = block_boundary_props.point_index(boundary_point_id).unwrap();
+
+                        debug!(
+                            " . . Block {} BoundaryPoint {} / ({}, {}) or ({}, {}) including ghost point layers",
+                            block_id, boundary_point_id, i, j, i + 1, j + 1
+                        );
+
+                        debug!(
+                            " . . . Prop: {:?}",
+                            matrix_entries[block_id][[i + 1, j + 1]]
+                        );
+                        debug!(" . . . BCs: {:?}", point_props);
+
+                        if let PointProps::Solve = matrix_entries[block_id][[i + 1, j + 1]].prop {
+                            fill_ghost_points(mesh, &boundary_props, block_id, boundary_point_id, &mut matrix_entries, &mut dof);
+                        }
+                    },
+                );
+            });
 
         MatrixEntries {
             data: matrix_entries,
