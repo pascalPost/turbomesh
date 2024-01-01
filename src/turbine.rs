@@ -244,21 +244,21 @@ impl TurbineTemplate {
 
         let (ps_edge_in_middle, ps_edge_rest) =
             ps_outer_edge.split_at(num_cells_middle_blocks_on_blade_half);
-        // let (ps_edge_in_lower, ps_edge_rest) =
-        //     ps_edge_rest.split_at(num_cells_next_to_middle_blocks_on_blade);
-        // let (ps_edge_pll1, ps_edge_ex_middle) =
-        //     ps_edge_rest.split_at(ps_edge_rest.len() - 1 - num_cells_middle_blocks_on_blade_half);
+        let (ps_edge_in_lower, ps_edge_rest) =
+            ps_edge_rest.split_at(num_cells_next_to_middle_blocks_on_blade);
+        let (ps_edge_pll1, ps_edge_ex_middle) =
+            ps_edge_rest.split_at(ps_edge_rest.len() - 1 - num_cells_middle_blocks_on_blade_half);
 
         let (ss_edge_in_middle, ss_edge_rest) =
             ss_outer_edge.split_at(num_cells_middle_blocks_on_blade_half);
-        // let (ss_edge_in_ss, ss_edge_rest) = ss_edge_rest.split_at(
-        //     ss_edge_rest.len()
-        //         - 1
-        //         - num_cells_middle_blocks_on_blade_half
-        //         - num_cells_next_to_middle_blocks_on_blade,
-        // );
-        // let (ss_edge_ex_ss, ss_edge_ex_middle) =
-        //     ss_edge_rest.split_at(ss_edge_rest.len() - 1 - num_cells_middle_blocks_on_blade_half);
+        let (ss_edge_in_ss, ss_edge_rest) = ss_edge_rest.split_at(
+            ss_edge_rest.len()
+                - 1
+                - num_cells_middle_blocks_on_blade_half
+                - num_cells_next_to_middle_blocks_on_blade,
+        );
+        let (ss_edge_ex_ss, ss_edge_ex_middle) =
+            ss_edge_rest.split_at(ss_edge_rest.len() - 1 - num_cells_middle_blocks_on_blade_half);
 
         // TODO add approximation of the leading and trailing edge by approximating
         // the chamber line and computing its intersection with the profile.
@@ -271,6 +271,7 @@ impl TurbineTemplate {
         let row_prefix = "row_01_";
 
         let viscous = true;
+        let o_grid_blocks: usize = 2;
 
         if viscous {
             {
@@ -290,8 +291,12 @@ impl TurbineTemplate {
                 let block = Block2d::new(
                     row_prefix.to_owned() + block_name,
                     vec![Box::new(ss_edge)],
-                    // vec![Box::new(ss_outer_edge)],
-                    vec![Box::new(ss_edge_in_middle), Box::new(ss_edge_rest)],
+                    vec![
+                        Box::new(ss_edge_in_middle),
+                        Box::new(ss_edge_in_ss),
+                        Box::new(ss_edge_ex_ss),
+                        Box::new(ss_edge_ex_middle),
+                    ],
                     vec![Box::new(Segment::new(
                         num_cells_away_from_blade + 1,
                         SingleHyperbolicTangentClustering::new(0.01),
@@ -318,7 +323,7 @@ impl TurbineTemplate {
                     &mesh,
                     0,
                     EdgeIndex::IMax,
-                    1..2,
+                    1..,
                 )));
             }
 
@@ -339,8 +344,12 @@ impl TurbineTemplate {
                 let block = Block2d::new(
                     row_prefix.to_owned() + block_name,
                     vec![Box::new(ps_edge)],
-                    // vec![Box::new(ps_outer_edge)],
-                    vec![Box::new(ps_edge_in_middle), Box::new(ps_edge_rest)],
+                    vec![
+                        Box::new(ps_edge_in_middle),
+                        Box::new(ps_edge_in_lower),
+                        Box::new(ps_edge_pll1),
+                        Box::new(ps_edge_ex_middle),
+                    ],
                     vec![Box::new(Segment::new(
                         num_cells_away_from_blade + 1,
                         SingleHyperbolicTangentClustering::new(0.01),
@@ -367,7 +376,7 @@ impl TurbineTemplate {
                     &mesh,
                     1,
                     EdgeIndex::IMax,
-                    1..2,
+                    2..,
                 )));
 
                 mesh.edges
@@ -408,9 +417,6 @@ impl TurbineTemplate {
 
             let x_00 = *edge_i_min_0.x.last().unwrap();
             let x_10 = *edge_i_min_1.x.last().unwrap();
-
-            // let x_00 = ss_edge_in_middle.point_coord(ss_edge_in_middle.end);
-            // let x_10 = ps_edge_in_middle.point_coord(ps_edge_in_middle.end);
 
             // TODO remove hard coded position for block
             let x_01 = x_00 - Vec2d(0.02, -0.001);
@@ -476,60 +482,99 @@ impl TurbineTemplate {
                     EdgeIndex::JMin,
                     0..1,
                 )));
-                mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
-                    &mesh,
-                    2,
-                    EdgeIndex::JMax,
-                    0..1,
-                )));
+                // mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                //     &mesh,
+                //     2,
+                //     EdgeIndex::JMax,
+                //     0..1,
+                // )));
             }
         }
 
-        // {
-        //     let block_name = "inlet_ps";
-        //
-        //     // copy j max edge of in_middle block (id: 0)
-        //     let edge_j_min = mesh.blocks[0].edge_data(EdgeIndex::JMax);
-        //
-        //     let x_01 = *edge_j_min.x.last().unwrap();
-        //     let x_10 = ps_edge_in_lower.point_coord(ps_edge_in_lower.end);
-        //
-        //     // on periodic bc
-        //     let x_11 = leading_edge + Vec2d(0.0, -0.5 * pitch);
-        //
-        //     let block = Block2d::new(
-        //         row_prefix.to_owned() + block_name,
-        //         vec![Box::new(ps_edge_in_lower)],
-        //         vec![Box::new(Segment::new(
-        //             num_cells_next_to_middle_blocks_on_blade + 1,
-        //             UniformClustering::new(),
-        //             Line2d::new(x_01, x_11),
-        //         ))],
-        //         vec![Box::new(edge_j_min)],
-        //         vec![Box::new(Segment::new(
-        //             num_cells_away_from_blade + 1,
-        //             UniformClustering::new(),
-        //             Line2d::new(x_10, x_11),
-        //         ))],
-        //     );
-        //
-        //     mesh.add_block(block);
-        //
-        //     mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
-        //         &mesh,
-        //         1 + o_grid_blocks,
-        //         EdgeIndex::IMin,
-        //         0..1,
-        //     )));
-        //     mesh.edges
-        //         .push(BlockBoundary::Connection(BlockConnection::new(
-        //             &mesh,
-        //             (
-        //                 BlockBoundaryRange::new(&mesh, 0 + o_grid_blocks, EdgeIndex::JMax, 0..1),
-        //                 BlockBoundaryRange::new(&mesh, 1 + o_grid_blocks, EdgeIndex::JMin, 0..1),
-        //             ),
-        //         )));
-        // }
+        {
+            let block_name = "inlet_ps";
+
+            // copy j max edge of in_middle block (id: 0 or 2)
+            let edge_j_min = mesh.blocks[0 + o_grid_blocks].edge_data(EdgeIndex::JMax);
+
+            let edge_i_min = mesh.blocks[1].edge_segment(EdgeIndex::IMax, 1);
+
+            let x_01 = *edge_j_min.x.last().unwrap();
+            let x_10 = *edge_i_min.x.last().unwrap();
+
+            // on periodic bc
+            let x_11 = leading_edge + Vec2d(0.0, -0.5 * pitch);
+
+            let block = Block2d::new(
+                row_prefix.to_owned() + block_name,
+                vec![Box::new(edge_i_min)],
+                vec![Box::new(Segment::new(
+                    num_cells_next_to_middle_blocks_on_blade + 1,
+                    UniformClustering::new(),
+                    Line2d::new(x_01, x_11),
+                ))],
+                vec![Box::new(edge_j_min)],
+                vec![Box::new(Segment::new(
+                    num_cells_away_from_blade + 1,
+                    UniformClustering::new(),
+                    Line2d::new(x_10, x_11),
+                ))],
+            );
+
+            mesh.add_block(block);
+
+            mesh.edges
+                .push(BlockBoundary::Connection(BlockConnection::new(
+                    &mesh,
+                    (
+                        BlockBoundaryRange::new(&mesh, 0 + o_grid_blocks, EdgeIndex::JMax, 0..1),
+                        BlockBoundaryRange::new(&mesh, 1 + o_grid_blocks, EdgeIndex::JMin, 0..1),
+                    ),
+                )));
+
+            if !viscous {
+                mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                    &mesh,
+                    1,
+                    EdgeIndex::IMin,
+                    0..1,
+                )));
+            } else {
+                mesh.edges
+                    .push(BlockBoundary::Connection(BlockConnection::new(
+                        &mesh,
+                        (
+                            BlockBoundaryRange::new(&mesh, 1, EdgeIndex::IMax, 1..2),
+                            BlockBoundaryRange::new(&mesh, 3, EdgeIndex::IMin, ..),
+                        ),
+                    )));
+
+                // mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                //     &mesh,
+                //     3,
+                //     EdgeIndex::IMin,
+                //     ..,
+                // )));
+                mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                    &mesh,
+                    3,
+                    EdgeIndex::IMax,
+                    ..,
+                )));
+                // mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                //     &mesh,
+                //     3,
+                //     EdgeIndex::JMin,
+                //     ..,
+                // )));
+                mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                    &mesh,
+                    3,
+                    EdgeIndex::JMax,
+                    ..,
+                )));
+            }
+        }
 
         // {
         //     let block_name = "exit_ps";
