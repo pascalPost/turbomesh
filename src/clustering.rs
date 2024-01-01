@@ -64,23 +64,20 @@ impl ClusteringFunction for SingleHyperbolicTangentClustering {
         // eq. 63 to 67 in Vinokur 1983
         let delta = if y < 2.7829681 {
             let y_bar = y - 1.0;
-            // TODO enhance efficiency by reducing the number of multiplications
-            let x = (6.0 * y_bar).sqrt()
-                * (1.0 - 0.15 * y_bar + 0.057321429 * y_bar * y_bar
-                    - 0.024907295 * y_bar * y_bar * y_bar
-                    + 0.0077424461 * y_bar * y_bar * y_bar * y_bar
-                    - 0.0010794123 * y_bar * y_bar * y_bar * y_bar * y_bar);
-            x
+            (6.0 * y_bar).sqrt()
+                * (1.0
+                    + y_bar
+                        * (-0.15
+                            + y_bar
+                                * (0.057321429
+                                    + y_bar
+                                        * (-0.024907295
+                                            + y_bar * (0.0077424461 - 0.0010794123 * y_bar)))))
         } else {
             let w = 1.0 / y - 0.028527431;
             let v = y.ln();
-            // TODO enhance efficiency by reducing the number of multiplications
-            let x = v + (1.0 + 1.0 / v) * (2.0 * v).ln() - 0.02041793
-                + 0.24902722 * w
-                + 1.9496443 * w * w
-                - 2.6294547 * w * w * w
-                + 8.56795911 * w * w * w * w;
-            x
+            v + (1.0 + 1.0 / v) * (2.0 * v).ln() - 0.02041793
+                + w * (0.24902722 + w * (1.9496443 + w * (-2.6294547 + 8.56795911 * w)))
         };
 
         let mut xi: Vec<Scalar> = (0..points)
@@ -92,8 +89,8 @@ impl ClusteringFunction for SingleHyperbolicTangentClustering {
             *xi = s;
         }
 
-        assert!(xi[0] == 0.0);
-        assert!(xi[points - 1] == 1.0);
+        assert_eq!(xi[0], 0.0);
+        assert_eq!(xi[points - 1], 1.0);
 
         xi
     }
