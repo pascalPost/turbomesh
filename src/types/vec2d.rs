@@ -134,11 +134,11 @@ impl num_traits::Zero for Vec2d {
         Self(0.0, 0.0)
     }
 
-    fn is_zero(&self) -> bool {
-        self.0 == 0.0 && self.1 == 0.0
-    }
-
     fn set_zero(&mut self) {
         *self = Vec2d(0.0, 0.0);
+    }
+
+    fn is_zero(&self) -> bool {
+        self.0 == 0.0 && self.1 == 0.0
     }
 }

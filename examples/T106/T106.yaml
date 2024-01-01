@@ -17,3 +17,4 @@ num_cells_outlet: 20
 smoothing:
   type: Global
   iterations: 25
+  control_function_algorithm: ThomasMiddlecoff

@@ -34,9 +34,10 @@ impl Mesh {
     pub fn smooth(&mut self, method: &SmoothingMethod) {
         match method {
             SmoothingMethod::None => {}
-            SmoothingMethod::Global { iterations } => {
-                smooth_mesh(self, *iterations, ControlFunctionAlgorithm::None).unwrap()
-            }
+            SmoothingMethod::Global {
+                iterations,
+                control_function_algorithm,
+            } => smooth_mesh(self, *iterations, *control_function_algorithm).unwrap(),
             SmoothingMethod::BlockInternal { iterations } => {
                 self.blocks.iter_mut().for_each(|block| {
                     println!("block: {}", block.name);

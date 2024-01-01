@@ -26,8 +26,13 @@ use std::error::Error;
 #[serde(tag = "type")]
 pub enum SmoothingMethod {
     None,
-    Global { iterations: usize },
-    BlockInternal { iterations: usize },
+    Global {
+        iterations: usize,
+        control_function_algorithm: ControlFunctionAlgorithm,
+    },
+    BlockInternal {
+        iterations: usize,
+    },
 }
 
 fn matrix_index(i: usize, j: usize, i_size: usize) -> usize {
@@ -1213,7 +1218,7 @@ fn collect_periodic_ghost_points(
     periodic_ghost_points
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone, Debug, Deserialize)]
 pub enum ControlFunctionAlgorithm {
     None,
     ThomasMiddlecoff,
@@ -1262,6 +1267,8 @@ pub fn smooth_mesh(
 
     if !laplace {
         update_ghost_point_locations(&mut coords, &ghost_point_coord_updates);
+
+        // TODO move this to own structures
 
         // TODO performance can be enhanced if the control functions are only used for blocks with boundary layer control
 
@@ -1702,7 +1709,9 @@ pub fn smooth_mesh(
         }
 
         // compute field via tfi
+        // TODO select this based on a block marker
         tfi_linear_2d_simple(&mut control_fn[0]);
+        tfi_linear_2d_simple(&mut control_fn[1]);
 
         // write control function to file
         {

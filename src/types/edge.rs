@@ -40,6 +40,24 @@ impl Edge {
 
         Edge { name, coords: x, u }
     }
+
+    pub fn new_fixed(name: String, x: Vec<Vec2d>) -> Self {
+        let n_points = x.len();
+        let mut u = vec![Scalar::NAN; n_points];
+        u[0] = 0.0;
+
+        for i in 1..n_points {
+            u[i] = (x[i] - x[i - 1]).abs() + u[i - 1];
+        }
+
+        for i in 1..n_points {
+            u[i] /= u[n_points - 1];
+        }
+
+        assert_eq!(u[n_points - 1], 1.0);
+
+        Self { name, u, coords: x }
+    }
 }
 
 // TODO rename to EdgeSpan
