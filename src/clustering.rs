@@ -23,13 +23,81 @@ impl ClusteringFunction for UniformClustering {
     }
 }
 
-// pub fn single_exponential_clustering(n: Index, a: Scalar) -> Box<[Scalar]> {
-//     let mut x: Vec<Scalar> = (0..n).map(|x| x as Scalar / (n - 1) as Scalar).collect();
-//     for v in x.iter_mut() {
-//         *v = ((a * *v).exp() - 1.0) / (a.exp() - 1.0);
-//     }
-//     x.into_boxed_slice()
-// }
+/// SingleHyperbolicTangentClustering implements the hyperbolic tangent clustering function
+/// matching the specified spacing of the first cell approximately.
+///
+/// Details can be find in:
+///
+/// Vinokur, Marcel. “On One-Dimensional Stretching Functions for Finite-Difference Calculations.”
+/// Journal of Computational Physics 50, no. 2 (May 1983): 215–34.
+/// https://doi.org/10.1016/0021-9991(83)90065-7.
+///
+/// Thompson, Joe F. “A General Three-Dimensional Elliptic Grid Generation System on a Composite Block Structure.”
+/// Computer Methods in Applied Mechanics and Engineering 64, no. 1–3 (October 1987): 377–411.
+/// https://doi.org/10.1016/0045-7825(87)90047-8.
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct SingleHyperbolicTangentClustering {
+    delta_s: Scalar,
+}
+
+impl SingleHyperbolicTangentClustering {
+    pub fn new(delta_s: Scalar) -> Self {
+        Self { delta_s }
+    }
+}
+
+impl ClusteringFunction for SingleHyperbolicTangentClustering {
+    fn get_clustering(&self, points: usize) -> Vec<Scalar> {
+        // TODO enhance implementation: it seems that only the derivative at the wall is specified not
+        // the spacing itself, see https://www.cfd-online.com/Wiki/Structured_mesh_generation
+        // or in https://www.osti.gov/etdeweb/servlets/purl/632740 page 9:
+        // ds/deta is approximately equal to the normalized height of the first cell delta_1 / delta_s
+        // For this, the mor general implementation of the Vinokur clustering might be needed, where
+        // the spacing can be specified at any point
+
+        // compute B
+        let I = points - 1;
+        let B = I as Scalar * self.delta_s;
+
+        let y = 1.0 / B;
+
+        // eq. 63 to 67 in Vinokur 1983
+        let delta = if y < 2.7829681 {
+            let y_bar = y - 1.0;
+            // TODO enhance efficiency by reducing the number of multiplications
+            let x = (6.0 * y_bar).sqrt()
+                * (1.0 - 0.15 * y_bar + 0.057321429 * y_bar * y_bar
+                    - 0.024907295 * y_bar * y_bar * y_bar
+                    + 0.0077424461 * y_bar * y_bar * y_bar * y_bar
+                    - 0.0010794123 * y_bar * y_bar * y_bar * y_bar * y_bar);
+            x
+        } else {
+            let w = 1.0 / y - 0.028527431;
+            let v = y.ln();
+            // TODO enhance efficiency by reducing the number of multiplications
+            let x = v + (1.0 + 1.0 / v) * (2.0 * v).ln() - 0.02041793
+                + 0.24902722 * w
+                + 1.9496443 * w * w
+                - 2.6294547 * w * w * w
+                + 8.56795911 * w * w * w * w;
+            x
+        };
+
+        let mut xi: Vec<Scalar> = (0..points)
+            .map(|x| x as Scalar / (points - 1) as Scalar)
+            .collect();
+
+        for xi in xi[1..].iter_mut() {
+            let s = 1.0 + (0.5 * delta * (*xi - 1.0)).tanh() / (0.5 * delta).tanh();
+            *xi = s;
+        }
+
+        assert!(xi[0] == 0.0);
+        assert!(xi[points - 1] == 1.0);
+
+        xi
+    }
+}
 
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub struct SingleExponentialClustering {
