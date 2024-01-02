@@ -376,7 +376,7 @@ impl TurbineTemplate {
                     &mesh,
                     1,
                     EdgeIndex::IMax,
-                    2..,
+                    3..,
                 )));
 
                 mesh.edges
@@ -567,73 +567,112 @@ impl TurbineTemplate {
                 //     EdgeIndex::JMin,
                 //     ..,
                 // )));
+                // mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                //     &mesh,
+                //     3,
+                //     EdgeIndex::JMax,
+                //     ..,
+                // )));
+            }
+        }
+
+        {
+            let block_name = "exit_ps";
+
+            // copy j max edge of in_lower block (id: 1)
+            let edge_j_min = mesh.blocks[1 + o_grid_blocks].edge_data(EdgeIndex::JMax);
+
+            let edge_i_min_00 = mesh.blocks[1].edge_segment(EdgeIndex::IMax, 2);
+
+            let x_01 = *edge_j_min.x.last().unwrap();
+            let x_blade_end = *edge_i_min_00.x.last().unwrap();
+
+            // TODO remove hard coded coordinate
+            let x_10 = x_blade_end + Vec2d(0.007, -0.025);
+
+            // on periodic bc
+            let x_11 = trailing_edge + Vec2d(0.0, -0.5 * pitch);
+
+            let len_i_max = edge_i_min_00.len() + num_cells_away_from_blade;
+
+            let block = Block2d::new(
+                row_prefix.to_owned() + block_name,
+                vec![
+                    Box::new(edge_i_min_00),
+                    Box::new(Segment::new(
+                        num_cells_away_from_blade + 1,
+                        UniformClustering::new(),
+                        Line2d::new(x_blade_end, x_10),
+                    )),
+                ],
+                vec![Box::new(Segment::new(
+                    len_i_max,
+                    UniformClustering::new(),
+                    Line2d::new(x_01, x_11),
+                ))],
+                vec![Box::new(edge_j_min)],
+                vec![Box::new(Segment::new(
+                    num_cells_away_from_blade + 1,
+                    UniformClustering::new(),
+                    Line2d::new(x_10, x_11),
+                ))],
+            );
+
+            mesh.add_block(block);
+
+            mesh.edges
+                .push(BlockBoundary::Connection(BlockConnection::new(
+                    &mesh,
+                    (
+                        BlockBoundaryRange::new(&mesh, 1 + o_grid_blocks, EdgeIndex::JMax, 0..1),
+                        BlockBoundaryRange::new(&mesh, 2 + o_grid_blocks, EdgeIndex::JMin, 0..1),
+                    ),
+                )));
+
+            if !viscous {
                 mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
                     &mesh,
-                    3,
+                    2,
+                    EdgeIndex::IMin,
+                    0..1,
+                )));
+            } else {
+                mesh.edges
+                    .push(BlockBoundary::Connection(BlockConnection::new(
+                        &mesh,
+                        (
+                            BlockBoundaryRange::new(&mesh, 1, EdgeIndex::IMax, 2..3),
+                            BlockBoundaryRange::new(&mesh, 4, EdgeIndex::IMin, 0..1),
+                        ),
+                    )));
+
+                mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                    &mesh,
+                    4,
+                    EdgeIndex::IMin,
+                    1..,
+                )));
+                mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                    &mesh,
+                    4,
+                    EdgeIndex::IMax,
+                    ..,
+                )));
+                // mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                //     &mesh,
+                //     4,
+                //     EdgeIndex::JMin,
+                //     ..,
+                // )));
+                mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
+                    &mesh,
+                    4,
                     EdgeIndex::JMax,
                     ..,
                 )));
             }
         }
 
-        // {
-        //     let block_name = "exit_ps";
-        //
-        //     // copy j max edge of in_lower block (id: 1)
-        //     let edge_j_min = mesh.blocks[1].edge_data(EdgeIndex::JMax);
-        //
-        //     let x_01 = *edge_j_min.x.last().unwrap();
-        //     let x_blade_end = ps_edge_pll1.point_coord(ps_edge_pll1.end);
-        //
-        //     // TODO remove hard coded coordinate
-        //     let x_10 = x_blade_end + Vec2d(0.007, -0.025);
-        //
-        //     // on periodic bc
-        //     let x_11 = trailing_edge + Vec2d(0.0, -0.5 * pitch);
-        //
-        //     let len_i_max = ps_edge_pll1.len() + num_cells_away_from_blade;
-        //
-        //     let block = Block2d::new(
-        //         row_prefix.to_owned() + block_name,
-        //         vec![
-        //             Box::new(ps_edge_pll1),
-        //             Box::new(Segment::new(
-        //                 num_cells_away_from_blade + 1,
-        //                 UniformClustering::new(),
-        //                 Line2d::new(x_blade_end, x_10),
-        //             )),
-        //         ],
-        //         vec![Box::new(Segment::new(
-        //             len_i_max,
-        //             UniformClustering::new(),
-        //             Line2d::new(x_01, x_11),
-        //         ))],
-        //         vec![Box::new(edge_j_min)],
-        //         vec![Box::new(Segment::new(
-        //             num_cells_away_from_blade + 1,
-        //             UniformClustering::new(),
-        //             Line2d::new(x_10, x_11),
-        //         ))],
-        //     );
-        //
-        //     mesh.add_block(block);
-        //
-        //     mesh.edges.push(BlockBoundary::Wall(BlockBoundaryRange::new(
-        //         &mesh,
-        //         2,
-        //         EdgeIndex::IMin,
-        //         0..1,
-        //     )));
-        //     mesh.edges
-        //         .push(BlockBoundary::Connection(BlockConnection::new(
-        //             &mesh,
-        //             (
-        //                 BlockBoundaryRange::new(&mesh, 1, EdgeIndex::JMax, 0..1),
-        //                 BlockBoundaryRange::new(&mesh, 2, EdgeIndex::JMin, 0..1),
-        //             ),
-        //         )));
-        // }
-        //
         // {
         //     let block_name = "exit_middle";
         //
