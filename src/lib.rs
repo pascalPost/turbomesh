@@ -12,8 +12,8 @@ pub mod interpolation;
 pub mod mesh;
 mod output;
 pub mod smoothing;
+pub mod templates;
 mod tfi;
-pub mod turbine;
 pub mod types;
 
 #[cfg(test)]

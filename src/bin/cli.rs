@@ -8,7 +8,8 @@ use figment::{
 };
 use log::debug;
 use serde::Deserialize;
-use turbomesh::turbine::TurbineTemplate;
+use turbomesh::templates::o4h::O4HTemplate;
+use turbomesh::templates::turbine::TurbineTemplate;
 
 /// struct representing the CLI arguments
 #[derive(Parser)]
@@ -23,6 +24,7 @@ struct Cli {
 #[serde(tag = "template")]
 enum Template {
     Turbine(TurbineTemplate),
+    O4H(O4HTemplate),
 }
 
 fn main() {
@@ -40,10 +42,16 @@ fn main() {
 
     match template {
         Template::Turbine(mut turbine_template) => {
-            // update file pathes to be relative to config file
+            // update file paths to be relative to config file
             turbine_template.append_root_path(config_file_path.parent().unwrap());
 
             turbine_template.run();
+        }
+        Template::O4H(mut o4h_template) => {
+            // update file paths to be relative to config file
+            o4h_template.append_root_path(config_file_path.parent().unwrap());
+
+            o4h_template.run();
         }
     }
 }
