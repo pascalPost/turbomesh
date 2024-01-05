@@ -27,13 +27,13 @@ pub struct O4HTemplate {
     blade_clustering_function: BladeClusteringFunction,
 
     num_cells_ogrid: usize,
-    num_cells_in_half_i: usize,
-    num_cells_in_j: usize,
-    num_cells_out_half_i: usize,
-    num_cells_out_j: usize,
-    num_cells_down_i: usize,
-    num_cells_up_i: usize,
-    num_cells_middle_j: usize,
+    num_cells_in_half_j: usize,
+    num_cells_in_i: usize,
+    num_cells_out_half_j: usize,
+    num_cells_out_i: usize,
+    num_cells_down_j: usize,
+    num_cells_up_j: usize,
+    num_cells_middle_i: usize,
 
     // TODO can be made optional if computed automatically based on the average size
     num_cells_upstream_i: usize,
@@ -64,7 +64,7 @@ impl O4HTemplate {
 
         // number of cells on the ss and ps of the blade
         let num_cells_blade_half =
-            self.num_cells_in_half_i + self.num_cells_middle_j + self.num_cells_out_half_i;
+            self.num_cells_in_half_j + self.num_cells_middle_i + self.num_cells_out_half_j;
 
         let ps_edge = EdgeView::new(Edge::new(
             "Pressure_Side_Edge".to_string(),
@@ -164,11 +164,11 @@ impl O4HTemplate {
 
         // split blade distribution
 
-        let (ps_edge_in, ps_edge_rest) = ps_outer_edge.split_at(self.num_cells_in_half_i);
-        let (ps_edge_middle, ps_edge_out) = ps_edge_rest.split_at(self.num_cells_middle_j);
+        let (ps_edge_in, ps_edge_rest) = ps_outer_edge.split_at(self.num_cells_in_half_j);
+        let (ps_edge_middle, ps_edge_out) = ps_edge_rest.split_at(self.num_cells_middle_i);
 
-        let (ss_edge_in, ss_edge_rest) = ss_outer_edge.split_at(self.num_cells_in_half_i);
-        let (ss_edge_middle, ss_edge_out) = ss_edge_rest.split_at(self.num_cells_middle_j);
+        let (ss_edge_in, ss_edge_rest) = ss_outer_edge.split_at(self.num_cells_in_half_j);
+        let (ss_edge_middle, ss_edge_out) = ss_edge_rest.split_at(self.num_cells_middle_i);
 
         // TODO add approximation of the leading and trailing edge by approximating
         // the chamber line and computing its intersection with the profile.
@@ -313,21 +313,21 @@ impl O4HTemplate {
 
             let block = Block2d::new(
                 row_prefix.to_owned() + block_name,
-                vec![Box::new(edge_i_min_0.reverse()), Box::new(edge_i_min_1)],
                 vec![Box::new(Segment::new(
-                    self.num_cells_in_half_i * 2 + 1,
-                    UniformClustering::new(),
-                    Line2d::new(x_01, x_11),
-                ))],
-                vec![Box::new(Segment::new(
-                    self.num_cells_in_j + 1,
+                    self.num_cells_in_i + 1,
                     UniformClustering::new(),
                     Line2d::new(x_00, x_01),
                 ))],
                 vec![Box::new(Segment::new(
-                    self.num_cells_in_j + 1,
+                    self.num_cells_in_i + 1,
                     UniformClustering::new(),
                     Line2d::new(x_10, x_11),
+                ))],
+                vec![Box::new(edge_i_min_0.reverse()), Box::new(edge_i_min_1)],
+                vec![Box::new(Segment::new(
+                    self.num_cells_in_half_j * 2 + 1,
+                    UniformClustering::new(),
+                    Line2d::new(x_01, x_11),
                 ))],
             );
 
@@ -338,7 +338,7 @@ impl O4HTemplate {
                     &mesh,
                     (
                         BlockBoundaryRange::new(&mesh, 0, EdgeIndex::IMax, 0..=0),
-                        BlockBoundaryRange::new(&mesh, 2, EdgeIndex::IMin, 0..=0).reverse(),
+                        BlockBoundaryRange::new(&mesh, 2, EdgeIndex::JMin, 0..=0).reverse(),
                     ),
                 )));
             mesh.edges
@@ -346,7 +346,7 @@ impl O4HTemplate {
                     &mesh,
                     (
                         BlockBoundaryRange::new(&mesh, 1, EdgeIndex::IMax, 0..=0),
-                        BlockBoundaryRange::new(&mesh, 2, EdgeIndex::IMin, 1..=1),
+                        BlockBoundaryRange::new(&mesh, 2, EdgeIndex::JMin, 1..=1),
                     ),
                 )));
         }
@@ -368,21 +368,21 @@ impl O4HTemplate {
 
             let block = Block2d::new(
                 row_prefix.to_owned() + block_name,
-                vec![Box::new(edge_i_min_0), Box::new(edge_i_min_1.reverse())],
                 vec![Box::new(Segment::new(
-                    self.num_cells_out_half_i * 2 + 1,
-                    UniformClustering::new(),
-                    Line2d::new(x_01, x_11),
-                ))],
-                vec![Box::new(Segment::new(
-                    self.num_cells_out_j + 1,
+                    self.num_cells_out_i + 1,
                     UniformClustering::new(),
                     Line2d::new(x_00, x_01),
                 ))],
                 vec![Box::new(Segment::new(
-                    self.num_cells_out_j + 1,
+                    self.num_cells_out_i + 1,
                     UniformClustering::new(),
                     Line2d::new(x_10, x_11),
+                ))],
+                vec![Box::new(edge_i_min_0), Box::new(edge_i_min_1.reverse())],
+                vec![Box::new(Segment::new(
+                    self.num_cells_out_half_j * 2 + 1,
+                    UniformClustering::new(),
+                    Line2d::new(x_01, x_11),
                 ))],
             );
 
@@ -393,7 +393,7 @@ impl O4HTemplate {
                     &mesh,
                     (
                         BlockBoundaryRange::new(&mesh, 0, EdgeIndex::IMax, 2..=2),
-                        BlockBoundaryRange::new(&mesh, 3, EdgeIndex::IMin, 0..=0),
+                        BlockBoundaryRange::new(&mesh, 3, EdgeIndex::JMin, 0..=0),
                     ),
                 )));
             mesh.edges
@@ -401,7 +401,7 @@ impl O4HTemplate {
                     &mesh,
                     (
                         BlockBoundaryRange::new(&mesh, 1, EdgeIndex::IMax, 2..=2),
-                        BlockBoundaryRange::new(&mesh, 3, EdgeIndex::IMin, 1..=1).reverse(),
+                        BlockBoundaryRange::new(&mesh, 3, EdgeIndex::JMin, 1..=1).reverse(),
                     ),
                 )));
         }
@@ -409,9 +409,9 @@ impl O4HTemplate {
         {
             let block_name = "down";
 
-            let edge_i_min_0 = mesh.blocks[2].edge_segment(EdgeIndex::JMax, 0);
+            let edge_i_min_0 = mesh.blocks[2].edge_segment(EdgeIndex::IMax, 0);
             let edge_i_min_1 = mesh.blocks[1].edge_segment(EdgeIndex::IMax, 1);
-            let edge_i_min_2 = mesh.blocks[3].edge_segment(EdgeIndex::JMax, 0);
+            let edge_i_min_2 = mesh.blocks[3].edge_segment(EdgeIndex::IMax, 0);
 
             let len_edge_i = edge_i_min_0.len() + edge_i_min_1.len() + edge_i_min_2.len() - 3;
 
@@ -435,12 +435,12 @@ impl O4HTemplate {
                     Line2d::new(x_01, x_11),
                 ))],
                 vec![Box::new(Segment::new(
-                    self.num_cells_down_i + 1,
+                    self.num_cells_down_j + 1,
                     UniformClustering::new(),
                     Line2d::new(x_00, x_01),
                 ))],
                 vec![Box::new(Segment::new(
-                    self.num_cells_down_i + 1,
+                    self.num_cells_down_j + 1,
                     UniformClustering::new(),
                     Line2d::new(x_10, x_11),
                 ))],
@@ -453,7 +453,7 @@ impl O4HTemplate {
                     &mesh,
                     (
                         BlockBoundaryRange::new(&mesh, 4, EdgeIndex::IMin, 0..=0),
-                        BlockBoundaryRange::new(&mesh, 2, EdgeIndex::JMax, ..).reverse(),
+                        BlockBoundaryRange::new(&mesh, 2, EdgeIndex::IMax, ..).reverse(),
                     ),
                 )));
             mesh.edges
@@ -469,7 +469,7 @@ impl O4HTemplate {
                     &mesh,
                     (
                         BlockBoundaryRange::new(&mesh, 4, EdgeIndex::IMin, 2..=2),
-                        BlockBoundaryRange::new(&mesh, 3, EdgeIndex::JMax, ..),
+                        BlockBoundaryRange::new(&mesh, 3, EdgeIndex::IMax, ..),
                     ),
                 )));
         }
@@ -477,9 +477,9 @@ impl O4HTemplate {
         {
             let block_name = "up";
 
-            let edge_i_min_0 = mesh.blocks[2].edge_segment(EdgeIndex::JMin, 0);
+            let edge_i_min_0 = mesh.blocks[2].edge_segment(EdgeIndex::IMin, 0);
             let edge_i_min_1 = mesh.blocks[0].edge_segment(EdgeIndex::IMax, 1);
-            let edge_i_min_2 = mesh.blocks[3].edge_segment(EdgeIndex::JMin, 0);
+            let edge_i_min_2 = mesh.blocks[3].edge_segment(EdgeIndex::IMin, 0);
 
             let len_edge_i = edge_i_min_0.len() + edge_i_min_1.len() + edge_i_min_2.len() - 3;
 
@@ -503,12 +503,12 @@ impl O4HTemplate {
                     Line2d::new(x_01, x_11),
                 ))],
                 vec![Box::new(Segment::new(
-                    self.num_cells_down_i + 1,
+                    self.num_cells_down_j + 1,
                     UniformClustering::new(),
                     Line2d::new(x_00, x_01),
                 ))],
                 vec![Box::new(Segment::new(
-                    self.num_cells_down_i + 1,
+                    self.num_cells_down_j + 1,
                     UniformClustering::new(),
                     Line2d::new(x_10, x_11),
                 ))],
@@ -521,7 +521,7 @@ impl O4HTemplate {
                     &mesh,
                     (
                         BlockBoundaryRange::new(&mesh, 5, EdgeIndex::IMin, 0..=0),
-                        BlockBoundaryRange::new(&mesh, 2, EdgeIndex::JMin, ..).reverse(),
+                        BlockBoundaryRange::new(&mesh, 2, EdgeIndex::IMin, ..).reverse(),
                     ),
                 )));
             mesh.edges
@@ -537,7 +537,7 @@ impl O4HTemplate {
                     &mesh,
                     (
                         BlockBoundaryRange::new(&mesh, 5, EdgeIndex::IMin, 2..=2),
-                        BlockBoundaryRange::new(&mesh, 3, EdgeIndex::JMin, ..),
+                        BlockBoundaryRange::new(&mesh, 3, EdgeIndex::IMin, ..),
                     ),
                 )));
             mesh.edges.push(BlockBoundary::PeriodicConnection(
@@ -556,7 +556,7 @@ impl O4HTemplate {
             let block_name = "upstream";
 
             let edge_j_max_seg_0 = mesh.blocks[4].edge_data(EdgeIndex::JMin);
-            let edge_j_max_seg_1 = mesh.blocks[2].edge_data(EdgeIndex::IMax);
+            let edge_j_max_seg_1 = mesh.blocks[2].edge_data(EdgeIndex::JMax);
             let edge_j_max_seg_2 = mesh.blocks[5].edge_data(EdgeIndex::JMin);
 
             let num_points_j =
@@ -622,7 +622,7 @@ impl O4HTemplate {
                 .push(BlockBoundary::Connection(BlockConnection::new(
                     &mesh,
                     (
-                        BlockBoundaryRange::new(&mesh, 2, EdgeIndex::IMax, ..).reverse(),
+                        BlockBoundaryRange::new(&mesh, 2, EdgeIndex::JMax, ..).reverse(),
                         BlockBoundaryRange::new(&mesh, 6, EdgeIndex::JMax, 1..=1),
                     ),
                 )));
@@ -640,7 +640,7 @@ impl O4HTemplate {
             let block_name = "downstream";
 
             let edge_j_min_seg_0 = mesh.blocks[4].edge_data(EdgeIndex::JMax);
-            let edge_j_min_seg_1 = mesh.blocks[3].edge_data(EdgeIndex::IMax);
+            let edge_j_min_seg_1 = mesh.blocks[3].edge_data(EdgeIndex::JMax);
             let edge_j_min_seg_2 = mesh.blocks[5].edge_data(EdgeIndex::JMax);
 
             let num_points_j =
@@ -706,7 +706,7 @@ impl O4HTemplate {
                 .push(BlockBoundary::Connection(BlockConnection::new(
                     &mesh,
                     (
-                        BlockBoundaryRange::new(&mesh, 3, EdgeIndex::IMax, ..).reverse(),
+                        BlockBoundaryRange::new(&mesh, 3, EdgeIndex::JMax, ..).reverse(),
                         BlockBoundaryRange::new(&mesh, 7, EdgeIndex::JMin, 1..=1),
                     ),
                 )));
