@@ -18,7 +18,7 @@ fn get_error_message() [*:0]const u8 {
     return msg;
 }
 
-fn write(filename: []const u8, block_names: []const []const u8, block_points: []const Mat2d, buffer: []Float) !void {
+pub fn write(filename: []const u8, block_names: []const []const u8, block_points: []const Mat2d, buffer: []Float) !void {
     const n_blocks = block_names.len;
     if (n_blocks != block_points.len) {
         cgns_log.err("inconsistnet input lengths (should both equal the number of blocks) (names: {}, coordinates: {})", .{ block_names.len, block_points.len });
@@ -28,7 +28,7 @@ fn write(filename: []const u8, block_names: []const []const u8, block_points: []
     var file_handle: c_int = undefined;
     var ierr: c_int = undefined;
 
-    ierr = cgns.cg_open(filename, cgns.CG_MODE_WRITE, &file_handle);
+    ierr = cgns.cg_open("test.cgns", cgns.CG_MODE_WRITE, &file_handle);
     if (ierr != 0) {
         cgns_log.err("error opening file (filename: {s}, file_handle: {}) : {s}", .{ filename, file_handle, get_error_message() });
         return error.cgnsOpen;
@@ -47,7 +47,7 @@ fn write(filename: []const u8, block_names: []const []const u8, block_points: []
         const num_points = block.size;
         const num_cells = Index2d{ num_points[0] - 1, num_points[1] - 1 };
 
-        const size = [6]cgns.cgsize_t{ num_points[0], num_points[1], num_cells[0], num_cells[1], 0, 0 };
+        const size = [6]cgns.cgsize_t{ @intCast(num_points[0]), @intCast(num_points[1]), @intCast(num_cells[0]), @intCast(num_cells[1]), 0, 0 };
 
         var zone_handle: c_int = undefined;
         ierr = cgns.cg_zone_write(file_handle, base_handle, name.ptr, &size, cgns.Structured, &zone_handle);

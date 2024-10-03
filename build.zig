@@ -23,6 +23,9 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.linkSystemLibrary("cgns");
+    exe.linkLibC();
+
+    // needed on macos
     exe.addLibraryPath(.{ .cwd_relative = "/usr/local/lib/" });
     exe.addSystemIncludePath(.{ .cwd_relative = "/usr/local/include/" });
 
@@ -61,9 +64,13 @@ pub fn build(b: *std.Build) void {
     });
 
     exe_unit_tests.linkSystemLibrary("cgns");
+    exe_unit_tests.linkLibC();
+
+    // needed on macos
     exe_unit_tests.addLibraryPath(.{ .cwd_relative = "/usr/local/lib/" });
     exe_unit_tests.addSystemIncludePath(.{ .cwd_relative = "/usr/local/include/" });
 
+    // _ = b.addInstallArtifact(exe_unit_tests, .{});
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
     // Similar to creating the run step earlier, this exposes a `test` step to
