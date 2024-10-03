@@ -29,7 +29,7 @@ pub const Mat2d = struct {
     }
 
     pub fn index(self: Mat2d, i: Index2d) Index {
-        return i[0] + self.size[0] * i[1];
+        return i[1] + self.size[1] * i[0];
     }
 };
 

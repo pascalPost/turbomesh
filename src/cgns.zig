@@ -28,7 +28,7 @@ pub fn write(filename: []const u8, block_names: []const []const u8, block_points
     var file_handle: c_int = undefined;
     var ierr: c_int = undefined;
 
-    ierr = cgns.cg_open("test.cgns", cgns.CG_MODE_WRITE, &file_handle);
+    ierr = cgns.cg_open(filename.ptr, cgns.CG_MODE_WRITE, &file_handle);
     if (ierr != 0) {
         cgns_log.err("error opening file (filename: {s}, file_handle: {}) : {s}", .{ filename, file_handle, get_error_message() });
         return error.cgnsOpen;
@@ -68,9 +68,9 @@ pub fn write(filename: []const u8, block_names: []const []const u8, block_points
         // this might be a trade-off: mem vs speed
         {
             var idx: usize = 0;
-            var i: Index = 0;
             var j: Index = 0;
             while (j < block.size[1]) : (j += 1) {
+                var i: Index = 0;
                 while (i < block.size[0]) : (i += 1) {
                     buffer[idx] = block.data[block.index(.{ i, j })][0];
                     idx += 1;
@@ -86,9 +86,9 @@ pub fn write(filename: []const u8, block_names: []const []const u8, block_points
 
         {
             var idx: usize = 0;
-            var i: Index = 0;
             var j: Index = 0;
             while (j < block.size[1]) : (j += 1) {
+                var i: Index = 0;
                 while (i < block.size[0]) : (i += 1) {
                     buffer[idx] = block.data[block.index(.{ i, j })][1];
                     idx += 1;
@@ -135,8 +135,8 @@ test "write a mesh to a cgns file" {
 
         var idx: usize = 0;
         var i: usize = 0;
-        var j: usize = 0;
         while (i < size[0]) : (i += 1) {
+            var j: usize = 0;
             while (j < size[1]) : (j += 1) {
                 block.data[idx] = Vec2d{ @floatFromInt(i), @floatFromInt(j) };
                 idx += 1;

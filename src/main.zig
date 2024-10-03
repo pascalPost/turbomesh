@@ -34,8 +34,8 @@ pub fn main() !void {
 
         var idx: usize = 0;
         var i: usize = 0;
-        var j: usize = 0;
         while (i < size[0]) : (i += 1) {
+            var j: usize = 0;
             while (j < size[1]) : (j += 1) {
                 block.data[idx] = Vec2d{ @floatFromInt(i), @floatFromInt(j) };
                 idx += 1;
