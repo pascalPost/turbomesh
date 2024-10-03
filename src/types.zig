@@ -7,6 +7,10 @@ const nan = std.math.nan(Float);
 pub const Index2d = struct { Index, Index };
 pub const Vec2d = struct { Float, Float };
 
+pub fn eql(a: Vec2d, b: Vec2d) bool {
+    return a[0] == b[0] and a[1] == b[1];
+}
+
 /// A 2D matrix type with storage in row-major order
 pub const Mat2d = struct {
     size: Index2d,
@@ -20,7 +24,7 @@ pub const Mat2d = struct {
         return Mat2d{ .size = size, .data = data };
     }
 
-    fn deinit(self: Mat2d, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: Mat2d, allocator: std.mem.Allocator) void {
         allocator.free(self.data);
     }
 
