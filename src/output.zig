@@ -3,6 +3,9 @@ const types = @import("types.zig");
 
 const Mat2d = types.Mat2d;
 const Index2d = types.Index2d;
+const Vec2d = types.Vec2d;
+const Float = types.Float;
+const Index = types.Index;
 
 const cgns_log = std.log.scoped(.cgns);
 
@@ -15,7 +18,7 @@ fn get_error_message() [*:0]const u8 {
     return msg;
 }
 
-fn write(filename: [:0]const u8, block_names: []const []const u8, block_points: []const Mat2d) !void {
+fn write(filename: []const u8, block_names: []const []const u8, block_points: []const Mat2d, buffer: []Float) !void {
     const n_blocks = block_names.len;
     if (n_blocks != block_points.len) {
         cgns_log.err("inconsistnet input lengths (should both equal the number of blocks) (names: {}, coordinates: {})", .{ block_names.len, block_points.len });
@@ -34,34 +37,70 @@ fn write(filename: [:0]const u8, block_names: []const []const u8, block_points: 
     var base_handle: c_int = undefined;
     ierr = cgns.cg_base_write(file_handle, "Base", 2, 2, &base_handle);
     if (ierr != 0) {
-        cgns_log.err("error writing base: {s}", .{get_error_message()});
+        cgns_log.err("error writing base (file: {}, base: {}): {s}", .{ file_handle, base_handle, get_error_message() });
         return error.cgnsBaseWrite;
     }
 
-    var i_block = 0;
-    while (i_block < n_blocks) : (i_block += 1) {
-        const block = block_points[i_block];
+    for (block_points, 0..) |block, i_block| {
+        const name = block_names[i_block];
 
         const num_points = block.size;
-        const num_cells = Index2d{num_points[0]-1, num_points[1]-1};
+        const num_cells = Index2d{ num_points[0] - 1, num_points[1] - 1 };
 
-        const size = [6]cgns.cgsize_t{num_points[0], num_points[1],num_cells[0], num_cells[1],0,0};
+        const size = [6]cgns.cgsize_t{ num_points[0], num_points[1], num_cells[0], num_cells[1], 0, 0 };
 
         var zone_handle: c_int = undefined;
-        ierr = cg_zone_write(file_handle, base_handle, "block_0", cgsize_t *size,
-        cgns.Structured, &zone_handle);
-        if(ierr != 0){
-        cgns_log.err("error writing zone: {s}", .{get_error_message()});
-        return error.cgnsBaseWrite;
+        ierr = cgns.cg_zone_write(file_handle, base_handle, name.ptr, &size, cgns.Structured, &zone_handle);
+        if (ierr != 0) {
+            cgns_log.err("error writing zone (file: {}, base: {}, zone: {}): {s}", .{ file_handle, base_handle, zone_handle, get_error_message() });
+            return error.cgnsZoneWrite;
         }
-        //
-        // var coord_array_handle : c_int = undefined;
-        // ierr = cg_coord_write(file_handle, base_handle, zone_handle, cgns.RealSingle,
-        // "CoordinateX", void *coord_array, &coord_array_handle);
-        // if(ierr != 0){
-        // cgns_log.err("error writing coord: {s}", .{get_error_message()});
-        // return error.cgnsBaseWrite;
-        // }
+
+        var coord_handle: c_int = undefined;
+
+        // transform coordinates from array of structs to struct of arrays
+        if (buffer.len < num_points[0] * num_points[1]) {
+            cgns_log.err("buffer error (file: {}, base: {}, zone: {}) : buffer size ({}) too small for block ({} x {} = {})", .{ file_handle, base_handle, zone_handle, buffer.len, num_points[0], num_points[1], num_points[0] * num_points[1] });
+            return error.cgnsBufferInsufficient;
+        }
+
+        // for now we use a single buffer; perhaps it is faster to have a buffer twice the size and write x and y coordinates in one go
+        // this might be a trade-off: mem vs speed
+        {
+            var idx: usize = 0;
+            var i: Index = 0;
+            var j: Index = 0;
+            while (j < block.size[1]) : (j += 1) {
+                while (i < block.size[0]) : (i += 1) {
+                    buffer[idx] = block.data[block.index(.{ i, j })][0];
+                    idx += 1;
+                }
+            }
+        }
+
+        ierr = cgns.cg_coord_write(file_handle, base_handle, zone_handle, cgns.RealSingle, "CoordinateX", buffer.ptr, &coord_handle);
+        if (ierr != 0) {
+            cgns_log.err("error writing coord (file: {}, base: {}, zone: {}, coord: {}): {s}", .{ file_handle, base_handle, zone_handle, coord_handle, get_error_message() });
+            return error.cgnsCoordWrite;
+        }
+
+        {
+            var idx: usize = 0;
+            var i: Index = 0;
+            var j: Index = 0;
+            while (j < block.size[1]) : (j += 1) {
+                while (i < block.size[0]) : (i += 1) {
+                    buffer[idx] = block.data[block.index(.{ i, j })][1];
+                    idx += 1;
+                }
+            }
+        }
+
+        ierr = cgns.cg_coord_write(file_handle, base_handle, zone_handle, cgns.RealSingle, "CoordinateY", buffer.ptr, &coord_handle);
+        if (ierr != 0) {
+            cgns_log.err("error writing coord (file: {}, base: {}, zone: {}, coord: {}): {s}", .{ file_handle, base_handle, zone_handle, coord_handle, get_error_message() });
+            return error.cgnsCoordWrite;
+        }
     }
 
     defer {
@@ -73,25 +112,38 @@ fn write(filename: [:0]const u8, block_names: []const []const u8, block_points: 
 }
 
 test "write a mesh to a cgns file" {
-const allocator = std.testing.allocator;
+    const allocator = std.testing.allocator;
 
-    // buffer
+    var buffer: [21 * 17]Float = undefined;
 
-    var block_points = Mat2d.init(allocator, .{21,17});
+    const block_names = [_][]const u8{
+        "block_0",
+    };
 
-const size = block_points.size;
+    var block_points = [_]Mat2d{
+        try Mat2d.init(allocator, .{ 21, 17 }),
+    };
 
-    // TODO try with row-major index
-    var idx = 0;
-    var i = 0;
-    var j = 0;
-    while (i < block_points.size[0]) : (i += 1) {
-        while (j < block_points.size[1]) : (j += 1) {
-            block_coordinates[idx] = Vec2d{ i, j };
-            idx += 1;
+    defer {
+        for (block_points) |block| {
+            block.deinit(allocator);
+        }
+    }
+
+    for (block_points) |block| {
+        const size = block.size;
+
+        var idx: usize = 0;
+        var i: usize = 0;
+        var j: usize = 0;
+        while (i < size[0]) : (i += 1) {
+            while (j < size[1]) : (j += 1) {
+                block.data[idx] = Vec2d{ @floatFromInt(i), @floatFromInt(j) };
+                idx += 1;
+            }
         }
     }
 
     const filename = "example.cgns";
-    try write(filename);
+    try write(filename, &block_names, &block_points, &buffer);
 }

@@ -28,7 +28,7 @@ pub const Mat2d = struct {
         allocator.free(self.data);
     }
 
-    fn index(self: Mat2d, i: .{ Index, Index }) Index {
+    pub fn index(self: Mat2d, i: Index2d) Index {
         return i[0] + self.size[0] * i[1];
     }
 };
