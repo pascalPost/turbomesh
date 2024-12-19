@@ -5,10 +5,11 @@ pub const Float = f32;
 const nan = std.math.nan(Float);
 
 pub const Index2d = struct { Index, Index };
-pub const Vec2d = struct { Float, Float };
+pub const Vec2d = struct { data: [2]Float };
 
 pub fn eql(a: Vec2d, b: Vec2d) bool {
-    return a[0] == b[0] and a[1] == b[1];
+    // return a.data[0] == b.data[0] and a.data[1] == b.data[1];
+    return std.mem.eql(Float, a.data[0..], b.data[0..]);
 }
 
 /// A 2D matrix type with storage in row-major order
@@ -19,8 +20,8 @@ pub const Mat2d = struct {
     // TODO implement an iterator (?)
 
     pub fn init(allocator: std.mem.Allocator, size: Index2d) !Mat2d {
-        const data = try allocator.alloc(Vec2d, size[0] * size[1]);
-        @memset(data, .{ nan, nan });
+        var data = try allocator.alloc(Vec2d, size[0] * size[1]);
+        for (data[0..]) |*d| d.data = [2]Float{ nan, nan };
         return Mat2d{ .size = size, .data = data };
     }
 
@@ -42,6 +43,6 @@ test "Mat2d" {
     try std.testing.expect(mat.data.len == size[0] * size[1]);
 
     for (mat.data) |vec| {
-        try std.testing.expect(std.math.isNan(vec[0]) and std.math.isNan(vec[1]));
+        try std.testing.expect(std.math.isNan(vec.data[0]) and std.math.isNan(vec.data[1]));
     }
 }
