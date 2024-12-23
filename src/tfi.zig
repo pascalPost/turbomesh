@@ -29,7 +29,7 @@ const Mat2d = types.Mat2d;
 /// physical space x_* and computes the coordinates in the internal of the
 /// given 2D field
 /// as described in chapter 3.6.5 Boundary-Blended Control Functions
-fn tfi_linear_boundary_blended_control_function(data: *Mat2d, x_i_min: []const Vec2d, x_i_max: []const Vec2d, x_j_min: []const Vec2d, x_j_max: []const Vec2d, s1: []const Float, s2: []const Float, t1: []const Float, t2: []const Float) void {
+fn tfiLinearBoundaryBlendedControlFunction(data: *Mat2d, x_i_min: []const Vec2d, x_i_max: []const Vec2d, x_j_min: []const Vec2d, x_j_max: []const Vec2d, s1: []const Float, s2: []const Float, t1: []const Float, t2: []const Float) void {
     // TODO add better error handling!
 
     const n = x_i_min.len;
@@ -95,7 +95,7 @@ fn tfi_linear_boundary_blended_control_function(data: *Mat2d, x_i_min: []const V
     }
 }
 
-fn arclength_control_function(control_fn: []Float, edge: []const Vec2d) void {
+fn arclengthControlFunction(control_fn: []Float, edge: []const Vec2d) void {
     std.debug.assert(control_fn.len == edge.len);
 
     control_fn[0] = 0.0;
@@ -127,10 +127,10 @@ test "tfi" {
     var cf_j_min: [edge_j_min.len]Float = undefined;
     var cf_j_max: [edge_j_max.len]Float = undefined;
 
-    arclength_control_function(&cf_i_min, &edge_i_min);
-    arclength_control_function(&cf_i_max, &edge_i_max);
-    arclength_control_function(&cf_j_min, &edge_j_min);
-    arclength_control_function(&cf_j_max, &edge_j_max);
+    arclengthControlFunction(&cf_i_min, &edge_i_min);
+    arclengthControlFunction(&cf_i_max, &edge_i_max);
+    arclengthControlFunction(&cf_j_min, &edge_j_min);
+    arclengthControlFunction(&cf_j_max, &edge_j_max);
 
     try std.testing.expect(std.mem.eql(Float, &cf_i_min, &[_]Float{ 0.0, 0.5, 1.0 }));
     try std.testing.expect(std.mem.eql(Float, &cf_i_max, &[_]Float{ 0.0, 0.5, 1.0 }));
@@ -142,7 +142,7 @@ test "tfi" {
     var data = try Mat2d.init(allocator, .{ edge_i_min.len, edge_j_min.len });
     defer data.deinit(allocator);
 
-    tfi_linear_boundary_blended_control_function(&data, &edge_i_min, &edge_i_max, &edge_j_min, &edge_j_max, &cf_i_min, &cf_i_max, &cf_j_min, &cf_j_max);
+    tfiLinearBoundaryBlendedControlFunction(&data, &edge_i_min, &edge_i_max, &edge_j_min, &edge_j_max, &cf_i_min, &cf_i_max, &cf_j_min, &cf_j_max);
 
     // check result
 }

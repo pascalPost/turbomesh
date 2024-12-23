@@ -9,11 +9,6 @@ const Vec2d = types.Vec2d;
 const Mat2d = types.Mat2d;
 
 fn uniform(points: Index) void {
-    // let mut u = vec![0.0; n];
-    // u.iter_mut()
-    // .enumerate()
-    // .for_each(|(i, u)| *u = i as Scalar / (n - 1) as Scalar);
-
     var i: Index = 0;
     while (i < points) : (i += 1) {
         const u: Float = i / (points - 1);

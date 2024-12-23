@@ -13,7 +13,7 @@ const cgns = @cImport({
     @cInclude("cgnslib.h");
 });
 
-fn get_error_message() [*:0]const u8 {
+fn getErrorMessage() [*:0]const u8 {
     const msg = cgns.cg_get_error();
     return msg;
 }
@@ -30,14 +30,14 @@ pub fn write(filename: []const u8, block_names: []const []const u8, block_points
 
     ierr = cgns.cg_open(filename.ptr, cgns.CG_MODE_WRITE, &file_handle);
     if (ierr != 0) {
-        cgns_log.err("error opening file (filename: {s}, file_handle: {}) : {s}", .{ filename, file_handle, get_error_message() });
+        cgns_log.err("error opening file (filename: {s}, file_handle: {}) : {s}", .{ filename, file_handle, getErrorMessage() });
         return error.cgnsOpen;
     }
 
     var base_handle: c_int = undefined;
     ierr = cgns.cg_base_write(file_handle, "Base", 2, 2, &base_handle);
     if (ierr != 0) {
-        cgns_log.err("error writing base (file: {}, base: {}): {s}", .{ file_handle, base_handle, get_error_message() });
+        cgns_log.err("error writing base (file: {}, base: {}): {s}", .{ file_handle, base_handle, getErrorMessage() });
         return error.cgnsBaseWrite;
     }
 
@@ -52,7 +52,7 @@ pub fn write(filename: []const u8, block_names: []const []const u8, block_points
         var zone_handle: c_int = undefined;
         ierr = cgns.cg_zone_write(file_handle, base_handle, name.ptr, &size, cgns.Structured, &zone_handle);
         if (ierr != 0) {
-            cgns_log.err("error writing zone (file: {}, base: {}, zone: {}): {s}", .{ file_handle, base_handle, zone_handle, get_error_message() });
+            cgns_log.err("error writing zone (file: {}, base: {}, zone: {}): {s}", .{ file_handle, base_handle, zone_handle, getErrorMessage() });
             return error.cgnsZoneWrite;
         }
 
@@ -72,7 +72,7 @@ pub fn write(filename: []const u8, block_names: []const []const u8, block_points
             while (j < block.size[1]) : (j += 1) {
                 var i: Index = 0;
                 while (i < block.size[0]) : (i += 1) {
-                    buffer[idx] = block.data[block.index(.{ i, j })][0];
+                    buffer[idx] = block.data[block.index(.{ i, j })].data[0];
                     idx += 1;
                 }
             }
@@ -80,7 +80,7 @@ pub fn write(filename: []const u8, block_names: []const []const u8, block_points
 
         ierr = cgns.cg_coord_write(file_handle, base_handle, zone_handle, cgns.RealSingle, "CoordinateX", buffer.ptr, &coord_handle);
         if (ierr != 0) {
-            cgns_log.err("error writing coord (file: {}, base: {}, zone: {}, coord: {}): {s}", .{ file_handle, base_handle, zone_handle, coord_handle, get_error_message() });
+            cgns_log.err("error writing coord (file: {}, base: {}, zone: {}, coord: {}): {s}", .{ file_handle, base_handle, zone_handle, coord_handle, getErrorMessage() });
             return error.cgnsCoordWrite;
         }
 
@@ -90,7 +90,7 @@ pub fn write(filename: []const u8, block_names: []const []const u8, block_points
             while (j < block.size[1]) : (j += 1) {
                 var i: Index = 0;
                 while (i < block.size[0]) : (i += 1) {
-                    buffer[idx] = block.data[block.index(.{ i, j })][1];
+                    buffer[idx] = block.data[block.index(.{ i, j })].data[1];
                     idx += 1;
                 }
             }
@@ -98,7 +98,7 @@ pub fn write(filename: []const u8, block_names: []const []const u8, block_points
 
         ierr = cgns.cg_coord_write(file_handle, base_handle, zone_handle, cgns.RealSingle, "CoordinateY", buffer.ptr, &coord_handle);
         if (ierr != 0) {
-            cgns_log.err("error writing coord (file: {}, base: {}, zone: {}, coord: {}): {s}", .{ file_handle, base_handle, zone_handle, coord_handle, get_error_message() });
+            cgns_log.err("error writing coord (file: {}, base: {}, zone: {}, coord: {}): {s}", .{ file_handle, base_handle, zone_handle, coord_handle, getErrorMessage() });
             return error.cgnsCoordWrite;
         }
     }
@@ -106,7 +106,7 @@ pub fn write(filename: []const u8, block_names: []const []const u8, block_points
     defer {
         ierr = cgns.cg_close(file_handle);
         if (ierr != 0) {
-            cgns_log.err("error closing file: {s}", .{get_error_message()});
+            cgns_log.err("error closing file: {s}", .{getErrorMessage()});
         }
     }
 }
@@ -138,7 +138,7 @@ test "write a mesh to a cgns file" {
         while (i < size[0]) : (i += 1) {
             var j: usize = 0;
             while (j < size[1]) : (j += 1) {
-                block.data[idx] = Vec2d{ @floatFromInt(i), @floatFromInt(j) };
+                block.data[idx] = Vec2d{ .data = .{ @floatFromInt(i), @floatFromInt(j) } };
                 idx += 1;
             }
         }

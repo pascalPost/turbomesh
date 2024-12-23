@@ -8,7 +8,6 @@ pub const Index2d = struct { Index, Index };
 pub const Vec2d = struct { data: [2]Float };
 
 pub fn eql(a: Vec2d, b: Vec2d) bool {
-    // return a.data[0] == b.data[0] and a.data[1] == b.data[1];
     return std.mem.eql(Float, a.data[0..], b.data[0..]);
 }
 
