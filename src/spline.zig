@@ -100,28 +100,22 @@ pub fn FittingSpline(comptime dim: usize) type {
             self.allocator.free(self.c);
         }
 
-        fn interpolate(self: *const Self, u: []const f64, values: [][dim]f64) void {
+        fn interpolate(self: *const Self, u: []const f64, values: [][dim]f64) !void {
             if (u.len != values.len) {
                 std.debug.print("Mismatch of slice length ({} != {})", .{ u.len, values.len });
                 return error.Mismatch;
             }
 
             const idim: c_int = dim;
-            const n: c_int = self.t.len;
-            const nc: c_int = self.c.len;
+            const n: c_int = @intCast(self.t.len);
+            const nc: c_int = @intCast(self.c.len);
             const k_int: c_int = self.k;
-            const m: c_int = u.len;
-            const mx: c_int = values.len * dim;
+            const m: c_int = @intCast(u.len);
+            const mx: c_int = @as(c_int, @intCast(values.len)) * idim;
             var ier: c_int = undefined;
-            curev(&idim, self.t[0..], &n, self.c[0..], &nc, &k_int, u[0..], &m, values[0..], &mx, &ier);
+            curev(&idim, self.t.ptr, &n, self.c.ptr, &nc, &k_int, u.ptr, &m, &values[0], &mx, &ier);
 
             std.debug.assert(ier == 0);
-        }
-
-        fn integrate(self: *const Self, allocator: std.mem.Allocator, start: f64, end: f64) f64 {
-            var wrk = try allocator.alloc(f64, self.t.len);
-            defer allocator.free(wrk);
-            return splint(self.t, self.t.len, self.c, self.k, &start, &end, wrk[0..]);
         }
     };
 }
@@ -129,7 +123,6 @@ pub fn FittingSpline(comptime dim: usize) type {
 // rename fortran underscored functions
 const parcur = parcur_;
 const curev = curev_;
-const splint = splint_;
 
 /// given the ordered set of m points x(i) in the idim-dimensional space
 /// and given also a corresponding set of strictly increasing values u(i)
@@ -331,23 +324,23 @@ extern fn curev_(
     /// integer, giving the dimension of the spline curve.
     idim: *const c_int,
     /// array,length n, which contains the position of the knots.
-    t: *const f64,
+    t: [*]const f64,
     /// integer, giving the total number of knots of s(u).
     n: *const c_int,
     /// array,length nc, which contains the b-spline coefficients.
-    c: *const f64,
+    c: [*]const f64,
     /// integer, giving the total number of coefficients of s(u).
     nc: *const c_int,
     /// integer, giving the degree of s(u).
     k: *const c_int,
     /// array,length m, which contains the points where s(u) must be evaluated.
-    u: *const f64,
+    u: [*]const f64,
     /// integer, giving the number of points where s(u) must be evaluated.
     m: *const c_int,
     /// array,length mx,giving the value of s(u) at the different
     /// points. x(idim*(i-1)+j) will contain the j-th coordinate
     /// of the i-th point on the curve.
-    x: *f64,
+    x: [*]f64,
     /// integer, giving the dimension of the array x. mx >= m*idim
     mx: *const c_int,
     /// error flag
@@ -356,35 +349,22 @@ extern fn curev_(
     ier: *c_int,
 ) void;
 
-/// splint calculates the integral of a spline function s(x) of degree k,
-/// which is given in its normalized b-spline representation
-extern fn splint_(
-    // array,length n,which contains the position of the knots
-    // of s(x).
-    t: *const f64,
-    // integer, giving the total number of knots of s(x).
-    n: *const c_int,
-    // array,length n, containing the b-spline coefficients.
-    c: *const f64,
-    // integer, giving the degree of s(x).
-    k: *const c_int,
-    // a,b: real values, containing the end points of the integration
-    // interval. s(x) is considered to be identically zero outside
-    // the interval (t(k+1),t(n-k)).
-    a: *const f64,
-    b: *const f64,
-    // real array, length n.  used as working space
-    // on output, wrk will contain the integrals of the normalized
-    // b-splines defined on the set of knots.
-    wrk: *f64,
-) f64;
-
 test "spline" {
     const allocator = std.testing.allocator;
+    const dim = 2;
     const order = 3;
 
-    const x = [_][2]f64{ .{ 0.0, 0.0 }, .{ 1.0, 1.0 }, .{ 2.0, 2.0 }, .{ 3.0, 3.0 } };
+    const x = [_][dim]f64{ .{ 0.0, 0.0 }, .{ 0.5, 0.5 }, .{ 1.0, 1.0 }, .{ 2.0, 2.0 }, .{ 3.0, 3.0 }, .{ 4.0, 4.0 } };
 
-    const spline = try FittingSpline(2).init(allocator, x[0..], order);
+    const spline = try FittingSpline(dim).init(allocator, x[0..], order);
     defer spline.deinit();
+
+    {
+        const u = [_]f64{ 0.0, 0.125, 0.25, 0.5, 0.75, 1.0 };
+        var values: [u.len][dim]f64 = undefined;
+        try spline.interpolate(&u, &values);
+        for (values, x) |v_i, x_i| {
+            for (v_i, x_i) |v_ij, x_ij| try std.testing.expectApproxEqAbs(x_ij, v_ij, 1e-15);
+        }
+    }
 }
