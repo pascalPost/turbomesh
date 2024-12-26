@@ -1,4 +1,7 @@
 comptime {
     _ = @import("cgns.zig");
     _ = @import("spline.zig");
+    _ = @import("templates/blade.zig");
+    _ = @import("templates/O4H.zig");
+    _ = @import("types.zig");
 }

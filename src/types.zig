@@ -1,11 +1,21 @@
 const std = @import("std");
 
 pub const Index = u32;
-pub const Float = f32;
+pub const Float = f64;
 const nan = std.math.nan(Float);
 
 pub const Index2d = struct { Index, Index };
 pub const Vec2d = struct { data: [2]Float };
+
+pub fn castConst(data: []const Vec2d) []const [2]Float {
+    const bytes = std.mem.sliceAsBytes(data[0..]);
+    return std.mem.bytesAsSlice([2]Float, bytes);
+}
+
+pub fn cast(data: []Vec2d) [][2]Float {
+    const bytes = std.mem.sliceAsBytes(data[0..]);
+    return std.mem.bytesAsSlice([2]Float, bytes);
+}
 
 pub fn eql(a: Vec2d, b: Vec2d) bool {
     return std.mem.eql(Float, a.data[0..], b.data[0..]);

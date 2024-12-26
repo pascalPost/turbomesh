@@ -13,7 +13,7 @@ pub fn FittingSpline(comptime dim: usize) type {
         /// degree of spline
         k: u8,
 
-        fn init(allocator: std.mem.Allocator, x: []const [dim]f64, k: u8) !Self {
+        pub fn init(allocator: std.mem.Allocator, x: []const [dim]f64, k: u8) !Self {
             // set weights to one if no weights are passed in
             var w = try allocator.alloc(f64, x.len);
             @memset(w[0..], 1.0);
@@ -95,12 +95,12 @@ pub fn FittingSpline(comptime dim: usize) type {
             return Self{ .allocator = allocator, .t = t, .c = c, .k = k };
         }
 
-        fn deinit(self: Self) void {
+        pub fn deinit(self: Self) void {
             self.allocator.free(self.t);
             self.allocator.free(self.c);
         }
 
-        fn interpolate(self: *const Self, u: []const f64, values: [][dim]f64) !void {
+        pub fn interpolate(self: *const Self, u: []const f64, values: [][dim]f64) !void {
             if (u.len != values.len) {
                 std.debug.print("Mismatch of slice length ({} != {})", .{ u.len, values.len });
                 return error.Mismatch;
