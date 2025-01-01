@@ -1,11 +1,17 @@
 const std = @import("std");
 
-pub const Index = u32;
+pub const Index = usize;
 pub const Float = f64;
 const nan = std.math.nan(Float);
 
 pub const Index2d = struct { Index, Index };
-pub const Vec2d = struct { data: [2]Float };
+pub const Vec2d = struct {
+    data: [2]Float,
+
+    pub fn init(v0: Float, v1: Float) Vec2d {
+        return .{ .data = .{ v0, v1 } };
+    }
+};
 
 pub fn castConst(data: []const Vec2d) []const [2]Float {
     const bytes = std.mem.sliceAsBytes(data[0..]);
@@ -21,7 +27,23 @@ pub fn eql(a: Vec2d, b: Vec2d) bool {
     return std.mem.eql(Float, a.data[0..], b.data[0..]);
 }
 
-/// A 2D matrix type with storage in row-major order
+pub fn add(a: Vec2d, b: Vec2d) Vec2d {
+    return .{ .data = .{ a.data[0] + b.data[0], a.data[1] + b.data[1] } };
+}
+
+pub fn sub(a: Vec2d, b: Vec2d) Vec2d {
+    return .{ .data = .{ a.data[0] - b.data[0], a.data[1] - b.data[1] } };
+}
+
+pub fn scale(s: Float, v: Vec2d) Vec2d {
+    return .{ .data = .{ s * v.data[0], s * v.data[1] } };
+}
+
+pub fn abs(v: Vec2d) Float {
+    return std.math.sqrt(v.data[0] * v.data[0] + v.data[1] * v.data[1]);
+}
+
+/// A 2D matrix type with storage in column-major order
 pub const Mat2d = struct {
     size: Index2d,
     data: []Vec2d,

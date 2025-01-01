@@ -1,12 +1,38 @@
 const std = @import("std");
 const types = @import("types.zig");
-const Vec2d = types.Vec2d;
+const spline = @import("spline.zig");
 
-const Tag = enum(u1) { line };
-const Curve = union(Tag) { line: *Line2d };
+const Tag = enum {
+    line,
+    spline,
+};
 
-fn discretize() void {}
+pub const Curve = union(Tag) {
+    line: Line,
+    spline: spline.FittingSpline(2),
+};
 
-// TODO add Spline
+pub const Line = struct {
+    start: types.Vec2d,
+    end: types.Vec2d,
 
-pub const Line2d = struct { start: Vec2d, end: Vec2d };
+    pub fn init(start: types.Vec2d, end: types.Vec2d) Line {
+        return .{ .start = start, .end = end };
+    }
+
+    pub fn interpolate(self: *const Line, clustering: []const f64, values: []types.Vec2d) !void {
+        if (clustering.len != values.len) {
+            std.debug.print("Mismatch of slice length ({} != {})", .{ clustering.len, values.len });
+            return error.Mismatch;
+        }
+
+        std.debug.assert(clustering[0] == 0.0);
+        std.debug.assert(clustering[clustering.len - 1] == 1.0);
+
+        const dx = types.sub(self.end, self.start);
+
+        for (values, clustering) |*v, u| {
+            v.* = types.add(self.start, types.scale(u, dx));
+        }
+    }
+};
