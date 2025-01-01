@@ -6,6 +6,10 @@ const Index = types.Index;
 const Vec2d = types.Vec2d;
 const eql = types.eql;
 const Mat2d = types.Mat2d;
+const add = types.add;
+const addAll = types.addAll;
+const sub = types.sub;
+const scale = types.scale;
 
 /// linear TFI as described in chapter 3.5.1 of Thompson et al., Eds.,
 /// Handbook of grid generation. Boca Raton, Fla: CRC Press, 1999.
@@ -26,6 +30,18 @@ pub fn linearBoundaryBlendedControlFunction(data: *Mat2d, x_i_min: []const Vec2d
     std.debug.assert(x_j_max.len == m);
     std.debug.assert(t1.len == m);
     std.debug.assert(t2.len == m);
+
+    std.debug.assert(s1[0] == 0);
+    std.debug.assert(s1[s1.len - 1] == 1.0);
+
+    std.debug.assert(s2[0] == 0);
+    std.debug.assert(s2[s2.len - 1] == 1.0);
+
+    std.debug.assert(t1[0] == 0);
+    std.debug.assert(t1[t1.len - 1] == 1.0);
+
+    std.debug.assert(t2[0] == 0);
+    std.debug.assert(t2[t2.len - 1] == 1.0);
 
     var idx: Index = 0;
     var i: Index = 0;
@@ -63,15 +79,19 @@ pub fn linearBoundaryBlendedControlFunction(data: *Mat2d, x_i_min: []const Vec2d
             const x_0_j = x_j_min[j];
             const x_n_j = x_j_max[j];
 
-            const u = ((1.0 - t1_j) * s1_i + t1_j * s2_i) / (1.0 - (s2_i - s1_i) * (t2_j - t1_j));
-            const v = ((1.0 - s1_i) * t1_j + s1_i * t2_j) / (1.0 - (t2_j - t1_j) * (s2_i - s1_i));
+            const u: Float = ((1.0 - t1_j) * s1_i + t1_j * s2_i) / (1.0 - (s2_i - s1_i) * (t2_j - t1_j));
+            const v: Float = ((1.0 - s1_i) * t1_j + s1_i * t2_j) / (1.0 - (t2_j - t1_j) * (s2_i - s1_i));
 
-            const U_ij = Vec2d{ .data = .{ (1.0 - u) * x_0_j.data[0] + u * x_n_j.data[0], (1.0 - u) * x_0_j.data[1] + u * x_n_j.data[1] } };
-            const V_ij = Vec2d{ .data = .{ (1.0 - v) * x_i_0.data[0] + v * x_i_m.data[0], (1.0 - u) * x_0_j.data[1] + u * x_n_j.data[1] } };
+            const u_ij: Vec2d = add(scale(1.0 - u, x_0_j), scale(u, x_n_j));
+            const v_ij: Vec2d = add(scale(1.0 - v, x_i_0), scale(v, x_i_m));
+            const uv_ij: Vec2d = addAll(&[_]Vec2d{
+                scale(u * v, x_n_m),
+                scale(u * (1.0 - v), x_n_0),
+                scale((1.0 - u) * v, x_0_m),
+                scale((1.0 - u) * (1.0 - v), x_0_0),
+            });
 
-            const UV_ij = Vec2d{ .data = .{ u * v * x_n_m.data[0] + u * (1.0 - v) * x_n_0.data[0] + (1.0 - u) * v * x_0_m.data[0] + (1.0 - u) * (1.0 - v) * x_0_0.data[0], u * v * x_n_m.data[1] + u * (1.0 - v) * x_n_0.data[1] + (1.0 - u) * v * x_0_m.data[1] + (1.0 - u) * (1.0 - v) * x_0_0.data[1] } };
-
-            const x_ij = Vec2d{ .data = .{ U_ij.data[0] + V_ij.data[0] - UV_ij.data[0], U_ij.data[1] + V_ij.data[1] - UV_ij.data[1] } };
+            const x_ij: Vec2d = sub(add(u_ij, v_ij), uv_ij);
 
             std.debug.assert(!std.math.isNan(x_ij.data[0]) and !std.math.isNan(x_ij.data[1]));
 

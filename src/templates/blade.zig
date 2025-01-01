@@ -25,10 +25,13 @@ pub const Profile = struct {
             return error.NonMatchingTrailingEdge;
         }
 
-        return .{
-            .pressure_side = try spline.FittingSpline(2).init(allocator, types.cast(ps.items[0..]), 3),
-            .suction_side = try spline.FittingSpline(2).init(allocator, types.cast(ss.items[0..]), 3),
-        };
+        std.debug.assert(ps.items.len > 1);
+        std.debug.assert(ps.items[0].data[0] < ps.items[ps.items.len - 1].data[0]);
+
+        const pressure_side = try spline.FittingSpline(2).init(allocator, types.cast(ps.items[0..]), 3);
+        const suction_side = try spline.FittingSpline(2).init(allocator, types.cast(ss.items[0..]), 3);
+
+        return .{ .pressure_side = pressure_side, .suction_side = suction_side };
     }
 
     pub fn deinit(self: *const Profile) void {
@@ -39,6 +42,7 @@ pub const Profile = struct {
 
 fn readSide(allocator: std.mem.Allocator, csv_path: []const u8) !std.ArrayList(types.Vec2d) {
     const side = try csv.parseCsvIntoVec2d(allocator, csv_path);
+    // TODO add check of axial direction: does the vector form origion to end point in upstream direction (?)
     if (side.items[0].data[0] > side.items[side.items.len - 1].data[0]) {
         std.mem.reverse(types.Vec2d, side.items);
     }

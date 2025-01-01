@@ -56,42 +56,73 @@ const Turbine = struct {
         const ps_outer_edge = discete.Edge{ .allocator = allocator, .points = try projectNormal(allocator, ps_edge.points[0..], d), .clustering = try allocator.dupe(Float, ps_edge.clustering) };
         defer ps_outer_edge.deinit();
 
-        const ss_outer_edge = discete.Edge{ .allocator = allocator, .points = try projectNormal(allocator, ss_edge.points[0..], d), .clustering = try allocator.dupe(Float, ss_edge.clustering) };
+        const ss_outer_edge = discete.Edge{ .allocator = allocator, .points = try projectNormal(allocator, ss_edge.points[0..], -d), .clustering = try allocator.dupe(Float, ss_edge.clustering) };
         defer ss_outer_edge.deinit();
-
-        // split blade distribution
-
-        // TODO
 
         var mesh = discete.Mesh.init(allocator);
         defer mesh.deinit();
 
-        // |          /
-        // |         |          ^
-        // |        |           |
-        // |-------< x_00      i_min
-        //         LE
+        {
+            // Block SS
+            //
+            // |          /
+            // |         |          ^
+            // |        |           |
+            // |-------< x_00      i_min
+            //         LE
 
-        const ss_j_min_edge = try discete.Edge.init(
-            allocator,
-            self.num_cells.o_grid + 1,
-            .{ .line = geometry.Line.init(ss_edge.points[0], ss_outer_edge.points[0]) },
-            .{ .uniform = .{} },
-        );
-        defer ss_j_min_edge.deinit();
-        const ss_j_max_edge = try discete.Edge.init(
-            allocator,
-            self.num_cells.o_grid + 1,
-            .{ .line = geometry.Line.init(ss_edge.points[ss_edge.points.len - 1], ss_outer_edge.points[ss_outer_edge.points.len - 1]) },
-            .{ .uniform = .{} },
-        );
-        defer ss_j_max_edge.deinit();
+            const ss_j_min_edge = try discete.Edge.init(
+                allocator,
+                self.num_cells.o_grid + 1,
+                .{ .line = geometry.Line.init(ss_edge.points[0], ss_outer_edge.points[0]) },
+                .{ .uniform = .{} },
+            );
+            defer ss_j_min_edge.deinit();
 
-        const ss = try discete.Block2d.init(allocator, ss_edge, ss_outer_edge, ss_j_min_edge, ss_j_max_edge);
+            const ss_j_max_edge = try discete.Edge.init(
+                allocator,
+                self.num_cells.o_grid + 1,
+                .{ .line = geometry.Line.init(ss_edge.points[ss_edge.points.len - 1], ss_outer_edge.points[ss_outer_edge.points.len - 1]) },
+                .{ .uniform = .{} },
+            );
+            defer ss_j_max_edge.deinit();
 
-        try mesh.addBlock("ss", ss);
+            const ss = try discete.Block2d.init(allocator, ss_edge, ss_outer_edge, ss_j_min_edge, ss_j_max_edge);
 
-        try mesh.write("o4h.cgns");
+            try mesh.addBlock("ss", ss);
+        }
+
+        {
+            // Block PS
+            //
+            //         LE
+            // |-------< x_00      i_min
+            // |        |            |
+            // |         |           v
+            // |          /
+
+            const ps_j_min_edge = try discete.Edge.init(
+                allocator,
+                self.num_cells.o_grid + 1,
+                .{ .line = geometry.Line.init(ps_edge.points[0], ps_outer_edge.points[0]) },
+                .{ .uniform = .{} },
+            );
+            defer ps_j_min_edge.deinit();
+
+            const ps_j_max_edge = try discete.Edge.init(
+                allocator,
+                self.num_cells.o_grid + 1,
+                .{ .line = geometry.Line.init(ps_edge.points[ps_edge.points.len - 1], ps_outer_edge.points[ps_outer_edge.points.len - 1]) },
+                .{ .uniform = .{} },
+            );
+            defer ps_j_max_edge.deinit();
+
+            const ps = try discete.Block2d.init(allocator, ps_edge, ps_outer_edge, ps_j_min_edge, ps_j_max_edge);
+
+            try mesh.addBlock("ps", ps);
+        }
+
+        try mesh.write(allocator, "o4h.cgns");
     }
 };
 

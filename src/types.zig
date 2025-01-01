@@ -31,6 +31,12 @@ pub fn add(a: Vec2d, b: Vec2d) Vec2d {
     return .{ .data = .{ a.data[0] + b.data[0], a.data[1] + b.data[1] } };
 }
 
+pub fn addAll(vec: anytype) Vec2d {
+    var res = Vec2d.init(0, 0);
+    inline for (vec) |v| res = add(res, v);
+    return res;
+}
+
 pub fn sub(a: Vec2d, b: Vec2d) Vec2d {
     return .{ .data = .{ a.data[0] - b.data[0], a.data[1] - b.data[1] } };
 }

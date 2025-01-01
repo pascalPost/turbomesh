@@ -82,15 +82,21 @@ pub const Mesh = struct {
         self.names.deinit();
     }
 
-    pub fn write(self: Mesh, filename: [:0]const u8) !void {
+    pub fn write(self: Mesh, allocator: std.mem.Allocator, filename: [:0]const u8) !void {
 
-        // TODO this is only a fast hack for now!!
+        // buffer
+        var size: usize = 0;
+        for (self.blocks.items) |b| {
+            size = @max(size, b.points.data.len);
+        }
+        var buffer = try allocator.alloc(types.Float, size);
+        defer allocator.free(buffer);
 
-        var block_points_buffer: [10]types.Mat2d = undefined;
+        // block data
+        var block_points = try allocator.alloc(types.Mat2d, self.blocks.items.len);
+        defer allocator.free(block_points);
+        for (self.blocks.items, block_points[0..]) |b, *data| data.* = b.points;
 
-        block_points_buffer[0] = self.blocks.items[0].points;
-        var buffer: [20000]types.Float = undefined;
-
-        try cgns.write(filename, self.names.items, block_points_buffer[0..1], &buffer);
+        try cgns.write(filename, self.names.items, block_points, buffer[0..]);
     }
 };
