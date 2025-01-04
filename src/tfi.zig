@@ -5,6 +5,7 @@ const Float = types.Float;
 const Index = types.Index;
 const Vec2d = types.Vec2d;
 const eql = types.eql;
+const eqlApprox = types.eqlApprox;
 const Mat2d = types.Mat2d;
 const add = types.add;
 const addAll = types.addAll;
@@ -56,7 +57,7 @@ pub fn linearBoundaryBlendedControlFunction(data: *Mat2d, x_i_min: []const Vec2d
     std.debug.assert(eql(x_0_m, x_i_max[0]));
 
     const x_n_m = x_i_max[n - 1];
-    std.debug.assert(eql(x_n_m, x_j_max[m - 1]));
+    std.debug.assert(eqlApprox(x_n_m, x_j_max[m - 1], 1e-10));
 
     while (i < data.size[0]) : (i += 1) {
         const s1_i = s1[i];

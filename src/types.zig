@@ -27,6 +27,10 @@ pub fn eql(a: Vec2d, b: Vec2d) bool {
     return std.mem.eql(Float, a.data[0..], b.data[0..]);
 }
 
+pub fn eqlApprox(a: Vec2d, b: Vec2d, tol: Float) bool {
+    return @abs(a.data[0] - b.data[0]) <= tol and @abs(a.data[1] - b.data[1]) <= tol;
+}
+
 pub fn add(a: Vec2d, b: Vec2d) Vec2d {
     return .{ .data = .{ a.data[0] + b.data[0], a.data[1] + b.data[1] } };
 }
