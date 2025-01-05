@@ -34,10 +34,12 @@ pub const Edge = struct {
     pub fn combine(allocator: std.mem.Allocator, edges: []const EdgeView) !Edge {
         std.debug.assert(edges.len > 1);
 
+        const tol = 1e-10;
+
         // check if edges can be merged
         {
             for (edges[0 .. edges.len - 1], edges[1..], 1..) |edge, edge_next, i| {
-                if (!types.eql(edge.edge.points[edge.end], edge_next.edge.points[edge_next.start])) {
+                if (!types.eqlApprox(edge.edge.points[edge.end], edge_next.edge.points[edge_next.start], tol)) {
                     std.debug.print("edges {} and {} cannot be combined as end points do not match: ({}, {}) and ({}, {})\n", .{
                         i,                                              i + 1,
                         edge.edge.points[edge.end].data[0],             edge.edge.points[edge.end].data[1],

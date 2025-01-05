@@ -29,9 +29,15 @@ const Turbine = struct {
         out_i: types.Index,
         down_j: types.Index,
         up_j: types.Index,
+
+        // TODO can be made optional if computed automatically based on the average size
+        upstream_i: types.Index,
+        downstream_i: types.Index,
     },
 
     fn run(self: *const Turbine, allocator: std.mem.Allocator) !void {
+
+        // TODO remove pressure side and suction side and just use up and down (to be neutral w.r.t. turbine or compressor)
 
         // TODO add geometry and discrete entities to manager
 
@@ -154,17 +160,17 @@ const Turbine = struct {
         std.debug.assert(in_j_min.points.len == self.num_cells.in_up_j + self.num_cells.in_down_j + 1);
 
         const in_x_00 = in_j_min.points[0];
-        const in_x_10 = in_j_min.points[in_j_min.points.len - 1];
+        const in_x_01 = in_j_min.points[in_j_min.points.len - 1];
 
         // TODO remove this hardcoded distance
-        const in_x_01 = sub(in_x_00, Vec2d.init(0.02, -0.001));
-        const in_x_11 = sub(in_x_10, Vec2d.init(0.02, 0.02));
+        const in_x_10 = sub(in_x_00, Vec2d.init(0.02, -0.001));
+        const in_x_11 = sub(in_x_01, Vec2d.init(0.02, 0.02));
 
-        const in_j_max = try discete.Edge.init(allocator, in_j_min.points.len, .{ .line = .{ .start = in_x_01, .end = in_x_11 } }, .{ .uniform = .{} });
+        const in_j_max = try discete.Edge.init(allocator, in_j_min.points.len, .{ .line = .{ .start = in_x_10, .end = in_x_11 } }, .{ .uniform = .{} });
         defer in_j_max.deinit();
-        const in_i_min = try discete.Edge.init(allocator, self.num_cells.in_i + 1, .{ .line = .{ .start = in_x_00, .end = in_x_01 } }, .{ .uniform = .{} });
+        const in_i_min = try discete.Edge.init(allocator, self.num_cells.in_i + 1, .{ .line = .{ .start = in_x_00, .end = in_x_10 } }, .{ .uniform = .{} });
         defer in_i_min.deinit();
-        const in_i_max = try discete.Edge.init(allocator, self.num_cells.in_i + 1, .{ .line = .{ .start = in_x_10, .end = in_x_11 } }, .{ .uniform = .{} });
+        const in_i_max = try discete.Edge.init(allocator, self.num_cells.in_i + 1, .{ .line = .{ .start = in_x_01, .end = in_x_11 } }, .{ .uniform = .{} });
         defer in_i_max.deinit();
 
         const in = try discete.Block2d.init(allocator, in_i_min, in_i_max, in_j_min, in_j_max);
@@ -192,7 +198,7 @@ const Turbine = struct {
 
         // TODO remove hard coded coordinate
         const out_x_10 = add(out_x_00, Vec2d.init(0.01, -0.02));
-        const out_x_11 = add(out_x_01, Vec2d.init(0.02, 0.001));
+        const out_x_11 = add(out_x_01, Vec2d.init(0.02, -0.01));
 
         const out_j_max = try discete.Edge.init(allocator, out_j_min.points.len, .{ .line = .{ .start = out_x_10, .end = out_x_11 } }, .{ .uniform = .{} });
         defer out_j_max.deinit();
@@ -233,14 +239,122 @@ const Turbine = struct {
         const down_i_max = try discete.Edge.init(allocator, down_i_min.points.len, .{ .line = .{ .start = down_x_01, .end = down_x_11 } }, .{ .uniform = .{} });
         defer down_i_max.deinit();
 
-        const down_j_min = try discete.Edge.init(allocator, self.num_cells.down_j, .{ .line = .{ .start = down_x_00, .end = down_x_01 } }, .{ .uniform = .{} });
+        const down_j_min = try discete.Edge.init(allocator, self.num_cells.down_j + 1, .{ .line = .{ .start = down_x_00, .end = down_x_01 } }, .{ .uniform = .{} });
         defer down_j_min.deinit();
-        const down_j_max = try discete.Edge.init(allocator, self.num_cells.down_j, .{ .line = .{ .start = down_x_10, .end = down_x_11 } }, .{ .uniform = .{} });
+        const down_j_max = try discete.Edge.init(allocator, self.num_cells.down_j + 1, .{ .line = .{ .start = down_x_10, .end = down_x_11 } }, .{ .uniform = .{} });
         defer down_j_max.deinit();
 
         const down = try discete.Block2d.init(allocator, down_i_min, down_i_max, down_j_min, down_j_max);
 
         try mesh.addBlock("down", down);
+
+        //
+        // Block UP
+        //
+
+        const up_i_min = try discete.Edge.combine(allocator, &.{ .{
+            .edge = &out_i_max,
+            .start = self.num_cells.out_i,
+            .end = 0,
+        }, .{
+            .edge = &ss_i_max,
+            .start = self.num_cells.in_up_j + self.num_cells.middle_i,
+            .end = self.num_cells.in_up_j,
+        }, .{
+            .edge = &in_i_min,
+            .start = 0,
+            .end = self.num_cells.in_i,
+        } });
+        defer up_i_min.deinit();
+
+        const up_x_11 = add(leading_edge, Vec2d.init(0.0, 0.5 * self.pitch));
+        const up_x_01 = add(trailing_edge, Vec2d.init(0.0, 0.5 * self.pitch));
+        const up_x_00 = out_x_11;
+        const up_x_10 = in_x_10;
+
+        const up_i_max = try discete.Edge.init(allocator, up_i_min.points.len, .{ .line = .{ .start = up_x_01, .end = up_x_11 } }, .{ .uniform = .{} });
+        defer up_i_max.deinit();
+
+        const up_j_min = try discete.Edge.init(allocator, self.num_cells.up_j + 1, .{ .line = .{ .start = up_x_00, .end = up_x_01 } }, .{ .uniform = .{} });
+        defer up_j_min.deinit();
+        const up_j_max = try discete.Edge.init(allocator, self.num_cells.up_j + 1, .{ .line = .{ .start = up_x_10, .end = up_x_11 } }, .{ .uniform = .{} });
+        defer up_j_max.deinit();
+
+        const up = try discete.Block2d.init(allocator, up_i_min, up_i_max, up_j_min, up_j_max);
+
+        try mesh.addBlock("up", up);
+
+        //
+        // Block UPSTREAM
+        //
+
+        const upstream_j_max = try discete.Edge.combine(allocator, &.{ .{
+            .edge = &down_j_min,
+            .start = down_j_min.points.len - 1,
+            .end = 0,
+        }, .{
+            .edge = &in_j_max,
+            .start = in_j_max.points.len - 1,
+            .end = 0,
+        }, .{
+            .edge = &up_j_max,
+            .start = 0,
+            .end = up_j_max.points.len - 1,
+        } });
+        defer upstream_j_max.deinit();
+
+        const upstream_x_10 = upstream_j_max.points[0];
+        const upstream_x_11 = upstream_j_max.points[upstream_j_max.points.len - 1];
+        const upstream_x_00 = add(upstream_x_10, Vec2d.init(-0.05, 0.0));
+        const upstream_x_01 = add(upstream_x_00, Vec2d.init(0.0, self.pitch));
+
+        const upstream_j_min = try discete.Edge.init(allocator, upstream_j_max.points.len, .{ .line = .{ .start = upstream_x_00, .end = upstream_x_01 } }, .{ .uniform = .{} });
+        defer upstream_j_min.deinit();
+
+        const upstream_i_min = try discete.Edge.init(allocator, self.num_cells.upstream_i + 1, .{ .line = .{ .start = upstream_x_00, .end = upstream_x_10 } }, .{ .uniform = .{} });
+        defer upstream_i_min.deinit();
+        const upstream_i_max = try discete.Edge.init(allocator, self.num_cells.upstream_i + 1, .{ .line = .{ .start = upstream_x_01, .end = upstream_x_11 } }, .{ .uniform = .{} });
+        defer upstream_i_max.deinit();
+
+        const upstream = try discete.Block2d.init(allocator, upstream_i_min, upstream_i_max, upstream_j_min, upstream_j_max);
+
+        try mesh.addBlock("upstream", upstream);
+
+        //
+        // Block DOWNSTREAM
+        //
+
+        const downstream_j_min = try discete.Edge.combine(allocator, &.{ .{
+            .edge = &down_j_max,
+            .start = down_j_max.points.len - 1,
+            .end = 0,
+        }, .{
+            .edge = &out_j_max,
+            .start = 0,
+            .end = out_j_max.points.len - 1,
+        }, .{
+            .edge = &up_j_min,
+            .start = 0,
+            .end = up_j_min.points.len - 1,
+        } });
+        defer downstream_j_min.deinit();
+
+        const downstream_x_00 = downstream_j_min.points[0];
+        const downstream_x_01 = downstream_j_min.points[downstream_j_min.points.len - 1];
+        const downstream_x_10 = add(downstream_x_00, Vec2d.init(0.02, 0.00));
+        const downstream_x_11 = add(downstream_x_10, Vec2d.init(0.0, self.pitch));
+
+        const downstream_j_max = try discete.Edge.init(allocator, downstream_j_min.points.len, .{ .line = .{ .start = downstream_x_10, .end = downstream_x_11 } }, .{ .uniform = .{} });
+        defer downstream_j_max.deinit();
+
+        const downstream_i_min = try discete.Edge.init(allocator, self.num_cells.downstream_i + 1, .{ .line = .{ .start = downstream_x_00, .end = downstream_x_10 } }, .{ .uniform = .{} });
+        defer downstream_i_min.deinit();
+        const downstream_i_max = try discete.Edge.init(allocator, self.num_cells.downstream_i + 1, .{ .line = .{ .start = downstream_x_01, .end = downstream_x_11 } }, .{ .uniform = .{} });
+        defer downstream_i_max.deinit();
+
+        const downstream = try discete.Block2d.init(allocator, downstream_i_min, downstream_i_max, downstream_j_min, downstream_j_max);
+
+        try mesh.addBlock("downstream", downstream);
 
         try mesh.write(allocator, "o4h.cgns");
     }
@@ -309,6 +423,8 @@ test "turbine template" {
             .middle_i = 120,
             .down_j = 20,
             .up_j = 23,
+            .upstream_i = 20,
+            .downstream_i = 20,
         },
     };
 
