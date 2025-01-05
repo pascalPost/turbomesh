@@ -27,6 +27,8 @@ const Turbine = struct {
         out_up_j: types.Index,
         out_down_j: types.Index,
         out_i: types.Index,
+        down_j: types.Index,
+        up_j: types.Index,
     },
 
     fn run(self: *const Turbine, allocator: std.mem.Allocator) !void {
@@ -49,8 +51,11 @@ const Turbine = struct {
 
         // TODO introducing a tolerance, this should not be necessary anymore.
         // TODO handle this by a connect points function (?)
-        ps_edge.points[0] = ss_edge.points[0];
-        ps_edge.points[ps_edge.points.len - 1] = ss_edge.points[ss_edge.points.len - 1];
+        const leading_edge = ss_edge.points[0];
+        ps_edge.points[0] = leading_edge;
+
+        const trailing_edge = ss_edge.points[ss_edge.points.len - 1];
+        ps_edge.points[ps_edge.points.len - 1] = trailing_edge;
 
         // o - grid for viscous computations
 
@@ -138,12 +143,12 @@ const Turbine = struct {
 
         const in_j_min = try discete.Edge.combine(allocator, &.{ .{
             .edge = &ss_i_max,
-            .start = self.num_cells.in_down_j,
+            .start = self.num_cells.in_up_j,
             .end = 0,
         }, .{
             .edge = &ps_i_max,
             .start = 0,
-            .end = self.num_cells.in_up_j,
+            .end = self.num_cells.in_down_j,
         } });
         defer in_j_min.deinit();
         std.debug.assert(in_j_min.points.len == self.num_cells.in_up_j + self.num_cells.in_down_j + 1);
@@ -157,9 +162,9 @@ const Turbine = struct {
 
         const in_j_max = try discete.Edge.init(allocator, in_j_min.points.len, .{ .line = .{ .start = in_x_01, .end = in_x_11 } }, .{ .uniform = .{} });
         defer in_j_max.deinit();
-        const in_i_min = try discete.Edge.init(allocator, self.num_cells.in_i, .{ .line = .{ .start = in_x_00, .end = in_x_01 } }, .{ .uniform = .{} });
+        const in_i_min = try discete.Edge.init(allocator, self.num_cells.in_i + 1, .{ .line = .{ .start = in_x_00, .end = in_x_01 } }, .{ .uniform = .{} });
         defer in_i_min.deinit();
-        const in_i_max = try discete.Edge.init(allocator, self.num_cells.in_i, .{ .line = .{ .start = in_x_10, .end = in_x_11 } }, .{ .uniform = .{} });
+        const in_i_max = try discete.Edge.init(allocator, self.num_cells.in_i + 1, .{ .line = .{ .start = in_x_10, .end = in_x_11 } }, .{ .uniform = .{} });
         defer in_i_max.deinit();
 
         const in = try discete.Block2d.init(allocator, in_i_min, in_i_max, in_j_min, in_j_max);
@@ -182,23 +187,60 @@ const Turbine = struct {
         defer out_j_min.deinit();
         std.debug.assert(out_j_min.points.len == self.num_cells.out_down_j + self.num_cells.out_up_j + 1);
 
-        // TODO remove hard coded coordinate
         const out_x_00 = out_j_min.points[0];
-        const out_x_10 = out_j_min.points[out_j_min.points.len - 1];
-        const out_x_01 = add(out_x_00, Vec2d.init(0.01, -0.02));
-        const out_x_11 = add(out_x_10, Vec2d.init(0.02, 0.001));
+        const out_x_01 = out_j_min.points[out_j_min.points.len - 1];
 
-        const out_j_max = try discete.Edge.init(allocator, out_j_min.points.len, .{ .line = .{ .start = out_x_01, .end = out_x_11 } }, .{ .uniform = .{} });
+        // TODO remove hard coded coordinate
+        const out_x_10 = add(out_x_00, Vec2d.init(0.01, -0.02));
+        const out_x_11 = add(out_x_01, Vec2d.init(0.02, 0.001));
+
+        const out_j_max = try discete.Edge.init(allocator, out_j_min.points.len, .{ .line = .{ .start = out_x_10, .end = out_x_11 } }, .{ .uniform = .{} });
         defer out_j_max.deinit();
 
-        const out_i_min = try discete.Edge.init(allocator, self.num_cells.out_i, .{ .line = .{ .start = out_x_00, .end = out_x_01 } }, .{ .uniform = .{} });
+        const out_i_min = try discete.Edge.init(allocator, self.num_cells.out_i + 1, .{ .line = .{ .start = out_x_00, .end = out_x_10 } }, .{ .uniform = .{} });
         defer out_i_min.deinit();
-        const out_i_max = try discete.Edge.init(allocator, self.num_cells.out_i, .{ .line = .{ .start = out_x_10, .end = out_x_11 } }, .{ .uniform = .{} });
+        const out_i_max = try discete.Edge.init(allocator, self.num_cells.out_i + 1, .{ .line = .{ .start = out_x_01, .end = out_x_11 } }, .{ .uniform = .{} });
         defer out_i_max.deinit();
 
         const out = try discete.Block2d.init(allocator, out_i_min, out_i_max, out_j_min, out_j_max);
 
         try mesh.addBlock("out", out);
+
+        //
+        // Block DOWN
+        //
+
+        const down_i_min = try discete.Edge.combine(allocator, &.{ .{
+            .edge = &in_i_max,
+            .start = self.num_cells.in_i,
+            .end = 0,
+        }, .{
+            .edge = &ps_i_max,
+            .start = self.num_cells.in_down_j,
+            .end = self.num_cells.in_down_j + self.num_cells.middle_i,
+        }, .{
+            .edge = &out_i_min,
+            .start = 0,
+            .end = self.num_cells.out_i,
+        } });
+        defer down_i_min.deinit();
+
+        const down_x_01 = sub(leading_edge, Vec2d.init(0.0, 0.5 * self.pitch));
+        const down_x_11 = sub(trailing_edge, Vec2d.init(0.0, 0.5 * self.pitch));
+        const down_x_00 = in_x_11;
+        const down_x_10 = out_x_10;
+
+        const down_i_max = try discete.Edge.init(allocator, down_i_min.points.len, .{ .line = .{ .start = down_x_01, .end = down_x_11 } }, .{ .uniform = .{} });
+        defer down_i_max.deinit();
+
+        const down_j_min = try discete.Edge.init(allocator, self.num_cells.down_j, .{ .line = .{ .start = down_x_00, .end = down_x_01 } }, .{ .uniform = .{} });
+        defer down_j_min.deinit();
+        const down_j_max = try discete.Edge.init(allocator, self.num_cells.down_j, .{ .line = .{ .start = down_x_10, .end = down_x_11 } }, .{ .uniform = .{} });
+        defer down_j_max.deinit();
+
+        const down = try discete.Block2d.init(allocator, down_i_min, down_i_max, down_j_min, down_j_max);
+
+        try mesh.addBlock("down", down);
 
         try mesh.write(allocator, "o4h.cgns");
     }
@@ -265,6 +307,8 @@ test "turbine template" {
             .out_down_j = 20,
             .out_i = 21,
             .middle_i = 120,
+            .down_j = 20,
+            .up_j = 23,
         },
     };
 

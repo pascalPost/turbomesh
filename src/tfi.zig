@@ -47,17 +47,19 @@ pub fn linearBoundaryBlendedControlFunction(data: *Mat2d, x_i_min: []const Vec2d
     var idx: Index = 0;
     var i: Index = 0;
 
+    const tol = 1e-10;
+
     const x_0_0 = x_i_min[0];
-    std.debug.assert(eql(x_0_0, x_j_min[0]));
+    std.debug.assert(eqlApprox(x_0_0, x_j_min[0], tol));
 
     const x_n_0 = x_i_min[n - 1];
-    std.debug.assert(eql(x_n_0, x_j_max[0]));
+    std.debug.assert(eqlApprox(x_n_0, x_j_max[0], tol));
 
     const x_0_m = x_j_min[m - 1];
-    std.debug.assert(eql(x_0_m, x_i_max[0]));
+    std.debug.assert(eqlApprox(x_0_m, x_i_max[0], tol));
 
     const x_n_m = x_i_max[n - 1];
-    std.debug.assert(eqlApprox(x_n_m, x_j_max[m - 1], 1e-10));
+    std.debug.assert(eqlApprox(x_n_m, x_j_max[m - 1], tol));
 
     while (i < data.size[0]) : (i += 1) {
         const s1_i = s1[i];
