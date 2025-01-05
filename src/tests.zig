@@ -4,4 +4,6 @@ comptime {
     _ = @import("templates/blade.zig");
     _ = @import("templates/O4H.zig");
     _ = @import("types.zig");
+    _ = @import("discrete.zig");
+    _ = @import("umfpack.zig");
 }

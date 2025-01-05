@@ -23,6 +23,9 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.linkSystemLibrary("cgns");
+    exe.linkSystemLibrary("umfpack");
+    exe.linkSystemLibrary("dierckx");
+    exe.addLibraryPath(b.path("./third_party/dierckx/"));
     exe.linkLibC();
 
     // needed on macos
@@ -64,10 +67,10 @@ pub fn build(b: *std.Build) void {
     });
 
     tests.linkSystemLibrary("cgns");
-    tests.linkLibC();
-
+    tests.linkSystemLibrary("umfpack");
     tests.linkSystemLibrary("dierckx");
     tests.addLibraryPath(b.path("./third_party/dierckx/"));
+    tests.linkLibC();
 
     // needed on macos
     tests.addLibraryPath(.{ .cwd_relative = "/usr/local/lib/" });
