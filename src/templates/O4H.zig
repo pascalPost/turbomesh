@@ -84,7 +84,7 @@ const Turbine = struct {
 
         var mesh = discrete.Mesh.init(allocator);
 
-        // Block SS
+        // Block SS (0)
         //
         // |          /
         // |         |          ^
@@ -115,7 +115,7 @@ const Turbine = struct {
 
         try mesh.addBlock("ss", ss);
 
-        // Block PS
+        // Block PS (1)
         //
         //         LE
         // |-------< x_00      i_min
@@ -132,7 +132,7 @@ const Turbine = struct {
 
         try mesh.addBlock("ps", ps);
 
-        // Block IN
+        // Block IN (2)
         //
         // x_01
         // |---------- x_00
@@ -177,7 +177,7 @@ const Turbine = struct {
         try mesh.addBlock("in", in);
 
         //
-        // Block OUT
+        // Block OUT (3)
         //
 
         const out_j_min = try discrete.Edge.combine(allocator, &.{ .{
@@ -212,7 +212,7 @@ const Turbine = struct {
         try mesh.addBlock("out", out);
 
         //
-        // Block DOWN
+        // Block DOWN (4)
         //
 
         const down_i_min = try discrete.Edge.combine(allocator, &.{ .{
@@ -248,7 +248,7 @@ const Turbine = struct {
         try mesh.addBlock("down", down);
 
         //
-        // Block UP
+        // Block UP (5)
         //
 
         const up_i_min = try discrete.Edge.combine(allocator, &.{ .{
@@ -284,7 +284,7 @@ const Turbine = struct {
         try mesh.addBlock("up", up);
 
         //
-        // Block UPSTREAM
+        // Block UPSTREAM (6)
         //
 
         const upstream_j_max = try discrete.Edge.combine(allocator, &.{ .{
@@ -320,7 +320,7 @@ const Turbine = struct {
         try mesh.addBlock("upstream", upstream);
 
         //
-        // Block DOWNSTREAM
+        // Block DOWNSTREAM (7)
         //
 
         const downstream_j_min = try discrete.Edge.combine(allocator, &.{ .{
@@ -427,7 +427,10 @@ test "turbine template" {
         },
     };
 
-    const mesh = try template.run(allocator);
+    var mesh = try template.run(allocator);
     defer mesh.deinit();
+
+    try @import("../smooth.zig").block(allocator, &mesh.blocks.items[6].points, 20);
+
     try mesh.write(allocator, "o4h.cgns");
 }
