@@ -430,7 +430,9 @@ test "turbine template" {
     var mesh = try template.run(allocator);
     defer mesh.deinit();
 
-    try @import("../smooth.zig").block(allocator, &mesh.blocks.items[6].points, 20);
+    // try mesh.write(allocator, "o4h_linear.cgns");
+
+    // try @import("../smooth.zig").block(allocator, &mesh.blocks.items[6].points, 20);
 
     try mesh.write(allocator, "o4h.cgns");
 }

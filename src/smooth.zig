@@ -3,15 +3,55 @@ const discrete = @import("discrete.zig");
 const types = @import("types.zig");
 const umfpack = @import("umfpack.zig");
 
+// This module provides a block-structured elliptic grid generation algorithm.
+// It takes a set of boundary points and iteratively adjusts interior points to create
+// a smooth grid that conforms to the boundaries.
+//
+// The algorithm:
+// 1. Constructs a sparse, banded matrix representing the discrete Laplace equations
+// 2. Uses a compressed row storage format for efficiency with:
+//    - Non-zero matrix values
+//    - Row/column indices of non-zeros
+//    - Cumulative count of non-zeros per row
+// 3. Iteratively solves the system:
+//    - Assembles matrix coefficients based on current grid point positions
+//    - Uses UMFPACK to solve the linear system for new interior point positions
+//    - Updates grid points and checks convergence
+//
+// The matrix structure handles special cases for:
+// - Corner points (4 neighbors)
+// - Edge points (6 neighbors)
+// - Interior points (9 neighbors)
+//
+// Parameters:
+// - points: Current grid point positions
+// - iterations: Number of smoothing iterations to perform
+// - s,t: Stretching parameters for grid control
+//
+// This is an example of how to get info for the compressed row format:
+// {
+//     const i = 18;
+//     const j = 1;
+//     std.debug.print("Debug ({}, {}) : {}\n", .{ i, j, points.index(.{ i, j }) });
+//     std.debug.print("Point: {}\n", .{points.data[points.index(.{ i, j })]});
+//     const col_size = points.size[1] - 2;
+//     const matrix_idx = (j - 1) + col_size * (i - 1);
+//     std.debug.print("Matrix Row: {}\n", .{matrix_idx});
+//     std.debug.print("Non Zero Entries: {} bis {}\n", .{ lhs_p[matrix_idx], lhs_p[matrix_idx + 1] });
+//     const start: usize = @intCast(lhs_p[matrix_idx]);
+//     const end: usize = @intCast(lhs_p[matrix_idx + 1]);
+//     for (start..end) |idx| {
+//         std.debug.print("  {} : {} : {}\n", .{ idx, lhs_i[idx], lhs_values[idx] });
+//     }
+//     std.debug.print("RHS: ({}, {})\n", .{ rhs_x[matrix_idx], rhs_y[matrix_idx] });
+// }
+
 pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usize) !void {
     // TODO can we use a better algo for the sparse banded matrix ?
 
     const dof = (points.size[0] - 2) * (points.size[1] - 2);
 
     // allocations
-    // const entries_per_dof = 9;
-    // const non_zero_entries_capacity = dof * entries_per_dof; // this is an overstimation
-
     const non_zero_entries =
         // corners
         4 * 4 +
@@ -21,9 +61,6 @@ pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usi
 
         // internal
         (points.size[0] - 4) * (points.size[1] - 4) * 9;
-
-    std.debug.print("{}\n", .{non_zero_entries});
-    std.debug.assert(non_zero_entries == 24388);
 
     var buffer_int = try allocator.alloc(c_int, (dof + 1) + non_zero_entries);
     defer allocator.free(buffer_int);
@@ -96,7 +133,7 @@ pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usi
             try row_count.append(@intCast(row_entries.items.len));
         }
 
-        // corner A[0, m] = (1, J-1)
+        // corner A[0, m] = (1, J-2)
         {
             matrix_idx += 1; // points.size[1] + points.size[1] - 2
             try row_entries.append(matrix_idx - 1); // A[i, j-1]
@@ -107,7 +144,7 @@ pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usi
         }
 
         // loop over i
-        for (2..points.size[0] - 3) |_| {
+        for (2..points.size[0] - 2) |_| {
 
             // edge A[i, 0] = (i, 0)
             {
@@ -137,7 +174,7 @@ pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usi
                 try row_count.append(@intCast(row_entries.items.len));
             }
 
-            // edge A[i, m] = (i, J-1)
+            // edge A[i, m] = (i, J-2)
             {
                 matrix_idx += 1;
                 try row_entries.append(matrix_idx - col_size - 1); // A[i-1, j-1]
@@ -150,7 +187,7 @@ pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usi
             }
         }
 
-        // corner A[n, 0] = (I-1, 1)
+        // corner A[n, 0] = (I-2, 1)
         {
             matrix_idx += 1;
             try row_entries.append(matrix_idx - col_size); // A[i-1, j]
@@ -160,15 +197,15 @@ pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usi
             try row_count.append(@intCast(row_entries.items.len));
         }
 
-        // edge A[0, j] = (1, j)
+        // edge A[n, j] = (I-2, j)
         for (2..points.size[1] - 2) |_| {
             matrix_idx += 1; // points.size[1] + j
+            try row_entries.append(matrix_idx - col_size - 1); // A[i-1, j-1]
+            try row_entries.append(matrix_idx - col_size); // A[i-1, j]
+            try row_entries.append(matrix_idx - col_size + 1); // A[i-1, j+1]
             try row_entries.append(matrix_idx - 1); // A[i, j-1]
             try row_entries.append(matrix_idx); // A[i, j]
             try row_entries.append(matrix_idx + 1); // A[i, j+1]
-            try row_entries.append(matrix_idx + col_size - 1); // A[i+1, j-1]
-            try row_entries.append(matrix_idx + col_size); // A[i+1, j]
-            try row_entries.append(matrix_idx + col_size + 1); // A[i+1, j+1]
             try row_count.append(@intCast(row_entries.items.len));
         }
 
@@ -265,7 +302,7 @@ pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usi
                 rhs_idx += 1;
             }
 
-            // corner A[0, m] = (1, J-1)
+            // corner A[0, m] = (1, J-2)
             {
                 points_idx += 1; // points.size[1] + points.size[1] - 2
 
@@ -304,7 +341,8 @@ pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usi
             }
 
             // loop over i
-            for (2..points.size[0] - 3) |_| {
+            for (2..points.size[0] - 2) |_| {
+                points_idx += 2;
 
                 // edge A[i, 0] = (i, 0)
                 {
@@ -371,7 +409,7 @@ pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usi
                     rhs_idx += 1;
                 }
 
-                // edge A[i, m] = (i, J-1)
+                // edge A[i, m] = (i, J-2)
                 {
                     points_idx += 1;
 
@@ -407,7 +445,9 @@ pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usi
                 }
             }
 
-            // corner A[n, 0] = (I-1, 1)
+            points_idx += 2;
+
+            // corner A[n, 0] = (I-2, 1)
             {
                 points_idx += 1;
 
@@ -445,7 +485,7 @@ pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usi
                 rhs_idx += 1;
             }
 
-            // edge A[0, j] = (1, j)
+            // edge A[n, j] = (I-2, j)
             for (2..points.size[1] - 2) |_| {
                 points_idx += 1; // points.size[1] + j
 
@@ -480,7 +520,7 @@ pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usi
                 rhs_idx += 1;
             }
 
-            // corner A[n, m] = (I-1, J-1)
+            // corner A[n, m] = (I-2, J-2)
             {
                 points_idx += 1; // points.size[1] + points.size[1] - 2
 
@@ -499,8 +539,6 @@ pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usi
                 lhs_values[matrix_idx + 2] = values.a_i_jm1; // A[i, j-1]
                 lhs_values[matrix_idx + 3] = values.a_i_j; // A[i, j]
 
-                matrix_idx += 4;
-
                 // RHS: A[i+1, j-1], A[i+1, j], A[i+1, j+1], A[i, j+1], A[i-1, j+1]
 
                 rhs_x[rhs_idx] = -(values.a_ip1_jm1 * ip1_jm1.data[0] +
@@ -514,57 +552,43 @@ pub fn block(allocator: std.mem.Allocator, points: *types.Mat2d, iterations: usi
                     values.a_ip1_jp1 * ip1_jp1.data[1] +
                     values.a_i_jp1 * i_jp1.data[1] +
                     values.a_im1_jp1 * im1_jp1.data[1]);
-
-                rhs_idx += 1;
             }
         }
 
-        try umfpack.solve2(
-            @intCast(dof),
-            @intCast(dof),
-            lhs_p,
-            lhs_i,
-            lhs_values,
-            rhs_x,
-            x_new[0..],
-            rhs_y,
-            y_new[0..],
-        );
+        try umfpack.solve2(@intCast(dof), @intCast(dof), lhs_p, lhs_i, lhs_values, rhs_x, x_new[0..], rhs_y, y_new[0..]);
 
-        //     // solve
-        //     let mut solver = Solver::new(config)?;
-        //     solver.initialize(&lhs)?;
-        //     solver.factorize()?;
-        //     solver.solve(&mut x_new, &rhs_x)?;
-        //     solver.solve(&mut y_new, &rhs_y)?;
+        const col_size = points.size[1] - 2;
 
-        //     let mut x_norm_sqr = 0.0;
-        //     let mut y_norm_sqr = 0.0;
+        var x_norm_sqr: f64 = 0.0;
+        var y_norm_sqr: f64 = 0.0;
 
-        //     for j in 1..shape.1 - 1 {
-        //         for i in 1..shape.0 - 1 {
-        //             let idx = matrix_index(i, j, i_size);
-        //             let Vec2d(x, y) = coords[[i, j]];
-        //             let dx = x - x_new[idx];
-        //             let dy = y - y_new[idx];
+        // TODO inefficient - enhance
+        for (1..points.size[1] - 1) |j| {
+            for (1..points.size[0] - 1) |i| {
+                const matrix_idx = (j - 1) + col_size * (i - 1);
+                const p = points.data[points.index(.{ i, j })];
+                const dx = p.data[0] - x_new[matrix_idx];
+                const dy = p.data[1] - y_new[matrix_idx];
 
-        //             x_norm_sqr += dx * dx;
-        //             y_norm_sqr += dy * dy;
-        //         }
-        //     }
+                x_norm_sqr += dx * dx;
+                y_norm_sqr += dy * dy;
+            }
+        }
 
-        //     let norm = (x_norm_sqr + y_norm_sqr).sqrt();
+        const norm = (x_norm_sqr + y_norm_sqr) * (x_norm_sqr + y_norm_sqr);
+        std.debug.print("\tresidual: {}\n", .{norm});
 
-        //     println!("\tresidual {norm}");
+        // copy into coordinate field
+        for (1..points.size[1] - 1) |j| {
+            for (1..points.size[0] - 1) |i| {
 
-        //     // copy into coordinate field
-        //     // TODO consider different memory layout for higher efficiency
-        //     for j in 1..shape.1 - 1 {
-        //         for i in 1..shape.0 - 1 {
-        //             let idx = matrix_index(i, j, i_size);
-        //             coords[[i, j]] = Vec2d(x_new[idx], y_new[idx]);
-        //         }
-        //     }
+                // TODO inefficient - enhance
+                const points_idx = points.index(.{ i, j });
+                const matrix_idx = (j - 1) + col_size * (i - 1);
+
+                points.data[points_idx] = types.Vec2d.init(x_new[matrix_idx], y_new[matrix_idx]);
+            }
+        }
     }
 }
 
@@ -600,47 +624,3 @@ fn computeMatrixValues(im1_j: types.Vec2d, ip1_j: types.Vec2d, i_jm1: types.Vec2
         .a_im1_jm1 = -0.5 * q,
     };
 }
-
-// fn computeValues(points: types.Mat2d, points_idx: usize) struct {
-//     a_i_j: f64,
-//     a_ip1_j: f64,
-//     a_im1_j: f64,
-//     a_i_jp1: f64,
-//     a_i_jm1: f64,
-//     a_ip1_jp1: f64,
-//     a_ip1_jm1: f64,
-//     a_im1_jp1: f64,
-//     a_im1_jm1: f64,
-// } {
-//     // laplace conditions (zero intialization)
-//     const s = 0.0;
-//     const t = 0.0;
-
-//     const ip1_jm1 = points.data[points_idx + points.size[1] - 1];
-//     const ip1_j = points.data[points_idx + points.size[1]];
-//     const ip1_jp1 = points.data[points_idx + points.size[1] + 1];
-//     const im1_jm1 = points.data[points_idx - points.size[1] - 1];
-//     const im1_j = points.data[points_idx - points.size[1]];
-//     const im1_jp1 = points.data[points_idx - points.size[1] + 1];
-//     const i_jp1 = points.data[points_idx + 1];
-//     const i_jm1 = points.data[points_idx - 1];
-
-//     const x_xi = 0.5 * (ip1_j[0] - im1_j[0]);
-//     const x_eta = 0.5 * (i_jp1[0] - i_jm1[0]);
-//     const y_xi = 0.5 * (ip1_j[1] - im1_j[1]);
-//     const y_eta = 0.5 * (i_jp1[1] - i_jm1[1]);
-
-//     const p = x_eta * x_eta + y_eta * y_eta;
-//     const q = x_xi * x_eta + y_xi * y_eta;
-//     const r = x_xi * x_xi + y_xi * y_xi;
-
-//     const a_i_j = -2.0 * p - 2.0 * r;
-//     const a_ip1_j = p + 0.5 * s;
-//     const a_im1_j = p - 0.5 * s;
-//     const a_i_jp1 = r + 0.5 * t;
-//     const a_i_jm1 = r - 0.5 * t;
-//     const a_ip1_jp1 = -0.5 * q;
-//     const a_ip1_jm1 = 0.5 * q;
-//     const a_im1_jp1 = 0.5 * q;
-//     const a_im1_jm1 = -0.5 * q;
-// }
