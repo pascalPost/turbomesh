@@ -5,6 +5,7 @@ const types = @import("../types.zig");
 const clustering = @import("../clustering.zig");
 const discrete = @import("../discrete.zig");
 const geometry = @import("../geometry.zig");
+const smooth = @import("../smooth.zig");
 
 const Float = types.Float;
 const Vec2d = types.Vec2d;
@@ -355,6 +356,11 @@ const Turbine = struct {
 
         try mesh.addBlock("downstream", downstream);
 
+        // Connections
+        // try mesh.connections.append(.{ .data = .{ .block = 0, .side = discrete.Side.i_min, .start = 0, .end = 0 } });
+
+        // Boundary conditions
+
         return mesh;
     }
 };
@@ -432,7 +438,7 @@ test "turbine template" {
 
     // try mesh.write(allocator, "o4h_linear.cgns");
 
-    // try @import("../smooth.zig").block(allocator, &mesh.blocks.items[6].points, 20);
+    try smooth.mesh(allocator, &mesh, 20);
 
     try mesh.write(allocator, "o4h.cgns");
 }
