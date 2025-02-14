@@ -5,6 +5,7 @@ const types = @import("../types.zig");
 const clustering = @import("../clustering.zig");
 const discrete = @import("../discrete.zig");
 const geometry = @import("../geometry.zig");
+const boundary = @import("../boundary.zig");
 const smooth = @import("../smooth.zig");
 
 const Float = types.Float;
@@ -247,6 +248,7 @@ const Turbine = struct {
         const down = try discrete.Block2d.init(allocator, down_i_min, down_i_max, down_j_min, down_j_max);
 
         try mesh.addBlock("down", down);
+        const down_id = mesh.blocks.items.len - 1;
 
         //
         // Block UP (5)
@@ -319,6 +321,7 @@ const Turbine = struct {
         const upstream = try discrete.Block2d.init(allocator, upstream_i_min, upstream_i_max, upstream_j_min, upstream_j_max);
 
         try mesh.addBlock("upstream", upstream);
+        const upstream_id = mesh.blocks.items.len - 1;
 
         //
         // Block DOWNSTREAM (7)
@@ -357,7 +360,10 @@ const Turbine = struct {
         try mesh.addBlock("downstream", downstream);
 
         // Connections
-        // try mesh.connections.append(.{ .data = .{ .block = 0, .side = discrete.Side.i_min, .start = 0, .end = 0 } });
+        try mesh.connections.append(.{ .data = .{
+            .{ .block = down_id, .side = boundary.Side.j_min, .start = self.num_cells.down_j, .end = 0 },
+            .{ .block = upstream_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.down_j },
+        } });
 
         // Boundary conditions
 
@@ -438,7 +444,7 @@ test "turbine template" {
 
     // try mesh.write(allocator, "o4h_linear.cgns");
 
-    try smooth.mesh(allocator, &mesh, 20);
+    try smooth.mesh(allocator, &mesh, 0);
 
     try mesh.write(allocator, "o4h.cgns");
 }

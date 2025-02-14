@@ -2,6 +2,7 @@ const std = @import("std");
 const discrete = @import("discrete.zig");
 const types = @import("types.zig");
 const umfpack = @import("umfpack.zig");
+const boundary = @import("boundary.zig");
 
 // This module provides a block-structured elliptic grid generation algorithm.
 // It takes a set of boundary points and iteratively adjusts interior points to create
@@ -101,6 +102,103 @@ const RowCompressedMatrixSystem2d = struct {
     y_new: []f64,
 
     fn init(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh) !RowCompressedMatrixSystem2d {
+        // check that the connection points connect
+        const abs_tol = 1e-15;
+        for (mesh_data.connections.items, 0..) |connection, connection_idx| {
+            const range_0 = connection.data[0];
+            const range_1 = connection.data[1];
+
+            var it_0 = range_0.iterate(mesh_data);
+            var it_1 = range_1.iterate(mesh_data);
+
+            var point_idx: usize = 0;
+            while (true) {
+                const p_0 = it_0.next() orelse {
+                    std.debug.assert(it_1.next() == null);
+                    break;
+                };
+                const p_1 = it_1.next().?;
+
+                const x_0 = mesh_data.blocks.items[range_0.block].points.data[p_0];
+                const x_1 = mesh_data.blocks.items[range_1.block].points.data[p_1];
+
+                if (!types.eqlApprox(x_0, x_1, abs_tol)) {
+                    std.debug.panic("non matching points for connection {} point {}:\n\t{}\n\t{}\n", .{ connection_idx, point_idx, x_0, x_1 });
+                }
+
+                point_idx += 1;
+            }
+        }
+
+        // create boundary point buffer
+        // boundary points | side [0] neighbors | side [1] neighbors
+        var buffer_len: usize = 0;
+        for (mesh_data.connections.items) |connection| {
+            const len = connection.len();
+            buffer_len += len;
+        }
+
+        var boundary_point_buffer = try allocator.alloc(types.Vec2d, buffer_len * 3);
+        defer allocator.free(boundary_point_buffer);
+
+        var idx: usize = 0;
+        for (mesh_data.connections.items) |connection| {
+            // boundary points (taken from side 0)
+            {
+                const range_0 = connection.data[0];
+                const point_data = mesh_data.blocks.items[range_0.block].points.data;
+                var it = range_0.iterate(mesh_data);
+                while (it.next()) |point_idx| {
+                    boundary_point_buffer[idx] = point_data[point_idx];
+                    idx += 1;
+                }
+            }
+
+            // boundary point neighbors from side 0 and 1
+            for (0..2) |side_idx| {
+                const range = connection.data[side_idx];
+                const points = mesh_data.blocks.items[range.block].points;
+
+                const shift: isize = switch (range.side) {
+                    .i_min => @intCast(points.size[1]),
+                    .i_max => -@as(isize, @intCast(points.size[1])),
+                    .j_min => 1,
+                    .j_max => -1,
+                };
+
+                var it = range.iterate(mesh_data);
+                while (it.next()) |point_idx| {
+                    const i: isize = @as(isize, @intCast(point_idx)) + shift;
+                    boundary_point_buffer[idx] = points.data[@intCast(i)];
+                }
+            }
+        }
+
+        // collect boundary point connections
+        var boundary_point_connections = try boundary.PointData(std.BoundedArray(usize, 4)).init(allocator, mesh_data);
+        defer boundary_point_connections.deinit();
+
+        for (mesh_data.connections.items, 0..) |connection, connection_idx| {
+            for (0..2) |side_idx| {
+                var it = boundary_point_connections.iterateRange(connection.data[side_idx]);
+                while (it.nextPtr()) |point_connection_data| {
+                    try point_connection_data.append(connection_idx);
+                }
+            }
+        }
+
+        // tag boundary points based on connections
+        var boundary_point_kind = try boundary.PointData(BoundaryPointProp).init(allocator, mesh_data);
+        defer boundary_point_kind.deinit();
+
+        for (boundary_point_connections.buffer, boundary_point_kind.buffer) |connections, *kind| {
+            switch (connections.len) {
+                0 => kind.* = .fix,
+                1 => kind.* = .interface,
+                else => kind.* = .junction,
+            }
+        }
+
         var dof: usize = 0;
         var non_zero_entries: usize = 0;
 
@@ -118,6 +216,17 @@ const RowCompressedMatrixSystem2d = struct {
                 (points.size[0] - 4) * (points.size[1] - 4) * 9;
             non_zero_entries += block_non_zero_entries;
         }
+
+        // TODO check the edge adjacent data how many non-fixed neighbors they have of 8
+        // this is the number of non_zero_entries
+        //
+        // we also need to track the indices of these entries
+
+        // add the additional DOF and non-zero entries for the connected points to solve
+
+        // for (mesh_data.connections.items) |connection| {
+        //     dof += connection.lenInternal();
+        // }
 
         const buffer_int = try allocator.alloc(c_int, (dof + 1) + non_zero_entries);
 
@@ -181,6 +290,8 @@ const RowCompressedMatrixSystem2d = struct {
                 try row_entries.append(matrix_idx + col_size + 1); // A[i+1, j+1]
                 try row_count.append(@intCast(row_entries.items.len));
             }
+
+            // check if the edge is connected to another block
 
             // edge A[0, j] = (1, j)
             for (2..b.points.size[1] - 2) |_| {
@@ -631,6 +742,16 @@ const RowCompressedMatrixSystem2d = struct {
         const dof = self.rhs_x.len;
         try umfpack.solve2(@intCast(dof), @intCast(dof), self.lhs_p, self.lhs_i, lhs_values, rhs_x, self.x_new[0..], rhs_y, self.y_new[0..]);
     }
+};
+
+const BoundaryPointProp = enum {
+    fix,
+    interface,
+    junction,
+
+    periodic,
+
+    // sliding
 };
 
 pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations: usize) !void {

@@ -4,6 +4,7 @@ const cluster = @import("clustering.zig");
 const geometry = @import("geometry.zig");
 const tfi = @import("tfi.zig");
 const cgns = @import("cgns.zig");
+const boundary = @import("boundary.zig");
 
 pub const Edge = struct {
     allocator: std.mem.Allocator,
@@ -140,7 +141,17 @@ pub const Block2d = struct {
         std.debug.assert(j_min.points.len == j_max.points.len);
 
         var points = try types.Mat2d.init(allocator, .{ i_min.points.len, j_min.points.len });
-        tfi.linearBoundaryBlendedControlFunction(&points, i_min.points, i_max.points, j_min.points, j_max.points, i_min.clustering, i_max.clustering, j_min.clustering, j_max.clustering);
+        tfi.linearBoundaryBlendedControlFunction(
+            &points,
+            i_min.points,
+            i_max.points,
+            j_min.points,
+            j_max.points,
+            i_min.clustering,
+            i_max.clustering,
+            j_min.clustering,
+            j_max.clustering,
+        );
         return .{ .allocator = allocator, .points = points };
     }
 
@@ -149,13 +160,12 @@ pub const Block2d = struct {
     }
 };
 
-// const Shell2d = struct {
-//     // consists of 4 2d edges
-// };
-
 pub const Mesh = struct {
     blocks: std.ArrayList(Block2d),
     names: std.ArrayList([:0]const u8),
+    connections: std.ArrayList(boundary.Connection),
+    periodics: std.ArrayList(boundary.Periodic),
+    boundary_conditions: std.ArrayList(boundary.Condition),
 
     // vec of boundaries
 
@@ -163,12 +173,10 @@ pub const Mesh = struct {
         return .{
             .blocks = std.ArrayList(Block2d).init(allocator),
             .names = std.ArrayList([:0]const u8).init(allocator),
+            .connections = std.ArrayList(boundary.Connection).init(allocator),
+            .periodics = std.ArrayList(boundary.Periodic).init(allocator),
+            .boundary_conditions = std.ArrayList(boundary.Condition).init(allocator),
         };
-    }
-
-    pub fn addBlock(self: *Mesh, name: []const u8, block: Block2d) !void {
-        try self.blocks.append(block);
-        try self.names.append(try self.names.allocator.dupeZ(u8, name));
     }
 
     pub fn deinit(self: Mesh) void {
@@ -176,6 +184,14 @@ pub const Mesh = struct {
         for (self.names.items) |n| self.names.allocator.free(n);
         self.blocks.deinit();
         self.names.deinit();
+        self.connections.deinit();
+        self.periodics.deinit();
+        self.boundary_conditions.deinit();
+    }
+
+    pub fn addBlock(self: *Mesh, name: []const u8, block: Block2d) !void {
+        try self.blocks.append(block);
+        try self.names.append(try self.names.allocator.dupeZ(u8, name));
     }
 
     pub fn write(self: Mesh, allocator: std.mem.Allocator, filename: [:0]const u8) !void {
