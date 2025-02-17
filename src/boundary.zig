@@ -22,6 +22,55 @@ pub const Range = struct {
         return self.end - self.start + 1;
     }
 
+    /// Returns the point index increment to get the
+    pub fn adjacentPointIndexIncrement(self: Range, mesh: *const discrete.Mesh) isize {
+        const points = mesh.blocks.items[self.block].points;
+        const shift: isize = switch (self.side) {
+            .i_min => @intCast(points.size[1]),
+            .i_max => -@as(isize, @intCast(points.size[1])),
+            .j_min => 1,
+            .j_max => -1,
+        };
+        return shift;
+    }
+
+    pub fn iterateIndex2d(self: Range, mesh: *const discrete.Mesh) RangeIterator2d {
+        var count: usize = undefined;
+        var idx: types.Index = undefined;
+        var increment: .{ isize, isize } = undefined;
+
+        var increasing: isize = undefined;
+        if (self.start > self.end) {
+            count = self.start - self.end + 1;
+            increasing = 1.0;
+        } else {
+            count = self.end - self.start + 1;
+            increasing = -1.0;
+        }
+
+        const size = mesh.blocks.items[self.block].points.size;
+
+        switch (self.side) {
+            .i_min => {
+                idx = .{ self.start, 0 };
+                increment = .{ increasing, 0 };
+            },
+            .i_max => {
+                idx = .{ self.start, size[0] - 1 };
+                increment = .{ increasing, 0 };
+            },
+            .j_min => {
+                idx = .{ 0, self.start };
+                increment = .{ 0, increasing };
+            },
+            .j_max => {
+                idx = .{ size[1] - 1, self.start };
+                increment = .{ 0, increasing };
+            },
+        }
+        return .{ .count = count, .idx = idx, .increment = increment };
+    }
+
     pub fn iterate(self: Range, mesh: *const discrete.Mesh) RangeIterator {
         const points = &mesh.blocks.items[self.block].points;
         const size = points.size;
@@ -59,9 +108,26 @@ pub const Range = struct {
     }
 };
 
+const RangeIterator2d = struct {
+    count: usize,
+    idx: types.Index2d,
+    increment: struct { isize, isize },
+
+    pub fn next(self: *@This()) ?types.Index2d {
+        if (self.count == 0) return null;
+        const idx = self.idx;
+        self.idx = .{ idx[0] + self.increment[0], idx[1] + self.increment[1] };
+        self.count -= 1;
+        return idx;
+    }
+};
+
 const RangeIterator = struct {
     pos: isize,
+
+    // TODO chang this to a count to abe able to use usize for pos
     end: isize,
+
     step: isize,
 
     pub fn next(self: *@This()) ?usize {
@@ -87,11 +153,27 @@ pub const Connection = struct {
         return length - 2;
     }
 
-    fn internalRange(self: Connection) [2]Range {
-        var new_range: [2]Range = undefined;
-        @memcpy(new_range[0..], self.data);
+    // /// Returns the start and end indices of the internal points of the connection
+    // /// (the points of the connection exept the original start and end point)
+    // pub fn internalPoints(self: Connection) [2]struct { start: usize, end: usize } {
+    //     var points: [2]struct { start: usize, end: usize } = undefined;
+    //     for (self.data, points[0..]) |range, *point| {
+    //         if (range.start < range.end) {
+    //             point.start = range.start + 1;
+    //             point.end = range.end - 1;
+    //         } else {
+    //             point.end = range.end + 1;
+    //             point.start = range.start - 1;
+    //         }
+    //     }
+    //     return points;
+    // }
 
-        for (new_range) |r| {
+    pub fn internalRanges(self: Connection) [2]Range {
+        var new_range: [2]Range = undefined;
+        @memcpy(new_range[0..], self.data[0..]);
+
+        for (new_range[0..]) |*r| {
             if (r.start < r.end) {
                 r.start += 1;
                 r.end -= 1;

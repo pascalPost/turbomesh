@@ -199,44 +199,40 @@ const RowCompressedMatrixSystem2d = struct {
             }
         }
 
+        // first we add block internal points,
+        // then we add block boundary points to be solved based on conenction data
+
         var dof: usize = 0;
-        var non_zero_entries: usize = 0;
+        var non_zero_entries_capacity: usize = 0;
 
         for (mesh_data.blocks.items) |b| {
             const points = b.points;
             const block_dof = (points.size[0] - 2) * (points.size[1] - 2);
             dof += block_dof;
 
-            const block_non_zero_entries =
-                // corners
-                4 * 4 +
-                // edges
-                ((points.size[0] - 4) + (points.size[1] - 4)) * 2 * 6 +
-                // internal
-                (points.size[0] - 4) * (points.size[1] - 4) * 9;
-            non_zero_entries += block_non_zero_entries;
+            // this is a max limit of non zero entries per point
+            // the true number will be less dependent on how many
+            // neighboring points need to bes solved
+            const block_non_zero_entries = dof * 9;
+            non_zero_entries_capacity += block_non_zero_entries;
         }
 
-        // TODO check the edge adjacent data how many non-fixed neighbors they have of 8
-        // this is the number of non_zero_entries
-        //
-        // we also need to track the indices of these entries
+        for (mesh_data.connections.items) |connection| {
+            // for now we assume that only connection internal points will be solve
+            const internal_points = connection.lenInternal();
+            dof += internal_points;
+            non_zero_entries_capacity += internal_points * 9;
+        }
 
-        // add the additional DOF and non-zero entries for the connected points to solve
-
-        // for (mesh_data.connections.items) |connection| {
-        //     dof += connection.lenInternal();
-        // }
-
-        const buffer_int = try allocator.alloc(c_int, (dof + 1) + non_zero_entries);
+        const buffer_int = try allocator.alloc(c_int, (dof + 1) + non_zero_entries_capacity);
 
         // left hand side (lhs) in compressed row form
         var lhs_p = buffer_int[0 .. dof + 1]; // cum sum of non-zero entries in columns
         lhs_p[0] = 0; // first value must be zero
         const lhs_i = buffer_int[dof + 1 ..]; // row indicies with non-zero values
-        std.debug.assert(lhs_i.len == non_zero_entries);
+        std.debug.assert(lhs_i.len == non_zero_entries_capacity);
 
-        const buffer_float = try allocator.alloc(f64, 4 * dof + non_zero_entries);
+        const buffer_float = try allocator.alloc(f64, 4 * dof + non_zero_entries_capacity);
 
         const x_new = buffer_float[0..dof];
         const y_new = buffer_float[dof .. 2 * dof];
@@ -246,7 +242,7 @@ const RowCompressedMatrixSystem2d = struct {
 
         const lhs_values = buffer_float[4 * dof ..];
 
-        try RowCompressedMatrixSystem2d.nonZeroMatrixEntries(mesh_data, lhs_p, lhs_i, dof, non_zero_entries);
+        try RowCompressedMatrixSystem2d.nonZeroMatrixEntries(allocator, mesh_data, lhs_p, lhs_i, dof, non_zero_entries_capacity);
 
         return .{
             .mesh = mesh_data,
@@ -268,7 +264,7 @@ const RowCompressedMatrixSystem2d = struct {
         defer self.allocator.free(self.buffer_float);
     }
 
-    fn nonZeroMatrixEntries(mesh_data: *const discrete.Mesh, lhs_p: []c_int, lhs_i: []c_int, dof: usize, non_zero_entries: usize) !void {
+    fn nonZeroMatrixEntries(allocator: std.mem.Allocator, mesh_data: *const discrete.Mesh, lhs_p: []c_int, lhs_i: []c_int, dof: usize, non_zero_entries: usize) !void {
         var fba_count = std.heap.FixedBufferAllocator.init(std.mem.sliceAsBytes(lhs_p[1..]));
         var row_count = try std.ArrayList(c_int).initCapacity(fba_count.allocator(), dof);
 
@@ -388,6 +384,190 @@ const RowCompressedMatrixSystem2d = struct {
                 try row_entries.append(matrix_idx - col_size); // A[i-1, j]
                 try row_entries.append(matrix_idx - 1); // A[i, j-1]
                 try row_entries.append(matrix_idx); // A[i, j]
+                try row_count.append(@intCast(row_entries.items.len));
+            }
+        }
+
+        // create a map that gives the first entry in the system matrix for a given block.
+        // This entry id corresponds to the row index of the first internal point of the matrix.
+        // All following internal points are ordered in column major format (j-index first).
+        // This map allows to compute the matrix index for a given internal point
+        //
+        // TODO move this to an own structure that allows the mapping of internal points to matrix indices
+        var block_2_matrix_start_idx_map = try allocator.alloc(usize, mesh_data.blocks.items.len);
+        defer allocator.free(block_2_matrix_start_idx_map);
+
+        {
+            var internal_dof: usize = 0;
+            for (mesh_data.blocks.items, 0..) |block, block_idx| {
+                block_2_matrix_start_idx_map[block_idx] = internal_dof;
+                const points = block.points;
+                const block_dof = (points.size[0] - 2) * (points.size[1] - 2);
+                internal_dof += block_dof;
+            }
+        }
+
+        for (mesh_data.connections.items) |connection| {
+
+            // we assume that all connection internal points must be solved
+
+            // const range_0 = connection.data[0];
+            // const range_1 = connection.data[1];
+
+            // const block_idx_0 = connection.data[0].block;
+            // const matrix_idx_start_0 = block_2_matrix_start_idx_map[block_idx_0];
+            // const block_size_j_0 = mesh_data.blocks.items[block_idx_0].points.size[1];
+
+            // const block_idx_1 = connection.data[1].block;
+            // const matrix_idx_start_1 = block_2_matrix_start_idx_map[block_idx_1];
+            // const block_size_j_1 = mesh_data.blocks.items[block_idx_1].points.size[1];
+
+            // // we need to check this, as this is assumed in the matrix row index ordering below.
+            // // TODO: allow this to be dynamic
+            // std.debug.assert(block_idx_0 < block_idx_1);
+
+            // // get 2d point index iterator and modify to yield first internal point instead of the boundary point
+
+            // var it_0 = range_0.iterateIndex2d(mesh_data);
+            // var matrix_increment_0: isize = undefined;
+            // switch (range_0.side) {
+            //     .i_min => {
+            //         it_0.idx[1] += 1;
+            //         matrix_increment_0 = block_size_j_0 - 2;
+            //     },
+            //     .i_max => {
+            //         it_0.idx[1] -= 1;
+            //         matrix_increment_0 = block_size_j_0 - 2;
+            //     },
+            //     .j_min => {
+            //         it_0.idx[0] += 1;
+            //         matrix_increment_0 = 1;
+            //     },
+            //     .j_max => {
+            //         it_0.idx[0] -= 1;
+            //         matrix_increment_0 = 1;
+            //     },
+            // }
+            // if (range_0.start > range_0.end) matrix_increment_0 = -matrix_increment_0;
+
+            // var it_1 = range_1.iterateIndex2d(mesh_data);
+            // var matrix_increment_1: isize = undefined;
+            // switch (range_1.side) {
+            //     .i_min => {
+            //         it_1.idx[1] += 1;
+            //         matrix_increment_1 = block_size_j_1 - 2;
+            //     },
+            //     .i_max => {
+            //         it_1.idx[1] -= 1;
+            //         matrix_increment_1 = block_size_j_1 - 2;
+            //     },
+            //     .j_min => {
+            //         it_1.idx[0] += 1;
+            //         matrix_increment_1 = 1;
+            //     },
+            //     .j_max => {
+            //         it_1.idx[0] -= 1;
+            //         matrix_increment_1 = 1;
+            //     },
+            // }
+            // if (range_1.start > range_1.end) matrix_increment_1 = -matrix_increment_1;
+
+            // ignore first and last point (assuming these points to be fixed)
+            const internal_ranges = connection.internalRanges();
+
+            var it_0 = rangeNeighborMatrixIndexIterator(internal_ranges[0], mesh_data, block_2_matrix_start_idx_map);
+            var it_1 = rangeNeighborMatrixIndexIterator(internal_ranges[1], mesh_data, block_2_matrix_start_idx_map);
+
+            const matrix_increment_0: c_int = @intCast(it_0.increment);
+            const matrix_increment_1: c_int = @intCast(it_1.increment);
+
+            // first internal point has first point fixed.
+            {
+                //           |
+                //       connection
+                //           |
+                //           V
+                //
+                // [fixed]                [fixed]          [fixed]
+                // (matrix_idx_0)         (matrix_idx)     (matrix_idx_1)
+                // (matrix_idx_0 + inc_0) (matrix_idx + 1) (matrix_idx_1 + inc_1)
+
+                const matrix_idx_0: c_int = @intCast(it_0.next().?);
+                const matrix_idx_1: c_int = @intCast(it_1.next().?);
+
+                // try row_entries.append(matrix_idx_0 - it_0.increment);
+                try row_entries.append(matrix_idx_0);
+                try row_entries.append(matrix_idx_0 + matrix_increment_0);
+
+                // try row_entries.append(matrix_idx_1 - it_1.increment);
+                try row_entries.append(matrix_idx_1);
+                try row_entries.append(matrix_idx_1 + matrix_increment_1);
+
+                matrix_idx += 1;
+                // try row_entries.append(matrix_idx - 1);
+                try row_entries.append(matrix_idx);
+                try row_entries.append(matrix_idx + 1);
+
+                try row_count.append(@intCast(row_entries.items.len));
+            }
+
+            // loop edge
+            for (0..it_0.count - 1) |_| {
+                //           |
+                //       connection
+                //           |
+                //           V
+                //
+                // (matrix_idx_0 - inc_0) (matrix_idx - 1) (matrix_idx_1 - inc_1)
+                // (matrix_idx_0)           (matrix_idx)   (matrix_idx_1)
+                // (matrix_idx_0 + inc_0) (matrix_idx + 1) (matrix_idx_1 + inc_1)
+
+                const matrix_idx_0: c_int = @intCast(it_0.next().?);
+                const matrix_idx_1: c_int = @intCast(it_1.next().?);
+
+                try row_entries.append(matrix_idx_0 - matrix_increment_0);
+                try row_entries.append(matrix_idx_0);
+                try row_entries.append(matrix_idx_0 + matrix_increment_0);
+
+                try row_entries.append(matrix_idx_1 - matrix_increment_1);
+                try row_entries.append(matrix_idx_1);
+                try row_entries.append(matrix_idx_1 + matrix_increment_1);
+
+                matrix_idx += 1;
+                try row_entries.append(matrix_idx - 1);
+                try row_entries.append(matrix_idx);
+                try row_entries.append(matrix_idx + 1);
+
+                try row_count.append(@intCast(row_entries.items.len));
+            }
+
+            // second to last point has last point fixed.
+            {
+                //           |
+                //       connection
+                //           |
+                //           V
+                //
+                // (matrix_idx_0 - inc_0) (matrix_idx - 1) (matrix_idx_1 - inc_1)
+                // (matrix_idx_0)         (matrix_idx)     (matrix_idx_1)
+                // [fixed]                [fixed]          [fixed]
+
+                const matrix_idx_0: c_int = @intCast(it_0.next().?);
+                const matrix_idx_1: c_int = @intCast(it_1.next().?);
+
+                try row_entries.append(matrix_idx_0 - matrix_increment_0);
+                try row_entries.append(matrix_idx_0);
+                // try row_entries.append(matrix_idx_0 + it_0.increment);
+
+                try row_entries.append(matrix_idx_1 - matrix_increment_1);
+                try row_entries.append(matrix_idx_1);
+                // try row_entries.append(matrix_idx_1 + it_1.increment);
+
+                matrix_idx += 1;
+                try row_entries.append(matrix_idx - 1);
+                try row_entries.append(matrix_idx);
+                // try row_entries.append(matrix_idx + 1);
+
                 try row_count.append(@intCast(row_entries.items.len));
             }
         }
@@ -739,6 +919,8 @@ const RowCompressedMatrixSystem2d = struct {
             }
         }
 
+        // TODO add connection data
+
         const dof = self.rhs_x.len;
         try umfpack.solve2(@intCast(dof), @intCast(dof), self.lhs_p, self.lhs_i, lhs_values, rhs_x, self.x_new[0..], rhs_y, self.y_new[0..]);
     }
@@ -809,4 +991,65 @@ pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations:
             }
         }
     }
+}
+
+const RangeNeighborMatrixIndexIterator = struct {
+    count: usize,
+    increment: isize,
+    position: usize,
+
+    fn next(self: *@This()) ?usize {
+        if (self.count == 0) return null;
+        self.count -= 1;
+        const matrix_index = self.position;
+        self.position = @intCast(@as(isize, @intCast(self.position)) + self.increment);
+        return matrix_index;
+    }
+};
+
+fn rangeNeighborMatrixIndexIterator(
+    range: boundary.Range,
+    mesh_data: *const discrete.Mesh,
+    block_2_matrix_start_idx_map: []const usize,
+) RangeNeighborMatrixIndexIterator {
+    const block_size_j = mesh_data.blocks.items[range.block].points.size[1];
+
+    var first_internal_point_index: types.Index2d = undefined;
+    var increment: isize = undefined;
+    switch (range.side) {
+        .i_min => {
+            first_internal_point_index = .{ range.start, 1 };
+            increment = @intCast(block_size_j - 2);
+        },
+        .i_max => {
+            first_internal_point_index = .{ range.start, block_size_j - 3 };
+            increment = @intCast(block_size_j - 2);
+        },
+        .j_min => {
+            first_internal_point_index = .{ 1, range.start };
+            increment = 1;
+        },
+        .j_max => {
+            first_internal_point_index = .{ block_size_j - 3, range.start };
+            increment = 1;
+        },
+    }
+
+    const matrix_idx_start = block_2_matrix_start_idx_map[range.block];
+    const matrix_index = matrix_idx_start +
+        (first_internal_point_index[0] - 1) * block_size_j + (first_internal_point_index[1] - 1);
+
+    var count: usize = 1;
+    if (range.start < range.end) {
+        count += range.end - range.start;
+    } else {
+        increment = -increment;
+        count += range.start - range.end;
+    }
+
+    return .{
+        .count = count,
+        .increment = increment,
+        .position = matrix_index,
+    };
 }
