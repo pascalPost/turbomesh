@@ -22,119 +22,58 @@ pub const Range = struct {
         return self.end - self.start + 1;
     }
 
-    /// Returns the point index increment to get the
-    pub fn adjacentPointIndexIncrement(self: Range, mesh: *const discrete.Mesh) isize {
-        const points = mesh.blocks.items[self.block].points;
-        const shift: isize = switch (self.side) {
-            .i_min => @intCast(points.size[1]),
-            .i_max => -@as(isize, @intCast(points.size[1])),
-            .j_min => 1,
-            .j_max => -1,
-        };
-        return shift;
-    }
-
-    pub fn iterateIndex2d(self: Range, mesh: *const discrete.Mesh) RangeIterator2d {
-        var count: usize = undefined;
-        var idx: types.Index = undefined;
-        var increment: .{ isize, isize } = undefined;
-
-        var increasing: isize = undefined;
-        if (self.start > self.end) {
-            count = self.start - self.end + 1;
-            increasing = 1.0;
-        } else {
-            count = self.end - self.start + 1;
-            increasing = -1.0;
-        }
-
-        const size = mesh.blocks.items[self.block].points.size;
-
-        switch (self.side) {
-            .i_min => {
-                idx = .{ self.start, 0 };
-                increment = .{ increasing, 0 };
-            },
-            .i_max => {
-                idx = .{ self.start, size[0] - 1 };
-                increment = .{ increasing, 0 };
-            },
-            .j_min => {
-                idx = .{ 0, self.start };
-                increment = .{ 0, increasing };
-            },
-            .j_max => {
-                idx = .{ size[1] - 1, self.start };
-                increment = .{ 0, increasing };
-            },
-        }
-        return .{ .count = count, .idx = idx, .increment = increment };
-    }
-
     pub fn iterate(self: Range, mesh: *const discrete.Mesh) RangeIterator {
-        const points = &mesh.blocks.items[self.block].points;
+        const points = mesh.blocks.items[self.block].points;
         const size = points.size;
 
+        var iterator: RangeIterator = undefined;
+
         switch (self.side) {
             .i_min => {
-                const start: isize = @intCast(points.index(.{ self.start, 0 }));
-                const end: isize = @intCast(points.index(.{ self.end, 0 }));
-                var step: isize = @intCast(size[1]);
-                if (start > end) step = -step;
-                return .{ .pos = start, .end = end + step, .step = step };
+                iterator.idx = points.index(.{ self.start, 0 });
+                iterator.incerment = @intCast(size[1]);
             },
             .j_max => {
-                const start: isize = @intCast(points.index(.{ size[0] - 1, self.start }));
-                const end: isize = @intCast(points.index(.{ size[0] - 1, self.end }));
-                var step: isize = 1;
-                if (start > end) step = -step;
-                return .{ .pos = start, .end = end + step, .step = step };
+                iterator.idx = points.index(.{ size[0] - 1, self.start });
+                iterator.incerment = 1;
             },
             .i_max => {
-                const start: isize = @intCast(points.index(.{ self.start, size[1] - 1 }));
-                const end: isize = @intCast(points.index(.{ self.end, size[1] - 1 }));
-                var step: isize = @intCast(size[1]);
-                if (start > end) step = -step;
-                return .{ .pos = start, .end = end + step, .step = step };
+                iterator.idx = points.index(.{ self.start, size[1] - 1 });
+                iterator.incerment = @intCast(size[1]);
             },
             .j_min => {
-                const start: isize = @intCast(points.index(.{ 0, self.start }));
-                const end: isize = @intCast(points.index(.{ 0, self.end }));
-                var step: isize = 1;
-                if (start > end) step = -step;
-                return .{ .pos = start, .end = end + step, .step = step };
+                iterator.idx = points.index(.{ 0, self.start });
+                iterator.incerment = 1;
             },
         }
-    }
-};
 
-const RangeIterator2d = struct {
-    count: usize,
-    idx: types.Index2d,
-    increment: struct { isize, isize },
+        if (self.start > self.end) {
+            iterator.incerment = -iterator.incerment;
+            iterator.count = self.start - self.end;
+        } else {
+            iterator.count = self.end - self.start;
+        }
 
-    pub fn next(self: *@This()) ?types.Index2d {
-        if (self.count == 0) return null;
-        const idx = self.idx;
-        self.idx = .{ idx[0] + self.increment[0], idx[1] + self.increment[1] };
-        self.count -= 1;
-        return idx;
+        return iterator;
     }
 };
 
 const RangeIterator = struct {
-    pos: isize,
-
-    // TODO chang this to a count to abe able to use usize for pos
-    end: isize,
-
-    step: isize,
+    // for the last element, count will be 0 and idx will be != null
+    // if no elements are left, idx will be null
+    count: usize,
+    idx: ?usize,
+    incerment: isize,
 
     pub fn next(self: *@This()) ?usize {
-        if (self.pos == self.end) return null;
-        const pos = self.pos;
-        self.pos += self.step;
-        return @intCast(pos);
+        const idx = self.idx;
+        if (self.count > 0) {
+            self.count -= 1;
+            self.idx = @bitCast(@as(isize, @intCast(idx.?)) + self.incerment);
+        } else {
+            self.idx = null;
+        }
+        return idx;
     }
 };
 
@@ -153,21 +92,11 @@ pub const Connection = struct {
         return length - 2;
     }
 
-    // /// Returns the start and end indices of the internal points of the connection
-    // /// (the points of the connection exept the original start and end point)
-    // pub fn internalPoints(self: Connection) [2]struct { start: usize, end: usize } {
-    //     var points: [2]struct { start: usize, end: usize } = undefined;
-    //     for (self.data, points[0..]) |range, *point| {
-    //         if (range.start < range.end) {
-    //             point.start = range.start + 1;
-    //             point.end = range.end - 1;
-    //         } else {
-    //             point.end = range.end + 1;
-    //             point.start = range.start - 1;
-    //         }
-    //     }
-    //     return points;
-    // }
+    pub fn iterate(self: Connection, mesh: *const discrete.Mesh) ConnectionIterator {
+        const it_0 = self.data[0].iterate(mesh);
+        const it_1 = self.data[1].iterate(mesh);
+        return .{ .data = .{ it_0, it_1 } };
+    }
 
     pub fn internalRanges(self: Connection) [2]Range {
         var new_range: [2]Range = undefined;
@@ -183,6 +112,20 @@ pub const Connection = struct {
             }
         }
         return new_range;
+    }
+};
+
+const ConnectionIterator = struct {
+    data: RangeIterator[2],
+
+    fn next(self: *@This()) ?struct { usize, usize } {
+        const n_0 = self.data[0].next() orelse {
+            return null;
+        };
+        const n_1 = self.data[1].next() orelse {
+            return null;
+        };
+        return .{ n_0, n_1 };
     }
 };
 

@@ -360,6 +360,8 @@ const Turbine = struct {
         try mesh.addBlock("downstream", downstream);
 
         // Connections
+        // _ = upstream_id;
+        // _ = down_id;
         try mesh.connections.append(.{ .data = .{
             .{ .block = down_id, .side = boundary.Side.j_min, .start = self.num_cells.down_j, .end = 0 },
             .{ .block = upstream_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.down_j },
@@ -444,7 +446,7 @@ test "turbine template" {
 
     // try mesh.write(allocator, "o4h_linear.cgns");
 
-    try smooth.mesh(allocator, &mesh, 0);
+    try smooth.mesh(allocator, &mesh, 20);
 
     try mesh.write(allocator, "o4h.cgns");
 }

@@ -52,6 +52,28 @@ pub fn solve2(
     //     }
     // }
 
+    // {
+    //     var file = try std.fs.cwd().createFile("rhs_x.txt", .{});
+    //     defer file.close();
+
+    //     const writer = file.writer();
+
+    //     for (rhs_x) |a| {
+    //         try writer.print("{}\n", .{a});
+    //     }
+    // }
+
+    // {
+    //     var file = try std.fs.cwd().createFile("rhs_y.txt", .{});
+    //     defer file.close();
+
+    //     const writer = file.writer();
+
+    //     for (rhs_y) |a| {
+    //         try writer.print("{}\n", .{a});
+    //     }
+    // }
+
     {
         const res = c.umfpack_di_symbolic(n_row, n_col, ap[0..].ptr, ai[0..].ptr, ax[0..].ptr, &symbolic, null, null);
 
