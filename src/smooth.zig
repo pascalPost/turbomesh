@@ -48,38 +48,55 @@ const boundary = @import("boundary.zig");
 //     std.debug.print("RHS: ({}, {})\n", .{ rhs_x[matrix_idx], rhs_y[matrix_idx] });
 // }
 
-fn computeMatrixValues(im1_j: types.Vec2d, ip1_j: types.Vec2d, i_jm1: types.Vec2d, i_jp1: types.Vec2d, s: f64, t: f64) struct {
-    a_i_j: f64,
-    a_ip1_j: f64,
-    a_im1_j: f64,
-    a_i_jp1: f64,
-    a_i_jm1: f64,
-    a_ip1_jp1: f64,
-    a_ip1_jm1: f64,
-    a_im1_jp1: f64,
-    a_im1_jm1: f64,
-} {
-    const x_xi = 0.5 * (ip1_j.data[0] - im1_j.data[0]);
-    const x_eta = 0.5 * (i_jp1.data[0] - i_jm1.data[0]);
-    const y_xi = 0.5 * (ip1_j.data[1] - im1_j.data[1]);
-    const y_eta = 0.5 * (i_jp1.data[1] - i_jm1.data[1]);
+/// The 9 point stencil data for the point (i,j). The values are stored in an array where the index in
+/// the array can be found in the contained index enum (internally going from 0 to 8). For easy access,
+/// a get function is provided that allows access based on the index enum.
+const StencilData = struct {
+    data: [9]f64,
 
-    const p = x_eta * x_eta + y_eta * y_eta;
-    const q = x_xi * x_eta + y_xi * y_eta;
-    const r = x_xi * x_xi + y_xi * y_xi;
-
-    return .{
-        .a_i_j = -2.0 * p - 2.0 * r,
-        .a_ip1_j = p + 0.5 * s,
-        .a_im1_j = p - 0.5 * s,
-        .a_i_jp1 = r + 0.5 * t,
-        .a_i_jm1 = r - 0.5 * t,
-        .a_ip1_jp1 = -0.5 * q,
-        .a_ip1_jm1 = 0.5 * q,
-        .a_im1_jp1 = 0.5 * q,
-        .a_im1_jm1 = -0.5 * q,
+    /// this enum provides the index access for the data
+    const index = enum {
+        i_j,
+        ip1_j,
+        im1_j,
+        i_jp1,
+        i_jm1,
+        ip1_jp1,
+        ip1_jm1,
+        im1_jp1,
+        im1_jm1,
     };
-}
+
+    /// returns the contained data based on the index enum, e.g `get(.i_j)`
+    fn get(self: StencilData, i: index) f64 {
+        return self.data[@intFromEnum(i)];
+    }
+
+    fn init(im1_j: types.Vec2d, ip1_j: types.Vec2d, i_jm1: types.Vec2d, i_jp1: types.Vec2d, s: f64, t: f64) StencilData {
+        const x_xi = 0.5 * (ip1_j.data[0] - im1_j.data[0]);
+        const x_eta = 0.5 * (i_jp1.data[0] - i_jm1.data[0]);
+        const y_xi = 0.5 * (ip1_j.data[1] - im1_j.data[1]);
+        const y_eta = 0.5 * (i_jp1.data[1] - i_jm1.data[1]);
+
+        const p = x_eta * x_eta + y_eta * y_eta;
+        const q = x_xi * x_eta + y_xi * y_eta;
+        const r = x_xi * x_xi + y_xi * y_xi;
+
+        return .{
+            .data = .{
+                -2.0 * p - 2.0 * r, // get(.i_j)
+                p + 0.5 * s, //ip1_j
+                p - 0.5 * s, //im1_j
+                r + 0.5 * t, //i_jp1
+                r - 0.5 * t, //i_jm1
+                -0.5 * q, //ip1_jp1
+                0.5 * q, //ip1_jm1
+                0.5 * q, //im1_jp1
+                -0.5 * q, //im1_jm1
+            },
+        };
+    }
+};
 
 const RowCompressedMatrixSystem2d = struct {
     mesh: *discrete.Mesh,
@@ -131,74 +148,74 @@ const RowCompressedMatrixSystem2d = struct {
             }
         }
 
-        // create boundary point buffer
-        // boundary points | side [0] neighbors | side [1] neighbors
-        var buffer_len: usize = 0;
-        for (mesh_data.connections.items) |connection| {
-            const len = connection.len();
-            buffer_len += len;
-        }
+        // // create boundary point buffer
+        // // boundary points | side [0] neighbors | side [1] neighbors
+        // var buffer_len: usize = 0;
+        // for (mesh_data.connections.items) |connection| {
+        //     const len = connection.len();
+        //     buffer_len += len;
+        // }
 
-        var boundary_point_buffer = try allocator.alloc(types.Vec2d, buffer_len * 3);
-        defer allocator.free(boundary_point_buffer);
+        // var boundary_point_buffer = try allocator.alloc(types.Vec2d, buffer_len * 3);
+        // defer allocator.free(boundary_point_buffer);
 
-        var idx: usize = 0;
-        for (mesh_data.connections.items) |connection| {
-            // boundary points (taken from side 0)
-            {
-                const range_0 = connection.data[0];
-                const point_data = mesh_data.blocks.items[range_0.block].points.data;
-                var it = range_0.iterate(mesh_data);
-                while (it.next()) |point_idx| {
-                    boundary_point_buffer[idx] = point_data[point_idx];
-                    idx += 1;
-                }
-            }
+        // var idx: usize = 0;
+        // for (mesh_data.connections.items) |connection| {
+        //     // boundary points (taken from side 0)
+        //     {
+        //         const range_0 = connection.data[0];
+        //         const point_data = mesh_data.blocks.items[range_0.block].points.data;
+        //         var it = range_0.iterate(mesh_data);
+        //         while (it.next()) |point_idx| {
+        //             boundary_point_buffer[idx] = point_data[point_idx];
+        //             idx += 1;
+        //         }
+        //     }
 
-            // boundary point neighbors from side 0 and 1
-            for (0..2) |side_idx| {
-                const range = connection.data[side_idx];
-                const points = mesh_data.blocks.items[range.block].points;
+        //     // boundary point neighbors from side 0 and 1
+        //     for (0..2) |side_idx| {
+        //         const range = connection.data[side_idx];
+        //         const points = mesh_data.blocks.items[range.block].points;
 
-                const shift: isize = switch (range.side) {
-                    .i_min => @intCast(points.size[1]),
-                    .i_max => -@as(isize, @intCast(points.size[1])),
-                    .j_min => 1,
-                    .j_max => -1,
-                };
+        //         const shift: isize = switch (range.side) {
+        //             .i_min => @intCast(points.size[1]),
+        //             .i_max => -@as(isize, @intCast(points.size[1])),
+        //             .j_min => 1,
+        //             .j_max => -1,
+        //         };
 
-                var it = range.iterate(mesh_data);
-                while (it.next()) |point_idx| {
-                    const i: isize = @as(isize, @intCast(point_idx)) + shift;
-                    boundary_point_buffer[idx] = points.data[@intCast(i)];
-                }
-            }
-        }
+        //         var it = range.iterate(mesh_data);
+        //         while (it.next()) |point_idx| {
+        //             const i: isize = @as(isize, @intCast(point_idx)) + shift;
+        //             boundary_point_buffer[idx] = points.data[@intCast(i)];
+        //         }
+        //     }
+        // }
 
-        // collect boundary point connections
-        var boundary_point_connections = try boundary.PointData(std.BoundedArray(usize, 4)).init(allocator, mesh_data);
-        defer boundary_point_connections.deinit();
+        // // collect boundary point connections
+        // var boundary_point_connections = try boundary.PointData(std.BoundedArray(usize, 4)).init(allocator, mesh_data);
+        // defer boundary_point_connections.deinit();
 
-        for (mesh_data.connections.items, 0..) |connection, connection_idx| {
-            for (0..2) |side_idx| {
-                var it = boundary_point_connections.iterateRange(connection.data[side_idx]);
-                while (it.nextPtr()) |point_connection_data| {
-                    try point_connection_data.append(connection_idx);
-                }
-            }
-        }
+        // for (mesh_data.connections.items, 0..) |connection, connection_idx| {
+        //     for (0..2) |side_idx| {
+        //         var it = boundary_point_connections.iterateRange(connection.data[side_idx]);
+        //         while (it.nextPtr()) |point_connection_data| {
+        //             try point_connection_data.append(connection_idx);
+        //         }
+        //     }
+        // }
 
-        // tag boundary points based on connections
-        var boundary_point_kind = try boundary.PointData(BoundaryPointProp).init(allocator, mesh_data);
-        defer boundary_point_kind.deinit();
+        // // tag boundary points based on connections
+        // var boundary_point_kind = try boundary.PointData(BoundaryPointProp).init(allocator, mesh_data);
+        // defer boundary_point_kind.deinit();
 
-        for (boundary_point_connections.buffer, boundary_point_kind.buffer) |connections, *kind| {
-            switch (connections.len) {
-                0 => kind.* = .fix,
-                1 => kind.* = .interface,
-                else => kind.* = .junction,
-            }
-        }
+        // for (boundary_point_connections.buffer, boundary_point_kind.buffer) |connections, *kind| {
+        //     switch (connections.len) {
+        //         0 => kind.* = .fix,
+        //         1 => kind.* = .interface,
+        //         else => kind.* = .junction,
+        //     }
+        // }
 
         // first we add block internal points,
         // then we add block boundary points to be solved based on conenction data
@@ -288,7 +305,7 @@ const RowCompressedMatrixSystem2d = struct {
                 try row_count.append(@intCast(row_entries.items.len));
             }
 
-            // check if the edge is connected to another block
+            // TODO make entries and RHS dependent on the block boundaries
 
             // edge A[0, j] = (1, j)
             for (2..b.points.size[1] - 2) |_| {
@@ -412,12 +429,25 @@ const RowCompressedMatrixSystem2d = struct {
 
             // we assume that all connection internal points must be solved
 
+            // we rely on block 0 matrix entries to be ahead of the block 1 matrix entries,
+            // otherwise we run into an invalid matrix error
+            // We could handle this here dynamically in the future:
+            // - move index 0 to a variable lower_idx_block
+            // - move index 1 to a variable higher_idx_block
+            std.debug.assert(connection.data[0].block < connection.data[1].block);
+
+            // we need at least the two extreme points handled in the current implementation;
+            // it should be simple to add handling of the edge cases.
+            std.debug.assert(connection.lenInternal() > 3);
+
             // ignore first and last point (assuming these points to be fixed)
             const internal_ranges = connection.internalRanges();
 
             var it_0 = RangeNeighborMatrixIndexIterator.init(internal_ranges[0], mesh_data, block_2_matrix_start_idx_map);
             var it_1 = RangeNeighborMatrixIndexIterator.init(internal_ranges[1], mesh_data, block_2_matrix_start_idx_map);
 
+            // NOTE: we need to make sure that the matrix entries are in ascending order
+            // as required by the compressed row format
             const matrix_increment_0: c_int = @intCast(it_0.increment);
             const matrix_increment_1: c_int = @intCast(it_1.increment);
 
@@ -435,20 +465,25 @@ const RowCompressedMatrixSystem2d = struct {
                 const matrix_idx_0: c_int = @intCast(it_0.next().?);
                 const matrix_idx_1: c_int = @intCast(it_1.next().?);
 
-                // TODO fix this sorting!!
-
-                try row_entries.append(matrix_idx_0 + matrix_increment_0);
-                try row_entries.append(matrix_idx_0);
-                try row_entries.append(matrix_idx_1);
-                try row_entries.append(matrix_idx_1 + matrix_increment_1);
+                // connection point's  internal points neighbor matrix entries
+                const entries_for_block_0 = [2]c_int{ matrix_idx_0, matrix_idx_0 + matrix_increment_0 };
+                const entries_for_block_1 = [2]c_int{ matrix_idx_1, matrix_idx_1 + matrix_increment_1 };
+                try row_entries.append(@min(entries_for_block_0[0], entries_for_block_0[1]));
+                try row_entries.append(@max(entries_for_block_0[0], entries_for_block_0[1]));
+                try row_entries.append(@min(entries_for_block_1[0], entries_for_block_1[1]));
+                try row_entries.append(@max(entries_for_block_1[0], entries_for_block_1[1]));
 
                 matrix_idx += 1;
 
+                // new entries for the connection (this point and connection neighbor)
                 try row_entries.append(matrix_idx);
                 try row_entries.append(matrix_idx + 1);
 
                 try row_count.append(@intCast(row_entries.items.len));
             }
+
+            const matrix_increment_0_abs: c_int = @intCast(@abs(matrix_increment_0));
+            const matrix_increment_1_abs: c_int = @intCast(@abs(matrix_increment_1));
 
             // loop edge
             for (0..it_0.count - 1) |_| {
@@ -464,13 +499,13 @@ const RowCompressedMatrixSystem2d = struct {
                 const matrix_idx_0: c_int = @intCast(it_0.next().?);
                 const matrix_idx_1: c_int = @intCast(it_1.next().?);
 
-                try row_entries.append(matrix_idx_0 + matrix_increment_0);
+                try row_entries.append(matrix_idx_0 - matrix_increment_0_abs);
                 try row_entries.append(matrix_idx_0);
-                try row_entries.append(matrix_idx_0 - matrix_increment_0);
+                try row_entries.append(matrix_idx_0 + matrix_increment_0_abs);
 
-                try row_entries.append(matrix_idx_1 - matrix_increment_1);
+                try row_entries.append(matrix_idx_1 - matrix_increment_1_abs);
                 try row_entries.append(matrix_idx_1);
-                try row_entries.append(matrix_idx_1 + matrix_increment_1);
+                try row_entries.append(matrix_idx_1 + matrix_increment_1_abs);
 
                 matrix_idx += 1;
                 try row_entries.append(matrix_idx - 1);
@@ -494,13 +529,17 @@ const RowCompressedMatrixSystem2d = struct {
                 const matrix_idx_0: c_int = @intCast(it_0.next().?);
                 const matrix_idx_1: c_int = @intCast(it_1.next().?);
 
-                try row_entries.append(matrix_idx_0);
-                try row_entries.append(matrix_idx_0 - matrix_increment_0);
-
-                try row_entries.append(matrix_idx_1 - matrix_increment_1);
-                try row_entries.append(matrix_idx_1);
+                // connection point's internal points neighbor matrix entries
+                const entries_for_block_0 = [2]c_int{ matrix_idx_0, matrix_idx_0 - matrix_increment_0 };
+                const entries_for_block_1 = [2]c_int{ matrix_idx_1, matrix_idx_1 - matrix_increment_1 };
+                try row_entries.append(@min(entries_for_block_0[0], entries_for_block_0[1]));
+                try row_entries.append(@max(entries_for_block_0[0], entries_for_block_0[1]));
+                try row_entries.append(@min(entries_for_block_1[0], entries_for_block_1[1]));
+                try row_entries.append(@max(entries_for_block_1[0], entries_for_block_1[1]));
 
                 matrix_idx += 1;
+
+                // new entries for the connection (this point and connection neighbor)
                 try row_entries.append(matrix_idx - 1);
                 try row_entries.append(matrix_idx);
 
@@ -537,28 +576,28 @@ const RowCompressedMatrixSystem2d = struct {
                 const ip1_jm1 = points.data[points_idx + points.size[1] - 1];
                 const ip1_j = points.data[points_idx + points.size[1]];
 
-                const values = computeMatrixValues(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                const values = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                lhs_values[matrix_idx + 0] = values.a_i_j; // A[i, j]
-                lhs_values[matrix_idx + 1] = values.a_i_jp1; // A[i, j+1]
-                lhs_values[matrix_idx + 2] = values.a_ip1_j; // A[i+1, j]
-                lhs_values[matrix_idx + 3] = values.a_ip1_jp1; // A[i+1, j+1]
+                lhs_values[matrix_idx + 0] = values.get(.i_j); // A[i, j]
+                lhs_values[matrix_idx + 1] = values.get(.i_jp1); // A[i, j+1]
+                lhs_values[matrix_idx + 2] = values.get(.ip1_j); // A[i+1, j]
+                lhs_values[matrix_idx + 3] = values.get(.ip1_jp1); // A[i+1, j+1]
 
                 matrix_idx += 4;
 
                 // RHS: A[i-1, j-1], A[i-1, j], A[i-1, j+1], A[i, j-1] A[i+1, j-1]
 
-                rhs_x[rhs_idx + 0] = -(values.a_im1_jm1 * im1_jm1.data[0] +
-                    values.a_im1_j * im1_j.data[0] +
-                    values.a_im1_jp1 * im1_jp1.data[0] +
-                    values.a_i_jm1 * i_jm1.data[0] +
-                    values.a_ip1_jm1 * ip1_jm1.data[0]);
+                rhs_x[rhs_idx + 0] = -(values.get(.im1_jm1) * im1_jm1.data[0] +
+                    values.get(.im1_j) * im1_j.data[0] +
+                    values.get(.im1_jp1) * im1_jp1.data[0] +
+                    values.get(.i_jm1) * i_jm1.data[0] +
+                    values.get(.ip1_jm1) * ip1_jm1.data[0]);
 
-                rhs_y[rhs_idx + 0] = -(values.a_im1_jm1 * im1_jm1.data[1] +
-                    values.a_im1_j * im1_j.data[1] +
-                    values.a_im1_jp1 * im1_jp1.data[1] +
-                    values.a_i_jm1 * i_jm1.data[1] +
-                    values.a_ip1_jm1 * ip1_jm1.data[1]);
+                rhs_y[rhs_idx + 0] = -(values.get(.im1_jm1) * im1_jm1.data[1] +
+                    values.get(.im1_j) * im1_j.data[1] +
+                    values.get(.im1_jp1) * im1_jp1.data[1] +
+                    values.get(.i_jm1) * i_jm1.data[1] +
+                    values.get(.ip1_jm1) * ip1_jm1.data[1]);
 
                 rhs_idx += 1;
             }
@@ -574,26 +613,26 @@ const RowCompressedMatrixSystem2d = struct {
                 const i_jp1 = points.data[points_idx + 1];
                 const ip1_j = points.data[points_idx + points.size[1]];
 
-                const values = computeMatrixValues(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                const values = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                lhs_values[matrix_idx + 0] = values.a_i_jm1; // A[i, j-1]
-                lhs_values[matrix_idx + 1] = values.a_i_j; // A[i, j]
-                lhs_values[matrix_idx + 2] = values.a_i_jp1; // A[i, j+1]
-                lhs_values[matrix_idx + 3] = values.a_ip1_jm1; // A[i+1, j-1]
-                lhs_values[matrix_idx + 4] = values.a_ip1_j; // A[i+1, j]
-                lhs_values[matrix_idx + 5] = values.a_ip1_jp1; // A[i+1, j+1]
+                lhs_values[matrix_idx + 0] = values.get(.i_jm1); // A[i, j-1]
+                lhs_values[matrix_idx + 1] = values.get(.i_j); // A[i, j]
+                lhs_values[matrix_idx + 2] = values.get(.i_jp1); // A[i, j+1]
+                lhs_values[matrix_idx + 3] = values.get(.ip1_jm1); // A[i+1, j-1]
+                lhs_values[matrix_idx + 4] = values.get(.ip1_j); // A[i+1, j]
+                lhs_values[matrix_idx + 5] = values.get(.ip1_jp1); // A[i+1, j+1]
 
                 matrix_idx += 6;
 
                 // RHS: A[i-1, j-1], A[i-1, j], A[i-1, j+1]
 
-                rhs_x[rhs_idx] = -(values.a_im1_jm1 * im1_jm1.data[0] +
-                    values.a_im1_j * im1_j.data[0] +
-                    values.a_im1_jp1 * im1_jp1.data[0]);
+                rhs_x[rhs_idx] = -(values.get(.im1_jm1) * im1_jm1.data[0] +
+                    values.get(.im1_j) * im1_j.data[0] +
+                    values.get(.im1_jp1) * im1_jp1.data[0]);
 
-                rhs_y[rhs_idx] = -(values.a_im1_jm1 * im1_jm1.data[1] +
-                    values.a_im1_j * im1_j.data[1] +
-                    values.a_im1_jp1 * im1_jp1.data[1]);
+                rhs_y[rhs_idx] = -(values.get(.im1_jm1) * im1_jm1.data[1] +
+                    values.get(.im1_j) * im1_j.data[1] +
+                    values.get(.im1_jp1) * im1_jp1.data[1]);
 
                 rhs_idx += 1;
             }
@@ -610,28 +649,28 @@ const RowCompressedMatrixSystem2d = struct {
                 const ip1_j = points.data[points_idx + points.size[1]];
                 const ip1_jp1 = points.data[points_idx + points.size[1] + 1];
 
-                const values = computeMatrixValues(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                const values = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                lhs_values[matrix_idx + 0] = values.a_i_jm1; // A[i, j-1]
-                lhs_values[matrix_idx + 1] = values.a_i_j; // A[i, j]
-                lhs_values[matrix_idx + 2] = values.a_ip1_jm1; // A[i+1, j-1]
-                lhs_values[matrix_idx + 3] = values.a_ip1_j; // A[i+1, j]
+                lhs_values[matrix_idx + 0] = values.get(.i_jm1); // A[i, j-1]
+                lhs_values[matrix_idx + 1] = values.get(.i_j); // A[i, j]
+                lhs_values[matrix_idx + 2] = values.get(.ip1_jm1); // A[i+1, j-1]
+                lhs_values[matrix_idx + 3] = values.get(.ip1_j); // A[i+1, j]
 
                 matrix_idx += 4;
 
                 // RHS: A[i-1, j-1], A[i-1, j], A[i-1, j+1], A[i, j+1] A[i+1, j+1]
 
-                rhs_x[rhs_idx] = -(values.a_im1_jm1 * im1_jm1.data[0] +
-                    values.a_im1_j * im1_j.data[0] +
-                    values.a_im1_jp1 * im1_jp1.data[0] +
-                    values.a_i_jp1 * i_jp1.data[0] +
-                    values.a_ip1_jp1 * ip1_jp1.data[0]);
+                rhs_x[rhs_idx] = -(values.get(.im1_jm1) * im1_jm1.data[0] +
+                    values.get(.im1_j) * im1_j.data[0] +
+                    values.get(.im1_jp1) * im1_jp1.data[0] +
+                    values.get(.i_jp1) * i_jp1.data[0] +
+                    values.get(.ip1_jp1) * ip1_jp1.data[0]);
 
-                rhs_y[rhs_idx] = -(values.a_im1_jm1 * im1_jm1.data[1] +
-                    values.a_im1_j * im1_j.data[1] +
-                    values.a_im1_jp1 * im1_jp1.data[1] +
-                    values.a_i_jp1 * i_jp1.data[1] +
-                    values.a_ip1_jp1 * ip1_jp1.data[1]);
+                rhs_y[rhs_idx] = -(values.get(.im1_jm1) * im1_jm1.data[1] +
+                    values.get(.im1_j) * im1_j.data[1] +
+                    values.get(.im1_jp1) * im1_jp1.data[1] +
+                    values.get(.i_jp1) * i_jp1.data[1] +
+                    values.get(.ip1_jp1) * ip1_jp1.data[1]);
 
                 rhs_idx += 1;
             }
@@ -651,26 +690,26 @@ const RowCompressedMatrixSystem2d = struct {
                     const ip1_jm1 = points.data[points_idx + points.size[1] - 1];
                     const ip1_j = points.data[points_idx + points.size[1]];
 
-                    const values = computeMatrixValues(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                    const values = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                    lhs_values[matrix_idx + 0] = values.a_im1_j; // A[i-1, j]
-                    lhs_values[matrix_idx + 1] = values.a_im1_jp1; // A[i-1, j+1]
-                    lhs_values[matrix_idx + 2] = values.a_i_j; // A[i, j]
-                    lhs_values[matrix_idx + 3] = values.a_i_jp1; // A[i, j+1]
-                    lhs_values[matrix_idx + 4] = values.a_ip1_j; // A[i+1, j]
-                    lhs_values[matrix_idx + 5] = values.a_ip1_jp1; // A[i+1, j+1]
+                    lhs_values[matrix_idx + 0] = values.get(.im1_j); // A[i-1, j]
+                    lhs_values[matrix_idx + 1] = values.get(.im1_jp1); // A[i-1, j+1]
+                    lhs_values[matrix_idx + 2] = values.get(.i_j); // A[i, j]
+                    lhs_values[matrix_idx + 3] = values.get(.i_jp1); // A[i, j+1]
+                    lhs_values[matrix_idx + 4] = values.get(.ip1_j); // A[i+1, j]
+                    lhs_values[matrix_idx + 5] = values.get(.ip1_jp1); // A[i+1, j+1]
 
                     matrix_idx += 6;
 
                     // RHS: A[i-1, j-1], A[i, j-1], A[i+1, j-1]
 
-                    rhs_x[rhs_idx] = -(values.a_im1_jm1 * im1_jm1.data[0] +
-                        values.a_i_jm1 * i_jm1.data[0] +
-                        values.a_ip1_jm1 * ip1_jm1.data[0]);
+                    rhs_x[rhs_idx] = -(values.get(.im1_jm1) * im1_jm1.data[0] +
+                        values.get(.i_jm1) * i_jm1.data[0] +
+                        values.get(.ip1_jm1) * ip1_jm1.data[0]);
 
-                    rhs_y[rhs_idx] = -(values.a_im1_jm1 * im1_jm1.data[1] +
-                        values.a_i_jm1 * i_jm1.data[1] +
-                        values.a_ip1_jm1 * ip1_jm1.data[1]);
+                    rhs_y[rhs_idx] = -(values.get(.im1_jm1) * im1_jm1.data[1] +
+                        values.get(.i_jm1) * i_jm1.data[1] +
+                        values.get(.ip1_jm1) * ip1_jm1.data[1]);
 
                     rhs_idx += 1;
                 }
@@ -685,17 +724,17 @@ const RowCompressedMatrixSystem2d = struct {
                     const i_jp1 = points.data[points_idx + 1];
                     const ip1_j = points.data[points_idx + points.size[1]];
 
-                    const values = computeMatrixValues(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                    const values = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                    lhs_values[matrix_idx + 0] = values.a_im1_jm1; // A[i-1, j-1]
-                    lhs_values[matrix_idx + 1] = values.a_im1_j; // A[i-1, j]
-                    lhs_values[matrix_idx + 2] = values.a_im1_jp1; // A[i-1, j+1]
-                    lhs_values[matrix_idx + 3] = values.a_i_jm1; // A[i, j-1]
-                    lhs_values[matrix_idx + 4] = values.a_i_j; // A[i, j]
-                    lhs_values[matrix_idx + 5] = values.a_i_jp1; // A[i, j+1]
-                    lhs_values[matrix_idx + 6] = values.a_ip1_jm1; // A[i+1, j-1]
-                    lhs_values[matrix_idx + 7] = values.a_ip1_j; // A[i+1, j]
-                    lhs_values[matrix_idx + 8] = values.a_ip1_jp1; // A[i+1, j+1]
+                    lhs_values[matrix_idx + 0] = values.get(.im1_jm1); // A[i-1, j-1]
+                    lhs_values[matrix_idx + 1] = values.get(.im1_j); // A[i-1, j]
+                    lhs_values[matrix_idx + 2] = values.get(.im1_jp1); // A[i-1, j+1]
+                    lhs_values[matrix_idx + 3] = values.get(.i_jm1); // A[i, j-1]
+                    lhs_values[matrix_idx + 4] = values.get(.i_j); // A[i, j]
+                    lhs_values[matrix_idx + 5] = values.get(.i_jp1); // A[i, j+1]
+                    lhs_values[matrix_idx + 6] = values.get(.ip1_jm1); // A[i+1, j-1]
+                    lhs_values[matrix_idx + 7] = values.get(.ip1_j); // A[i+1, j]
+                    lhs_values[matrix_idx + 8] = values.get(.ip1_jp1); // A[i+1, j+1]
 
                     matrix_idx += 9;
 
@@ -716,26 +755,26 @@ const RowCompressedMatrixSystem2d = struct {
                     const ip1_j = points.data[points_idx + points.size[1]];
                     const ip1_jp1 = points.data[points_idx + points.size[1] + 1];
 
-                    const values = computeMatrixValues(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                    const values = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                    lhs_values[matrix_idx + 0] = values.a_im1_jm1; // A[i-1, j-1]
-                    lhs_values[matrix_idx + 1] = values.a_im1_j; // A[i-1, j]
-                    lhs_values[matrix_idx + 2] = values.a_i_jm1; // A[i, j-1]
-                    lhs_values[matrix_idx + 3] = values.a_i_j; // A[i, j]
-                    lhs_values[matrix_idx + 4] = values.a_ip1_jm1; // A[i+1, j-1]
-                    lhs_values[matrix_idx + 5] = values.a_ip1_j; // A[i+1, j]
+                    lhs_values[matrix_idx + 0] = values.get(.im1_jm1); // A[i-1, j-1]
+                    lhs_values[matrix_idx + 1] = values.get(.im1_j); // A[i-1, j]
+                    lhs_values[matrix_idx + 2] = values.get(.i_jm1); // A[i, j-1]
+                    lhs_values[matrix_idx + 3] = values.get(.i_j); // A[i, j]
+                    lhs_values[matrix_idx + 4] = values.get(.ip1_jm1); // A[i+1, j-1]
+                    lhs_values[matrix_idx + 5] = values.get(.ip1_j); // A[i+1, j]
 
                     matrix_idx += 6;
 
                     // RHS: A[i-1, j+1], A[i, j+1], A[i+1, j+1]
 
-                    rhs_x[rhs_idx] = -(values.a_im1_jp1 * im1_jp1.data[0] +
-                        values.a_i_jp1 * i_jp1.data[0] +
-                        values.a_ip1_jp1 * ip1_jp1.data[0]);
+                    rhs_x[rhs_idx] = -(values.get(.im1_jp1) * im1_jp1.data[0] +
+                        values.get(.i_jp1) * i_jp1.data[0] +
+                        values.get(.ip1_jp1) * ip1_jp1.data[0]);
 
-                    rhs_y[rhs_idx] = -(values.a_im1_jp1 * im1_jp1.data[1] +
-                        values.a_i_jp1 * i_jp1.data[1] +
-                        values.a_ip1_jp1 * ip1_jp1.data[1]);
+                    rhs_y[rhs_idx] = -(values.get(.im1_jp1) * im1_jp1.data[1] +
+                        values.get(.i_jp1) * i_jp1.data[1] +
+                        values.get(.ip1_jp1) * ip1_jp1.data[1]);
 
                     rhs_idx += 1;
                 }
@@ -755,28 +794,28 @@ const RowCompressedMatrixSystem2d = struct {
                 const ip1_j = points.data[points_idx + points.size[1]];
                 const ip1_jp1 = points.data[points_idx + points.size[1] + 1];
 
-                const values = computeMatrixValues(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                const values = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                lhs_values[matrix_idx + 0] = values.a_im1_j; // A[i-1, j]
-                lhs_values[matrix_idx + 1] = values.a_im1_jp1; // A[i-1, j+1]
-                lhs_values[matrix_idx + 2] = values.a_i_j; // A[i, j]
-                lhs_values[matrix_idx + 3] = values.a_i_jp1; // A[i, j+1]
+                lhs_values[matrix_idx + 0] = values.get(.im1_j); // A[i-1, j]
+                lhs_values[matrix_idx + 1] = values.get(.im1_jp1); // A[i-1, j+1]
+                lhs_values[matrix_idx + 2] = values.get(.i_j); // A[i, j]
+                lhs_values[matrix_idx + 3] = values.get(.i_jp1); // A[i, j+1]
 
                 matrix_idx += 4;
 
                 // RHS: A[i+1, j-1], A[i+1, j], A[i+1, j+1], A[i, j-1], A[i-1, j-1]
 
-                rhs_x[rhs_idx] = -(values.a_ip1_jm1 * ip1_jm1.data[0] +
-                    values.a_ip1_j * ip1_j.data[0] +
-                    values.a_ip1_jp1 * ip1_jp1.data[0] +
-                    values.a_i_jm1 * i_jm1.data[0] +
-                    values.a_im1_jm1 * im1_jm1.data[0]);
+                rhs_x[rhs_idx] = -(values.get(.ip1_jm1) * ip1_jm1.data[0] +
+                    values.get(.ip1_j) * ip1_j.data[0] +
+                    values.get(.ip1_jp1) * ip1_jp1.data[0] +
+                    values.get(.i_jm1) * i_jm1.data[0] +
+                    values.get(.im1_jm1) * im1_jm1.data[0]);
 
-                rhs_y[rhs_idx] = -(values.a_ip1_jm1 * ip1_jm1.data[1] +
-                    values.a_ip1_j * ip1_j.data[1] +
-                    values.a_ip1_jp1 * ip1_jp1.data[1] +
-                    values.a_i_jm1 * i_jm1.data[1] +
-                    values.a_im1_jm1 * im1_jm1.data[1]);
+                rhs_y[rhs_idx] = -(values.get(.ip1_jm1) * ip1_jm1.data[1] +
+                    values.get(.ip1_j) * ip1_j.data[1] +
+                    values.get(.ip1_jp1) * ip1_jp1.data[1] +
+                    values.get(.i_jm1) * i_jm1.data[1] +
+                    values.get(.im1_jm1) * im1_jm1.data[1]);
 
                 rhs_idx += 1;
             }
@@ -792,26 +831,26 @@ const RowCompressedMatrixSystem2d = struct {
                 const ip1_j = points.data[points_idx + points.size[1]];
                 const ip1_jp1 = points.data[points_idx + points.size[1] + 1];
 
-                const values = computeMatrixValues(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                const values = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                lhs_values[matrix_idx + 0] = values.a_im1_jm1; // A[i-1, j-1]
-                lhs_values[matrix_idx + 1] = values.a_im1_j; // A[i-1, j]
-                lhs_values[matrix_idx + 2] = values.a_im1_jp1; // A[i-1, j+1]
-                lhs_values[matrix_idx + 3] = values.a_i_jm1; // A[i, j-1]
-                lhs_values[matrix_idx + 4] = values.a_i_j; // A[i, j]
-                lhs_values[matrix_idx + 5] = values.a_i_jp1; // A[i, j+1]
+                lhs_values[matrix_idx + 0] = values.get(.im1_jm1); // A[i-1, j-1]
+                lhs_values[matrix_idx + 1] = values.get(.im1_j); // A[i-1, j]
+                lhs_values[matrix_idx + 2] = values.get(.im1_jp1); // A[i-1, j+1]
+                lhs_values[matrix_idx + 3] = values.get(.i_jm1); // A[i, j-1]
+                lhs_values[matrix_idx + 4] = values.get(.i_j); // A[i, j]
+                lhs_values[matrix_idx + 5] = values.get(.i_jp1); // A[i, j+1]
 
                 matrix_idx += 6;
 
                 // RHS: A[i+1, j-1], A[i+1, j], A[i+1, j+1]
 
-                rhs_x[rhs_idx] = -(values.a_ip1_jm1 * ip1_jm1.data[0] +
-                    values.a_ip1_j * ip1_j.data[0] +
-                    values.a_ip1_jp1 * ip1_jp1.data[0]);
+                rhs_x[rhs_idx] = -(values.get(.ip1_jm1) * ip1_jm1.data[0] +
+                    values.get(.ip1_j) * ip1_j.data[0] +
+                    values.get(.ip1_jp1) * ip1_jp1.data[0]);
 
-                rhs_y[rhs_idx] = -(values.a_ip1_jm1 * ip1_jm1.data[1] +
-                    values.a_ip1_j * ip1_j.data[1] +
-                    values.a_ip1_jp1 * ip1_jp1.data[1]);
+                rhs_y[rhs_idx] = -(values.get(.ip1_jm1) * ip1_jm1.data[1] +
+                    values.get(.ip1_j) * ip1_j.data[1] +
+                    values.get(.ip1_jp1) * ip1_jp1.data[1]);
 
                 rhs_idx += 1;
             }
@@ -828,28 +867,28 @@ const RowCompressedMatrixSystem2d = struct {
                 const ip1_j = points.data[points_idx + points.size[1]];
                 const ip1_jp1 = points.data[points_idx + points.size[1] + 1];
 
-                const values = computeMatrixValues(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                const values = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                lhs_values[matrix_idx + 0] = values.a_im1_jm1; // A[i-1, j-1]
-                lhs_values[matrix_idx + 1] = values.a_im1_j; // A[i-1, j]
-                lhs_values[matrix_idx + 2] = values.a_i_jm1; // A[i, j-1]
-                lhs_values[matrix_idx + 3] = values.a_i_j; // A[i, j]
+                lhs_values[matrix_idx + 0] = values.get(.im1_jm1); // A[i-1, j-1]
+                lhs_values[matrix_idx + 1] = values.get(.im1_j); // A[i-1, j]
+                lhs_values[matrix_idx + 2] = values.get(.i_jm1); // A[i, j-1]
+                lhs_values[matrix_idx + 3] = values.get(.i_j); // A[i, j]
 
                 matrix_idx += 4;
 
                 // RHS: A[i+1, j-1], A[i+1, j], A[i+1, j+1], A[i, j+1], A[i-1, j+1]
 
-                rhs_x[rhs_idx] = -(values.a_ip1_jm1 * ip1_jm1.data[0] +
-                    values.a_ip1_j * ip1_j.data[0] +
-                    values.a_ip1_jp1 * ip1_jp1.data[0] +
-                    values.a_i_jp1 * i_jp1.data[0] +
-                    values.a_im1_jp1 * im1_jp1.data[0]);
+                rhs_x[rhs_idx] = -(values.get(.ip1_jm1) * ip1_jm1.data[0] +
+                    values.get(.ip1_j) * ip1_j.data[0] +
+                    values.get(.ip1_jp1) * ip1_jp1.data[0] +
+                    values.get(.i_jp1) * i_jp1.data[0] +
+                    values.get(.im1_jp1) * im1_jp1.data[0]);
 
-                rhs_y[rhs_idx] = -(values.a_ip1_jm1 * ip1_jm1.data[1] +
-                    values.a_ip1_j * ip1_j.data[1] +
-                    values.a_ip1_jp1 * ip1_jp1.data[1] +
-                    values.a_i_jp1 * i_jp1.data[1] +
-                    values.a_im1_jp1 * im1_jp1.data[1]);
+                rhs_y[rhs_idx] = -(values.get(.ip1_jm1) * ip1_jm1.data[1] +
+                    values.get(.ip1_j) * ip1_j.data[1] +
+                    values.get(.ip1_jp1) * ip1_jp1.data[1] +
+                    values.get(.i_jp1) * i_jp1.data[1] +
+                    values.get(.im1_jp1) * im1_jp1.data[1]);
 
                 rhs_idx += 1;
             }
@@ -888,28 +927,46 @@ const RowCompressedMatrixSystem2d = struct {
                 const boundary_idx_0: isize = @intCast(boundary_idx[0]);
                 const boundary_idx_1: isize = @intCast(boundary_idx[1]);
 
-                const im1_jm1 = point_data[0][@intCast(boundary_idx_0 - it.in_connection_direction_shift[0] + it.first_internal_point_shift[0])];
-                const im1_j = point_data[0][@intCast(boundary_idx_0 - it.in_connection_direction_shift[0])];
+                const idx_im1_jm1: usize = @intCast(boundary_idx_0 - it.in_connection_direction_shift[0] + it.first_internal_point_shift[0]);
+                const idx_im1_j: usize = @intCast(boundary_idx_0 - it.in_connection_direction_shift[0]);
+
+                std.debug.print("{}\n", .{it});
+                std.debug.print("point idx: {} {}\n", .{ idx_im1_jm1, idx_im1_j });
+
+                const im1_jm1 = point_data[0][idx_im1_jm1];
+                const im1_j = point_data[0][idx_im1_j];
                 const i_jm1 = point_data[0][@intCast(boundary_idx_0 + it.first_internal_point_shift[0])];
                 const ip1_j = point_data[0][@intCast(boundary_idx_0 + it.in_connection_direction_shift[0])];
                 const i_jp1 = point_data[1][@intCast(boundary_idx_1 + it.first_internal_point_shift[1])];
                 const im1_jp1 = point_data[1][@intCast(boundary_idx_1 - it.in_connection_direction_shift[1] + it.first_internal_point_shift[1])];
 
-                const values = computeMatrixValues(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                const values = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                lhs_values[matrix_idx + 1] = values.a_i_jm1; // A[matrix_idx, matrix_idx_0]
-                lhs_values[matrix_idx + 0] = values.a_ip1_jm1; // A[matrix_idx, matrix_idx_0 + matrix_increment_0]
-                lhs_values[matrix_idx + 2] = values.a_i_jp1; // A[matrix_idx, matrix_idx_1]
-                lhs_values[matrix_idx + 3] = values.a_ip1_jp1; // A[matrix_idx, matrix_idx_1 + matrix_increment_1]
-                lhs_values[matrix_idx + 4] = values.a_i_j; // A[matrix_idx, matrix_idx]
-                lhs_values[matrix_idx + 5] = values.a_ip1_j; // A[matrix_idx, matrix_idx + 1]
+                if (it.in_connection_direction_shift[0] > 0) {
+                    lhs_values[matrix_idx + 0] = values.get(.i_jm1); // A[matrix_idx, matrix_idx_0]
+                    lhs_values[matrix_idx + 1] = values.get(.ip1_jm1); // A[matrix_idx, matrix_idx_0 + matrix_increment_0]
+                } else {
+                    lhs_values[matrix_idx + 0] = values.get(.ip1_jm1); // A[matrix_idx, matrix_idx_0 + matrix_increment_0]
+                    lhs_values[matrix_idx + 1] = values.get(.i_jm1); // A[matrix_idx, matrix_idx_0]
+                }
+
+                if (it.in_connection_direction_shift[1] > 0) {
+                    lhs_values[matrix_idx + 2] = values.get(.i_jp1); // A[matrix_idx, matrix_idx_1]
+                    lhs_values[matrix_idx + 3] = values.get(.ip1_jp1); // A[matrix_idx, matrix_idx_1 + matrix_increment_1]
+                } else {
+                    lhs_values[matrix_idx + 2] = values.get(.ip1_jp1); // A[matrix_idx, matrix_idx_1 + matrix_increment_1]
+                    lhs_values[matrix_idx + 3] = values.get(.i_jp1); // A[matrix_idx, matrix_idx_1]
+                }
+
+                lhs_values[matrix_idx + 4] = values.get(.i_j); // A[matrix_idx, matrix_idx]
+                lhs_values[matrix_idx + 5] = values.get(.ip1_j); // A[matrix_idx, matrix_idx + 1]
 
                 matrix_idx += 6;
 
                 // RHS: fixed first point of the connection including its neighbors (i-1,j-1) (i-1,j) (i-1,j+1)
 
-                rhs_x[rhs_idx + 0] = -(values.a_im1_jm1 * im1_jm1.data[0] + values.a_im1_j * im1_j.data[0] + values.a_im1_jp1 * im1_jp1.data[0]);
-                rhs_y[rhs_idx + 0] = -(values.a_im1_jm1 * im1_jm1.data[1] + values.a_im1_j * im1_j.data[1] + values.a_im1_jp1 * im1_jp1.data[1]);
+                rhs_x[rhs_idx + 0] = -(values.get(.im1_jm1) * im1_jm1.data[0] + values.get(.im1_j) * im1_j.data[0] + values.get(.im1_jp1) * im1_jp1.data[0]);
+                rhs_y[rhs_idx + 0] = -(values.get(.im1_jm1) * im1_jm1.data[1] + values.get(.im1_j) * im1_j.data[1] + values.get(.im1_jp1) * im1_jp1.data[1]);
 
                 rhs_idx += 1;
             }
@@ -926,19 +983,19 @@ const RowCompressedMatrixSystem2d = struct {
                 const ip1_j = point_data[0][@intCast(boundary_idx_0 + it.in_connection_direction_shift[0])];
                 const i_jp1 = point_data[1][@intCast(boundary_idx_1 + it.first_internal_point_shift[1])];
 
-                const values = computeMatrixValues(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                const values = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                lhs_values[matrix_idx + 2] = values.a_im1_jm1; // A[matrix_idx, matrix_idx_0 - matrix_increment_0]
-                lhs_values[matrix_idx + 1] = values.a_i_jm1; // A[matrix_idx, matrix_idx_0]
-                lhs_values[matrix_idx + 0] = values.a_ip1_jm1; // A[matrix_idx, matrix_idx_0 + matrix_increment_0]
+                lhs_values[matrix_idx + 2] = values.get(.im1_jm1); // A[matrix_idx, matrix_idx_0 - matrix_increment_0]
+                lhs_values[matrix_idx + 1] = values.get(.i_jm1); // A[matrix_idx, matrix_idx_0]
+                lhs_values[matrix_idx + 0] = values.get(.ip1_jm1); // A[matrix_idx, matrix_idx_0 + matrix_increment_0]
 
-                lhs_values[matrix_idx + 3] = values.a_im1_jp1; // A[matrix_idx, matrix_idx_1 - matrix_increment_1]
-                lhs_values[matrix_idx + 4] = values.a_i_jp1; // A[matrix_idx, matrix_idx_1]
-                lhs_values[matrix_idx + 5] = values.a_ip1_jp1; // A[matrix_idx, matrix_idx_1 + matrix_increment_1]
+                lhs_values[matrix_idx + 3] = values.get(.im1_jp1); // A[matrix_idx, matrix_idx_1 - matrix_increment_1]
+                lhs_values[matrix_idx + 4] = values.get(.i_jp1); // A[matrix_idx, matrix_idx_1]
+                lhs_values[matrix_idx + 5] = values.get(.ip1_jp1); // A[matrix_idx, matrix_idx_1 + matrix_increment_1]
 
-                lhs_values[matrix_idx + 6] = values.a_im1_j; // A[matrix_idx, matrix_idx - 1]
-                lhs_values[matrix_idx + 7] = values.a_i_j; // A[matrix_idx, matrix_idx]
-                lhs_values[matrix_idx + 8] = values.a_ip1_j; // A[matrix_idx, matrix_idx + 1]
+                lhs_values[matrix_idx + 6] = values.get(.im1_j); // A[matrix_idx, matrix_idx - 1]
+                lhs_values[matrix_idx + 7] = values.get(.i_j); // A[matrix_idx, matrix_idx]
+                lhs_values[matrix_idx + 8] = values.get(.ip1_j); // A[matrix_idx, matrix_idx + 1]
 
                 matrix_idx += 9;
 
@@ -962,21 +1019,21 @@ const RowCompressedMatrixSystem2d = struct {
                 const i_jp1 = point_data[1][@intCast(boundary_idx_1 + it.first_internal_point_shift[1])];
                 const ip1_jp1 = point_data[1][@intCast(boundary_idx_1 + it.in_connection_direction_shift[1] + it.first_internal_point_shift[1])];
 
-                const values = computeMatrixValues(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                const values = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                lhs_values[matrix_idx + 1] = values.a_im1_jm1; // A[matrix_idx, matrix_idx_0 - matrix_increment_0]
-                lhs_values[matrix_idx + 0] = values.a_i_jm1; // A[matrix_idx, matrix_idx_0]
-                lhs_values[matrix_idx + 2] = values.a_im1_jp1; // A[matrix_idx, matrix_idx_1 - matrix_increment_1]
-                lhs_values[matrix_idx + 3] = values.a_i_jp1; // A[matrix_idx, matrix_idx_1]
-                lhs_values[matrix_idx + 4] = values.a_im1_j; // A[matrix_idx, matrix_idx - 1]
-                lhs_values[matrix_idx + 5] = values.a_i_j; // A[matrix_idx, matrix_idx]
+                lhs_values[matrix_idx + 1] = values.get(.im1_jm1); // A[matrix_idx, matrix_idx_0 - matrix_increment_0]
+                lhs_values[matrix_idx + 0] = values.get(.i_jm1); // A[matrix_idx, matrix_idx_0]
+                lhs_values[matrix_idx + 2] = values.get(.im1_jp1); // A[matrix_idx, matrix_idx_1 - matrix_increment_1]
+                lhs_values[matrix_idx + 3] = values.get(.i_jp1); // A[matrix_idx, matrix_idx_1]
+                lhs_values[matrix_idx + 4] = values.get(.im1_j); // A[matrix_idx, matrix_idx - 1]
+                lhs_values[matrix_idx + 5] = values.get(.i_j); // A[matrix_idx, matrix_idx]
 
                 matrix_idx += 6;
 
                 // RHS: fixed first point of the connection including its neighbors (i-1,j-1) (i-1,j) (i-1,j+1)
 
-                rhs_x[rhs_idx + 0] = -(values.a_ip1_jm1 * ip1_jm1.data[0] + values.a_ip1_j * ip1_j.data[0] + values.a_ip1_jp1 * ip1_jp1.data[0]);
-                rhs_y[rhs_idx + 0] = -(values.a_ip1_jm1 * ip1_jm1.data[1] + values.a_ip1_j * ip1_j.data[1] + values.a_ip1_jp1 * ip1_jp1.data[1]);
+                rhs_x[rhs_idx + 0] = -(values.get(.ip1_jm1) * ip1_jm1.data[0] + values.get(.ip1_j) * ip1_j.data[0] + values.get(.ip1_jp1) * ip1_jp1.data[0]);
+                rhs_y[rhs_idx + 0] = -(values.get(.ip1_jm1) * ip1_jm1.data[1] + values.get(.ip1_j) * ip1_j.data[1] + values.get(.ip1_jp1) * ip1_jp1.data[1]);
 
                 rhs_idx += 1;
             }
@@ -986,8 +1043,6 @@ const RowCompressedMatrixSystem2d = struct {
 
         const dof = self.rhs_x.len;
         try umfpack.solve2(@intCast(dof), @intCast(dof), self.lhs_p, self.lhs_i, lhs_values, rhs_x, self.x_new[0..], rhs_y, self.y_new[0..]);
-
-        std.debug.print("sol: {} {}\n", .{ self.x_new[self.x_new.len - 2], self.y_new[self.y_new.len - 2] });
     }
 };
 
@@ -1044,7 +1099,6 @@ pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations:
 
                 for (0..it.count) |_| {
                     const point_idx = it.next().?;
-                    std.debug.print("connection point: {} (matrix index: {}) old: {} new:{}\n", .{ point_idx, matrix_idx, point_data[point_idx], types.Vec2d{ .data = .{ system.x_new[matrix_idx], system.y_new[matrix_idx] } } });
 
                     const dx = point_data[point_idx].data[0] - system.x_new[matrix_idx];
                     const dy = point_data[point_idx].data[1] - system.y_new[matrix_idx];
