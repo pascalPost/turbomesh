@@ -177,6 +177,7 @@ const Turbine = struct {
         const in = try discrete.Block2d.init(allocator, in_i_min, in_i_max, in_j_min, in_j_max);
 
         try mesh.addBlock("in", in);
+        const in_id = mesh.blocks.items.len - 1;
 
         //
         // Block OUT (3)
@@ -212,6 +213,7 @@ const Turbine = struct {
         const out = try discrete.Block2d.init(allocator, out_i_min, out_i_max, out_j_min, out_j_max);
 
         try mesh.addBlock("out", out);
+        // const out_id = mesh.blocks.items.len - 1;
 
         //
         // Block DOWN (4)
@@ -285,6 +287,7 @@ const Turbine = struct {
         const up = try discrete.Block2d.init(allocator, up_i_min, up_i_max, up_j_min, up_j_max);
 
         try mesh.addBlock("up", up);
+        const up_id = mesh.blocks.items.len - 1;
 
         //
         // Block UPSTREAM (6)
@@ -360,12 +363,28 @@ const Turbine = struct {
         try mesh.addBlock("downstream", downstream);
 
         // Connections
-        // _ = upstream_id;
         // _ = down_id;
-        try mesh.connections.append(.{ .data = .{
-            .{ .block = down_id, .side = boundary.Side.j_min, .start = self.num_cells.down_j, .end = 0 },
-            .{ .block = upstream_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.down_j },
-        } });
+        // _ = up_id;
+        // _ = in_id;
+        // _ = upstream_id;
+        try mesh.connections.appendSlice(&.{
+            boundary.Connection.init(.{
+                .{ .block = down_id, .side = boundary.Side.j_min, .start = self.num_cells.down_j, .end = 0 },
+                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.down_j },
+            }),
+            boundary.Connection.init(.{
+                .{ .block = in_id, .side = boundary.Side.j_max, .start = in_j_min.points.len - 1, .end = 0 },
+                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j, .end = self.num_cells.down_j + in_j_min.points.len - 1 },
+            }),
+            boundary.Connection.init(.{
+                .{ .block = up_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.up_j },
+                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j + in_j_min.points.len - 1, .end = upstream_j_max.points.len - 1 },
+            }),
+            boundary.Connection.init(.{
+                .{ .block = in_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_i },
+                .{ .block = down_id, .side = boundary.Side.i_min, .start = self.num_cells.in_i, .end = 0 },
+            }),
+        });
 
         // Boundary conditions
 

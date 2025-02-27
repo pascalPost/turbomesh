@@ -80,6 +80,10 @@ const RangeIterator = struct {
 pub const Connection = struct {
     data: [2]Range,
 
+    pub fn init(data: [2]Range) Connection {
+        return .{ .data = data };
+    }
+
     pub fn len(self: Connection) usize {
         const length = self.data[0].len();
         std.debug.assert(length == self.data[1].len());

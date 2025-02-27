@@ -5,6 +5,7 @@ pub const Float = f64;
 const nan = std.math.nan(Float);
 
 pub const Index2d = struct { Index, Index };
+
 pub const Vec2d = struct {
     data: [2]Float,
 
@@ -72,6 +73,10 @@ pub const Mat2d = struct {
 
     pub fn index(self: Mat2d, i: Index2d) Index {
         return i[1] + self.size[1] * i[0];
+    }
+
+    pub fn getIndex(self: Mat2d, i: Index2d) Vec2d {
+        return self.data[self.index(i)];
     }
 };
 
