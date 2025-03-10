@@ -363,6 +363,7 @@ const Turbine = struct {
         try mesh.addBlock("downstream", downstream);
 
         // Connections
+        // TODO remove this
         // _ = down_id;
         // _ = up_id;
         // _ = in_id;
@@ -372,21 +373,22 @@ const Turbine = struct {
                 .{ .block = down_id, .side = boundary.Side.j_min, .start = self.num_cells.down_j, .end = 0 },
                 .{ .block = upstream_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.down_j },
             }),
-            boundary.Connection.init(.{
-                .{ .block = in_id, .side = boundary.Side.j_max, .start = in_j_min.points.len - 1, .end = 0 },
-                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j, .end = self.num_cells.down_j + in_j_min.points.len - 1 },
-            }),
-            boundary.Connection.init(.{
-                .{ .block = up_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.up_j },
-                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j + in_j_min.points.len - 1, .end = upstream_j_max.points.len - 1 },
-            }),
-            boundary.Connection.init(.{
-                .{ .block = in_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_i },
-                .{ .block = down_id, .side = boundary.Side.i_min, .start = self.num_cells.in_i, .end = 0 },
-            }),
+            // boundary.Connection.init(.{
+            //     .{ .block = in_id, .side = boundary.Side.j_max, .start = in_j_min.points.len - 1, .end = 0 },
+            //     .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j, .end = self.num_cells.down_j + in_j_min.points.len - 1 },
+            // }),
+            // boundary.Connection.init(.{
+            //     .{ .block = up_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.up_j },
+            //     .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j + in_j_min.points.len - 1, .end = upstream_j_max.points.len - 1 },
+            // }),
+            // boundary.Connection.init(.{
+            //     .{ .block = in_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_i },
+            //     .{ .block = down_id, .side = boundary.Side.i_min, .start = self.num_cells.in_i, .end = 0 },
+            // }),
         });
 
         // Boundary conditions
+        // TODO add boundary conditions
 
         return mesh;
     }
