@@ -150,284 +150,104 @@ pub const Condition = struct {
     kind: ConditionTag,
 };
 
-/// PointData is a helper struct to manage the boundary points of a mesh providing a flat buffer of the block boundary points.
-///
-/// example block of size 6x4:
-///          (0,3) (1,3) (2,3) (3,3) (4,3) (5,3)
-///          13    12    11    10    09    08
-/// (0,3)    x     x     x     x     x     x     (5,3)
-/// (0,2) 14 x                             x  07 (5,2)
-/// (0,1) 15 x                             x  06 (5,1)
-/// (0,0)    x     x     x     x     x     x     (5,0)
-///          00    01    02    03    04    05
-///         (0,0) (1,0) (2,0) (3,0) (4,0) (5,0)
-///
-/// ```
+/// A flat array data structure for all mesh block boundary points.
+/// The block data is saved in column major ordering.
 pub fn PointData(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
         buffer: []T,
-        mesh: *const discrete.Mesh,
 
-        pub fn init(allocator: std.mem.Allocator, mesh_data: *const discrete.Mesh) !PointData(T) {
-            var num_boundary_points: usize = 0;
-            for (mesh_data.blocks.items) |b| {
-                const points = b.points;
-                const size_i = points.size[0];
-                const size_j = points.size[1];
+        // NOTE: a struct of arrays would be more efficient... There is something in the std to use.
+        blocks: []BlockInfo,
 
-                num_boundary_points += 2 * size_i + 2 * size_j - 4;
-            }
-
-            const buffer = try allocator.alloc(T, num_boundary_points);
-
-            return .{
+        /// returns a struct with an allocated (not yet initiallized) buffer for all boundary points
+        /// of the mesh.
+        pub fn init(allocator: std.mem.Allocator, mesh: *const discrete.Mesh) PointData(T) {
+            var data = PointData(T){
                 .allocator = allocator,
-                .buffer = buffer,
-                .mesh = mesh_data,
+                .buffer = undefined,
+                .blocks = try allocator.alloc(BlockInfo, mesh.blocks.item.len),
             };
+
+            var count: usize = 0;
+            for (mesh.blocks.items, 0..) |block, block_idx| {
+                const size = block.points.size;
+                data.blocks[block_idx] = .{ .buffer_start_idx = count, .size = size };
+                count += size[0] * size[1];
+            }
+
+            data.buffer = try allocator.alloc(T, count);
+
+            return data;
         }
 
-        pub fn deinit(self: @This()) void {
+        pub fn deinit(self: PointData(T)) void {
             self.allocator.free(self.buffer);
+            self.allocator.free(self.blocks);
         }
 
-        pub fn iterateRange(self: *@This(), range: Range) PointDataIterator(T) {
-            // move to the correct block
-            var start: usize = 0;
-
-            for (self.mesh.blocks.items[0..range.block]) |b| {
-                const points = b.points;
-                const size_i = points.size[0];
-                const size_j = points.size[1];
-
-                const num_boundary_points = 2 * size_i + 2 * size_j - 4;
-
-                start += num_boundary_points;
-            }
-
-            const block_size = self.mesh.blocks.items[range.block].points.size;
-
-            var end: usize = 0;
-            switch (range.side) {
-                .i_min => {
-                    end = start + block_size[0];
-                },
-                .j_max => {
-                    start += block_size[0] - 1;
-                    end = start + block_size[1];
-                },
-                .i_max => {
-                    start += block_size[0] + block_size[1] - 2;
-                    end = start + block_size[0];
-                },
-                .j_min => {
-                    start += 2 * block_size[0] + block_size[1] - 3;
-                    end = start + block_size[1];
-                },
-            }
-
-            if (range.start > range.end) {
-                return .{ .buffer = self.buffer[start..end], .end = range.start, .pos = @intCast(range.end) };
-            }
-
-            return .{ .buffer = self.buffer[start..end], .end = range.end, .pos = @intCast(range.start) };
+        pub fn get(self: PointData(T), global_point_idx: usize) T {
+            return self.buffer[self.bufferIndex(global_point_idx)];
         }
+
+        pub fn getPtr(self: *PointData(T), global_point_idx: usize) *T {
+            return self.buffer[self.bufferIndex(global_point_idx)];
+        }
+
+        pub fn bufferIndex(self: PointData(T), global_point_idx: usize) usize {
+            // TODO: move the transformation of a global id to a block and point id into mesh
+
+            var block_idx: usize = self.blocks.len - 1;
+            while (global_point_idx > self.blocks[block_idx].buffer_start_idx) : (block_idx -= 1) {}
+
+            const block = self.blocks[block_idx];
+
+            const local_point_idx = global_point_idx - block.buffer_start_idx;
+
+            // compute 2d index
+            const point_idx = blk: {
+                const point_i = @divTrunc(local_point_idx, block.size[1]);
+                const point_j = local_point_idx - point_i * block.size[1];
+                break :blk types.Index2d{ point_i, point_j };
+            };
+
+            // Here is an example for a block of size 5x7:
+            //
+            //                     i_max
+            //             (0,6) (1,6) (2,6) (3,6) (4,6)
+            //       (0,6) *[06] *[08] *[10] *[12] *[19] (4,6)
+            //       (0,5) *[05]                   *[18] (4,5)
+            //       (0,4) *[04]                   *[17] (4,4)
+            // j_min (0,3) *[03]                   *[16] (4,3) j_max
+            //       (0,2) *[02]                   *[15] (4,2)
+            //       (0,1) *[01]                   *[14] (4,1)
+            //       (0,0) *[00] *[07] *[09] *[11] *[13] (4,0)
+            //             (0,0) (1,0) (2,0) (3,0) (4,0)
+            //                     i_min
+
+            if (point_idx[1] == 0) {
+                // j_min
+                return point_idx[1];
+            } else if (point_idx[1] == block.size[1] - 1) {
+                // j_max
+                return block.size[1] + 2 * (block.size[0] - 2) + point_idx[1];
+            } else if (point_idx[0] == 0) {
+                // i_min
+                std.debug.assert(point_idx[1] != 0);
+                return block.size[1] + (point_idx[0] - 1) * 2;
+            } else if (point_idx[0] == block.size[0] - 1) {
+                // i_max
+                std.debug.assert(point_idx[1] != block.size[1] - 1);
+                return block.size[1] - 1 + (point_idx[0] - 1) * 2;
+            } else {
+                return error.NotBoundaryIndex;
+            }
+        }
+
+        /// internal type to collect the size and buffer start of each block.
+        const BlockInfo = struct {
+            buffer_start_idx: usize,
+            size: types.Index2d,
+        };
     };
-}
-
-fn PointDataIterator(comptime T: type) type {
-    return struct {
-        buffer: []T,
-        end: usize,
-        pos: isize,
-
-        pub fn next(self: *@This()) ?T {
-            if (self.pos == self.end) return null;
-            const pos = self.pos;
-            self.pos += 1;
-            return self.buffer[pos];
-        }
-
-        pub fn nextPtr(self: *@This()) ?*T {
-            if (self.pos == self.end) return null;
-            const pos = self.pos;
-            self.pos += 1;
-            return &self.buffer[@intCast(pos)];
-        }
-    };
-}
-
-test "point data" {
-    const allocator = std.testing.allocator;
-    var mesh = discrete.Mesh.init(allocator);
-    defer mesh.deinit();
-
-    const x_00 = types.Vec2d.init(0.0, 0.0);
-    const x_01 = types.Vec2d.init(0.0, 1.0);
-    const x_10 = types.Vec2d.init(1.0, 0.0);
-    const x_11 = types.Vec2d.init(1.0, 1.0);
-
-    const size = .{ 6, 4 };
-
-    const i_min = try discrete.Edge.init(allocator, size[0], .{ .line = .{ .start = x_00, .end = x_10 } }, .{ .uniform = .{} });
-    defer i_min.deinit();
-
-    const i_max = try discrete.Edge.init(allocator, size[0], .{ .line = .{ .start = x_01, .end = x_11 } }, .{ .uniform = .{} });
-    defer i_max.deinit();
-
-    const j_min = try discrete.Edge.init(allocator, size[1], .{ .line = .{ .start = x_00, .end = x_01 } }, .{ .uniform = .{} });
-    defer j_min.deinit();
-
-    const j_max = try discrete.Edge.init(allocator, size[1], .{ .line = .{ .start = x_10, .end = x_11 } }, .{ .uniform = .{} });
-    defer j_max.deinit();
-
-    const block = try discrete.Block2d.init(allocator, i_min, i_max, j_min, j_max);
-
-    try mesh.addBlock("block_0", block);
-
-    var boundary_point_connections = try PointData(std.BoundedArray(usize, 4)).init(allocator, &mesh);
-    defer boundary_point_connections.deinit();
-
-    {
-        const range = Range{ .block = 0, .side = .i_min, .start = 0, .end = 5 };
-        var it = range.iterate(&mesh);
-        try std.testing.expectEqual(block.points.index(.{ 0, 0 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 1, 0 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 2, 0 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 3, 0 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 4, 0 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 5, 0 }), it.next());
-        try std.testing.expectEqual(null, it.next());
-    }
-
-    {
-        const range = Range{ .block = 0, .side = .i_min, .start = 5, .end = 0 };
-        var it = range.iterate(&mesh);
-        try std.testing.expectEqual(block.points.index(.{ 5, 0 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 4, 0 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 3, 0 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 2, 0 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 1, 0 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 0, 0 }), it.next());
-        try std.testing.expectEqual(null, it.next());
-    }
-
-    {
-        const size_j = block.points.size[1];
-        const range = Range{ .block = 0, .side = .i_max, .start = 0, .end = 5 };
-        var it = range.iterate(&mesh);
-        try std.testing.expectEqual(block.points.index(.{ 0, size_j - 1 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 1, size_j - 1 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 2, size_j - 1 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 3, size_j - 1 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 4, size_j - 1 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 5, size_j - 1 }), it.next());
-        try std.testing.expectEqual(null, it.next());
-    }
-
-    {
-        const size_j = block.points.size[1];
-        const range = Range{ .block = 0, .side = .i_max, .start = 5, .end = 0 };
-        var it = range.iterate(&mesh);
-        try std.testing.expectEqual(block.points.index(.{ 5, size_j - 1 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 4, size_j - 1 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 3, size_j - 1 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 2, size_j - 1 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 1, size_j - 1 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 0, size_j - 1 }), it.next());
-        try std.testing.expectEqual(null, it.next());
-    }
-
-    {
-        const range = Range{ .block = 0, .side = .j_min, .start = 0, .end = 3 };
-        var it = range.iterate(&mesh);
-        try std.testing.expectEqual(block.points.index(.{ 0, 0 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 0, 1 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 0, 2 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 0, 3 }), it.next());
-        try std.testing.expectEqual(null, it.next());
-    }
-
-    {
-        const range = Range{ .block = 0, .side = .j_min, .start = 3, .end = 0 };
-        var it = range.iterate(&mesh);
-        try std.testing.expectEqual(block.points.index(.{ 0, 3 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 0, 2 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 0, 1 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ 0, 0 }), it.next());
-        try std.testing.expectEqual(null, it.next());
-    }
-
-    {
-        const size_i = block.points.size[0];
-        const range = Range{ .block = 0, .side = .j_max, .start = 0, .end = 3 };
-        var it = range.iterate(&mesh);
-        try std.testing.expectEqual(block.points.index(.{ size_i - 1, 0 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ size_i - 1, 1 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ size_i - 1, 2 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ size_i - 1, 3 }), it.next());
-        try std.testing.expectEqual(null, it.next());
-    }
-
-    {
-        const size_i = block.points.size[0];
-        const range = Range{ .block = 0, .side = .j_max, .start = 3, .end = 0 };
-        var it = range.iterate(&mesh);
-        try std.testing.expectEqual(block.points.index(.{ size_i - 1, 3 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ size_i - 1, 2 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ size_i - 1, 1 }), it.next());
-        try std.testing.expectEqual(block.points.index(.{ size_i - 1, 0 }), it.next());
-        try std.testing.expectEqual(null, it.next());
-    }
-
-    {
-        var it = boundary_point_connections.iterateRange(.{ .block = 0, .side = .i_min, .start = 0, .end = 5 });
-        var idx: usize = 0;
-        while (it.nextPtr()) |*value| {
-            idx += 1;
-            try value.*.append(0);
-        }
-        try std.testing.expectEqual(idx, 5);
-    }
-
-    {
-        var it = boundary_point_connections.iterateRange(.{ .block = 0, .side = .j_max, .start = 0, .end = 3 });
-        var idx: usize = 0;
-        while (it.nextPtr()) |*value| {
-            idx += 1;
-            try value.*.append(1);
-        }
-        try std.testing.expectEqual(idx, 3);
-    }
-
-    {
-        var it = boundary_point_connections.iterateRange(.{ .block = 0, .side = .i_max, .start = 5, .end = 0 });
-        var idx: usize = 0;
-        while (it.nextPtr()) |*value| {
-            idx += 1;
-            try value.*.append(2);
-        }
-        try std.testing.expectEqual(idx, 5);
-    }
-
-    {
-        var it = boundary_point_connections.iterateRange(.{ .block = 0, .side = .i_max, .start = 0, .end = 5 });
-        var idx: usize = 0;
-        while (it.nextPtr()) |*value| {
-            idx += 1;
-            try value.*.append(2);
-        }
-        try std.testing.expectEqual(idx, 5);
-    }
-
-    {
-        var it = boundary_point_connections.iterateRange(.{ .block = 0, .side = .j_max, .start = 3, .end = 0 });
-        var idx: usize = 0;
-        while (it.nextPtr()) |*value| {
-            idx += 1;
-            try value.*.append(3);
-        }
-        try std.testing.expectEqual(idx, 3);
-    }
 }
