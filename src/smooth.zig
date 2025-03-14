@@ -102,23 +102,6 @@ pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations:
     }
 }
 
-// const BlockBoundaryPointTag = enum {
-//     fix,
-//     solve,
-//     connect,
-//     junction,
-//     periodic,
-//     // sliding
-// };
-//
-// const BlockBoundaryPointProp = union(BlockBoundaryPointTag) {
-//     fix: void,
-//     solve: void,
-//     connect: usize, // row index (equals the global point index)
-//     junction: void,
-//     periodic: void,
-// };
-
 /// The 9 point stencil data for the point (i,j). The values are stored in an array where the index in
 /// the array can be found in the contained index enum (internally going from 0 to 8). For easy access,
 /// a get function is provided that allows access based on the index enum.
@@ -277,9 +260,7 @@ const RowCompressedMatrixSystem2d = struct {
         const block_boundary_points_kind = categorizeBlockBoundaryPoints(allocator, mesh_data);
         defer block_boundary_points_kind.deinit();
 
-        try RowCompressedMatrixSystem2d.nonZeroMatrixEntries(mesh_data, lhs_p, lhs_i, dof, non_zero_entries_capacity);
-
-        return .{
+        var system = RowCompressedMatrixSystem2d{
             .mesh = mesh_data,
             .allocator = allocator,
             .buffer_int = buffer_int,
@@ -293,6 +274,10 @@ const RowCompressedMatrixSystem2d = struct {
             .y_new = y_new,
             .row_idx_range_start_for_each_block = row_idx_range_start_for_each_block,
         };
+
+        try system.nonZeroMatrixEntries(dof, non_zero_entries_capacity);
+
+        return system;
     }
 
     fn deinit(self: RowCompressedMatrixSystem2d) void {
@@ -306,16 +291,16 @@ const RowCompressedMatrixSystem2d = struct {
         return self.lhs_p[row + 1];
     }
 
-    fn nonZeroMatrixEntries(mesh_data: *const discrete.Mesh, lhs_p: []c_int, lhs_i: []c_int, dof: usize, non_zero_entries_capacity: usize) !void {
-        var fba_count = std.heap.FixedBufferAllocator.init(std.mem.sliceAsBytes(lhs_p[1..]));
+    fn nonZeroMatrixEntries(self: *RowCompressedMatrixSystem2d, dof: usize, non_zero_entries_capacity: usize) !void {
+        var fba_count = std.heap.FixedBufferAllocator.init(std.mem.sliceAsBytes(self.lhs_p[1..]));
         var row_count = try std.ArrayList(c_int).initCapacity(fba_count.allocator(), dof);
 
-        var fba_entries = std.heap.FixedBufferAllocator.init(std.mem.sliceAsBytes(lhs_i[0..]));
+        var fba_entries = std.heap.FixedBufferAllocator.init(std.mem.sliceAsBytes(self.lhs_i[0..]));
         var non_zero_entries = try std.ArrayList(c_int).initCapacity(fba_entries.allocator(), non_zero_entries_capacity);
 
         // TODO: move this to own function
-        var row: c_int = 0;
-        for (mesh_data.blocks.items, 0..) |block, block_idx| {
+        var row_idx: c_int = 0;
+        for (self.mesh.blocks.items, 0..) |block, block_idx| {
             const col_size: c_int = @intCast(block.points.size[1]);
 
             //
@@ -353,7 +338,7 @@ const RowCompressedMatrixSystem2d = struct {
 
                 switch (block_boundary_point_kind) {
                     .fix => {
-                        try non_zero_entries.append(row); // A[i, j]
+                        try non_zero_entries.append(row_idx); // A[i, j]
                     },
                     .interface => {
                         // TODO: we also need to know which is the point that needs to be solved for!
@@ -363,15 +348,18 @@ const RowCompressedMatrixSystem2d = struct {
                         // Option: try to collect the info that is needed to assemble the full coefficients for one point and enforce
                         // identity for the second point
 
-                        try non_zero_entries.append(row - col_size - 1); // A[i-1, j-1]
-                        try non_zero_entries.append(row - col_size); // A[i-1, j]
-                        try non_zero_entries.append(row - col_size + 1); // A[i-1, j+1]
-                        try non_zero_entries.append(row - 1); // A[i, j-1]
-                        try non_zero_entries.append(row); // A[i, j]
-                        try non_zero_entries.append(row + 1); // A[i, j+1]
-                        try non_zero_entries.append(row + col_size - 1); // A[i+1, j-1]
-                        try non_zero_entries.append(row + col_size); // A[i+1, j]
-                        try non_zero_entries.append(row + col_size + 1); // A[i+1, j+1]
+                        try non_zero_entries.append(row_idx - col_size - 1); // A[i-1, j-1]
+                        try non_zero_entries.append(row_idx - col_size); // A[i-1, j]
+                        try non_zero_entries.append(row_idx - col_size + 1); // A[i-1, j+1]
+                        try non_zero_entries.append(row_idx - 1); // A[i, j-1]
+                        try non_zero_entries.append(row_idx); // A[i, j]
+                        try non_zero_entries.append(row_idx + 1); // A[i, j+1]
+                        try non_zero_entries.append(row_idx + col_size - 1); // A[i+1, j-1]
+                        try non_zero_entries.append(row_idx + col_size); // A[i+1, j]
+                        try non_zero_entries.append(row_idx + col_size + 1); // A[i+1, j+1]
+
+                        // TODO: if point is to be smoothed add 9 undefiened entries. The values will be computed later based on the connection data.
+                        // TODO: if point is to be connected add 2 undefiened entries. The values will be computed later based on the connection data.
                     },
                     .junction => {
                         unreachable;
@@ -379,7 +367,7 @@ const RowCompressedMatrixSystem2d = struct {
                 }
 
                 try row_count.append(@intCast(non_zero_entries.items.len));
-                row += 1;
+                row_idx += 1;
             }
 
             // middle
@@ -387,39 +375,39 @@ const RowCompressedMatrixSystem2d = struct {
 
                 // edge i_min
                 {
-                    try non_zero_entries.append(row); // A[i, j]
+                    try non_zero_entries.append(row_idx); // A[i, j]
                     try row_count.append(@intCast(non_zero_entries.items.len));
-                    row += 1;
+                    row_idx += 1;
                 }
 
                 // internal points with full 9 point stencil
                 for (1..block.points.size[1] - 1) |_| {
-                    try non_zero_entries.append(row - col_size - 1); // A[i-1, j-1]
-                    try non_zero_entries.append(row - col_size); // A[i-1, j]
-                    try non_zero_entries.append(row - col_size + 1); // A[i-1, j+1]
-                    try non_zero_entries.append(row - 1); // A[i, j-1]
-                    try non_zero_entries.append(row); // A[i, j]
-                    try non_zero_entries.append(row + 1); // A[i, j+1]
-                    try non_zero_entries.append(row + col_size - 1); // A[i+1, j-1]
-                    try non_zero_entries.append(row + col_size); // A[i+1, j]
-                    try non_zero_entries.append(row + col_size + 1); // A[i+1, j+1]
+                    try non_zero_entries.append(row_idx - col_size - 1); // A[i-1, j-1]
+                    try non_zero_entries.append(row_idx - col_size); // A[i-1, j]
+                    try non_zero_entries.append(row_idx - col_size + 1); // A[i-1, j+1]
+                    try non_zero_entries.append(row_idx - 1); // A[i, j-1]
+                    try non_zero_entries.append(row_idx); // A[i, j]
+                    try non_zero_entries.append(row_idx + 1); // A[i, j+1]
+                    try non_zero_entries.append(row_idx + col_size - 1); // A[i+1, j-1]
+                    try non_zero_entries.append(row_idx + col_size); // A[i+1, j]
+                    try non_zero_entries.append(row_idx + col_size + 1); // A[i+1, j+1]
                     try row_count.append(@intCast(non_zero_entries.items.len));
-                    row += 1;
+                    row_idx += 1;
                 }
 
                 // edge i_max
                 {
-                    try non_zero_entries.append(row); // A[i, j]
+                    try non_zero_entries.append(row_idx); // A[i, j]
                     try row_count.append(@intCast(non_zero_entries.items.len));
-                    row += 1;
+                    row_idx += 1;
                 }
             }
 
             // edge j_max
             for (0..block.points.size[1]) |_| {
-                try non_zero_entries.append(row); // A[i, j]
+                try non_zero_entries.append(row_idx); // A[i, j]
                 try row_count.append(@intCast(non_zero_entries.items.len));
-                row += 1;
+                row_idx += 1;
             }
         }
 
@@ -428,7 +416,7 @@ const RowCompressedMatrixSystem2d = struct {
 
         // TODO: move this to own function.
         {
-            for (mesh_data.connections.items) |connection| {
+            for (self.mesh.connections.items) |connection| {
 
                 // NOTE: we rely on block 0 matrix entries to be ahead of the block 1 matrix entries,
                 // otherwise we run into an invalid matrix error. We could handle this here dynamically in the future:
@@ -440,135 +428,100 @@ const RowCompressedMatrixSystem2d = struct {
                 // it should be simple to add handling of the edge cases.
                 std.debug.assert(connection.lenInternal() > 3);
 
-                // ignore first and last point (assuming these points to be fixed)
-                const internal_ranges = connection.internalRanges();
-
-                var it_0 = RangeNeighborMatrixIndexIterator.init(internal_ranges[0], mesh_data, block_2_matrix_start_idx_map);
-                var it_1 = RangeNeighborMatrixIndexIterator.init(internal_ranges[1], mesh_data, block_2_matrix_start_idx_map);
-
                 // NOTE: we need to make sure that the matrix entries are in ascending order
                 // as required by the compressed row format
-                const matrix_increment_0: c_int = @intCast(it_0.increment);
-                const matrix_increment_1: c_int = @intCast(it_1.increment);
+                var it = RangeFillMatrixIterator.init(connection, self.mesh);
 
-                // first internal point has first point fixed.
+                // TODO: remove this hardcoded handling of the first point
                 {
-                    //           |
-                    //       connection
-                    //           |
-                    //           V
-                    //
-                    // [fixed]                [fixed]          [fixed]
-                    // (matrix_idx_0)         (matrix_idx)     (matrix_idx_1)
-                    // (matrix_idx_0 + inc_0) (matrix_idx + 1) (matrix_idx_1 + inc_1)
+                    const connected_boundary_points = it.next().?;
 
-                    const matrix_idx_0: c_int = @intCast(it_0.next().?);
-                    const matrix_idx_1: c_int = @intCast(it_1.next().?);
+                    const boundary_idx_0: isize = @intCast(connected_boundary_points[0]);
+                    const boundary_idx_1: isize = @intCast(connected_boundary_points[1]);
 
-                    // connection point's  internal points neighbor matrix entries
-                    const entries_for_block_0 = [2]c_int{ matrix_idx_0, matrix_idx_0 + matrix_increment_0 };
-                    const entries_for_block_1 = [2]c_int{ matrix_idx_1, matrix_idx_1 + matrix_increment_1 };
-                    try row_entries.append(@min(entries_for_block_0[0], entries_for_block_0[1]));
-                    try row_entries.append(@max(entries_for_block_0[0], entries_for_block_0[1]));
-                    try row_entries.append(@min(entries_for_block_1[0], entries_for_block_1[1]));
-                    try row_entries.append(@max(entries_for_block_1[0], entries_for_block_1[1]));
-
-                    matrix_idx += 1;
-
-                    // new entries for the connection (this point and connection neighbor)
-                    try row_entries.append(matrix_idx);
-                    try row_entries.append(matrix_idx + 1);
-
-                    try row_count.append(@intCast(row_entries.items.len));
+                    const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(boundary_idx_1);
+                    non_zero_entries[row_non_zero_entries_start_idx] = boundary_idx_0;
+                    non_zero_entries[row_non_zero_entries_start_idx + 1] = boundary_idx_1;
                 }
 
-                const matrix_increment_0_abs: c_int = @intCast(@abs(matrix_increment_0));
-                const matrix_increment_1_abs: c_int = @intCast(@abs(matrix_increment_1));
+                for (0..it.count - 1) |_| {
+                    const connected_boundary_points = it.next().?;
 
-                // loop edge
-                for (0..it_0.count - 1) |_| {
-                    //           |
-                    //       connection
-                    //           |
-                    //           V
-                    //
-                    // (matrix_idx_0 - inc_0) (matrix_idx - 1) (matrix_idx_1 - inc_1)
-                    // (matrix_idx_0)           (matrix_idx)   (matrix_idx_1)
-                    // (matrix_idx_0 + inc_0) (matrix_idx + 1) (matrix_idx_1 + inc_1)
+                    const boundary_idx_0: isize = @intCast(connected_boundary_points[0]);
+                    const boundary_idx_1: isize = @intCast(connected_boundary_points[1]);
 
-                    const matrix_idx_0: c_int = @intCast(it_0.next().?);
-                    const matrix_idx_1: c_int = @intCast(it_1.next().?);
+                    // smooth 1st point
+                    {
+                        const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(boundary_idx_0);
 
-                    try row_entries.append(matrix_idx_0 - matrix_increment_0_abs);
-                    try row_entries.append(matrix_idx_0);
-                    try row_entries.append(matrix_idx_0 + matrix_increment_0_abs);
+                        // TODO: here we just set the data. The allocation must have been done before!
+                        // TODO: compute this dynamically. For now this is hardcoded for the first connection.
 
-                    try row_entries.append(matrix_idx_1 - matrix_increment_1_abs);
-                    try row_entries.append(matrix_idx_1);
-                    try row_entries.append(matrix_idx_1 + matrix_increment_1_abs);
+                        non_zero_entries[row_non_zero_entries_start_idx + 0] = boundary_idx_0 + it.first_internal_point_shift[0] - it.in_connection_direction_shift[0];
+                        non_zero_entries[row_non_zero_entries_start_idx + 1] = boundary_idx_0 + it.first_internal_point_shift[0];
+                        non_zero_entries[row_non_zero_entries_start_idx + 2] = boundary_idx_0 + it.first_internal_point_shift[0] + it.in_connection_direction_shift[0];
+                        non_zero_entries[row_non_zero_entries_start_idx + 3] = boundary_idx_0 - it.in_connection_direction_shift[0];
+                        non_zero_entries[row_non_zero_entries_start_idx + 4] = boundary_idx_0;
+                        non_zero_entries[row_non_zero_entries_start_idx + 5] = boundary_idx_0 + it.in_connection_direction_shift[0];
+                        non_zero_entries[row_non_zero_entries_start_idx + 6] = boundary_idx_1 + it.first_internal_point_shift[1] + it.in_connection_direction_shift[1];
+                        non_zero_entries[row_non_zero_entries_start_idx + 7] = boundary_idx_1 + it.first_internal_point_shift[1];
+                        non_zero_entries[row_non_zero_entries_start_idx + 8] = boundary_idx_1 + it.first_internal_point_shift[1] - it.in_connection_direction_shift[1];
 
-                    matrix_idx += 1;
-                    try row_entries.append(matrix_idx - 1);
-                    try row_entries.append(matrix_idx);
-                    try row_entries.append(matrix_idx + 1);
+                        // check that we have all entries ascending as required by the row compressed format.
+                        std.debug.assert(blk: {
+                            for (0..8) |i| {
+                                if (non_zero_entries[row_non_zero_entries_start_idx + i] > non_zero_entries[row_non_zero_entries_start_idx + i + 1]) break :blk true;
+                            }
+                            break :blk false;
+                        });
+                    }
 
-                    try row_count.append(@intCast(row_entries.items.len));
+                    // enforce 2nd point to conform to 1st
+                    {
+                        const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(boundary_idx_1);
+                        non_zero_entries[row_non_zero_entries_start_idx] = boundary_idx_0;
+                        non_zero_entries[row_non_zero_entries_start_idx + 1] = boundary_idx_1;
+                    }
                 }
 
-                // second to last point has last point fixed.
+                // TODO: remove this hardcoded handling of the first point
                 {
-                    //           |
-                    //       connection
-                    //           |
-                    //           V
-                    //
-                    // (matrix_idx_0 - inc_0) (matrix_idx - 1) (matrix_idx_1 - inc_1)
-                    // (matrix_idx_0)         (matrix_idx)     (matrix_idx_1)
-                    // [fixed]                [fixed]          [fixed]
+                    const connected_boundary_points = it.next().?;
 
-                    const matrix_idx_0: c_int = @intCast(it_0.next().?);
-                    const matrix_idx_1: c_int = @intCast(it_1.next().?);
+                    const boundary_idx_0: isize = @intCast(connected_boundary_points[0]);
+                    const boundary_idx_1: isize = @intCast(connected_boundary_points[1]);
 
-                    // connection point's internal points neighbor matrix entries
-                    const entries_for_block_0 = [2]c_int{ matrix_idx_0, matrix_idx_0 - matrix_increment_0 };
-                    const entries_for_block_1 = [2]c_int{ matrix_idx_1, matrix_idx_1 - matrix_increment_1 };
-                    try row_entries.append(@min(entries_for_block_0[0], entries_for_block_0[1]));
-                    try row_entries.append(@max(entries_for_block_0[0], entries_for_block_0[1]));
-                    try row_entries.append(@min(entries_for_block_1[0], entries_for_block_1[1]));
-                    try row_entries.append(@max(entries_for_block_1[0], entries_for_block_1[1]));
-
-                    matrix_idx += 1;
-
-                    // new entries for the connection (this point and connection neighbor)
-                    try row_entries.append(matrix_idx - 1);
-                    try row_entries.append(matrix_idx);
-
-                    try row_count.append(@intCast(row_entries.items.len));
+                    const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(boundary_idx_1);
+                    non_zero_entries[row_non_zero_entries_start_idx] = boundary_idx_0;
+                    non_zero_entries[row_non_zero_entries_start_idx + 1] = boundary_idx_1;
                 }
             }
         }
     }
 
-    fn fillAndSolve(self: *RowCompressedMatrixSystem2d) !void {
-        var lhs = self.lhs_values;
+    fn fillBlockInternalPointData(lhs: []f64, rhs_x: []f64, rhs_y: []f64, s: f64, t: f64, mesh_data: *const discrete.Mesh) void {
+        var non_zero_entry_idx: usize = 0;
+        var row_idx: usize = 0;
 
-        var rhs_x = self.rhs_x;
-        var rhs_y = self.rhs_y;
+        for (mesh_data.blocks.items) |block| {
+            var point_idx: usize = 0;
 
-        // laplace conditions (zero intialization)
-        const s = 0.0;
-        const t = 0.0;
+            // edge j_min
+            for (0..block.points.size[1]) |_| {
+                lhs[non_zero_entry_idx] = 1;
+                rhs_x[row_idx] = block.points.data[point_idx].data[0];
+                rhs_y[row_idx] = block.points.data[point_idx].data[1];
 
-        // TODO: move this to a seperate function!
-        {
-            var non_zero_entry_idx: usize = 0;
-            var row_idx: usize = 0;
+                non_zero_entry_idx += 1;
+                point_idx += 1;
+                row_idx += 1;
+            }
 
-            for (self.mesh.blocks.items) |block| {
-                var point_idx: usize = 0;
+            // middle
+            for (1..block.points.size[0] - 1) |_| {
 
-                // edge j_min
-                for (0..block.points.size[1]) |_| {
+                // edge i_min
+                {
                     lhs[non_zero_entry_idx] = 1;
                     rhs_x[row_idx] = block.points.data[point_idx].data[0];
                     rhs_y[row_idx] = block.points.data[point_idx].data[1];
@@ -578,61 +531,35 @@ const RowCompressedMatrixSystem2d = struct {
                     row_idx += 1;
                 }
 
-                // middle
-                for (1..block.points.size[0] - 1) |_| {
+                // internal points with full 9 point stencil
+                for (1..block.points.size[1] - 1) |_| {
+                    const im1_j = block.points.data[point_idx - block.points.size[1]];
+                    const i_jm1 = block.points.data[point_idx - 1];
+                    const i_jp1 = block.points.data[point_idx + 1];
+                    const ip1_j = block.points.data[point_idx + block.points.size[1]];
 
-                    // edge i_min
-                    {
-                        lhs[non_zero_entry_idx] = 1;
-                        rhs_x[row_idx] = block.points.data[point_idx].data[0];
-                        rhs_y[row_idx] = block.points.data[point_idx].data[1];
+                    const stencil = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                        non_zero_entry_idx += 1;
-                        point_idx += 1;
-                        row_idx += 1;
-                    }
+                    lhs[non_zero_entry_idx + 0] = stencil.get(.im1_jm1); // A[i-1, j-1]
+                    lhs[non_zero_entry_idx + 1] = stencil.get(.im1_j); // A[i-1, j]
+                    lhs[non_zero_entry_idx + 2] = stencil.get(.im1_jp1); // A[i-1, j+1]
+                    lhs[non_zero_entry_idx + 3] = stencil.get(.i_jm1); // A[i, j-1]
+                    lhs[non_zero_entry_idx + 4] = stencil.get(.i_j); // A[i, j]
+                    lhs[non_zero_entry_idx + 5] = stencil.get(.i_jp1); // A[i, j+1]
+                    lhs[non_zero_entry_idx + 6] = stencil.get(.ip1_jm1); // A[i+1, j-1]
+                    lhs[non_zero_entry_idx + 7] = stencil.get(.ip1_j); // A[i+1, j]
+                    lhs[non_zero_entry_idx + 8] = stencil.get(.ip1_jp1); // A[i+1, j+1]
 
-                    // internal points with full 9 point stencil
-                    for (1..block.points.size[1] - 1) |_| {
-                        const im1_j = block.points.data[point_idx - block.points.size[1]];
-                        const i_jm1 = block.points.data[point_idx - 1];
-                        const i_jp1 = block.points.data[point_idx + 1];
-                        const ip1_j = block.points.data[point_idx + block.points.size[1]];
+                    rhs_x[row_idx] = 0;
+                    rhs_y[row_idx] = 0;
 
-                        const stencil = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
-
-                        lhs[non_zero_entry_idx + 0] = stencil.get(.im1_jm1); // A[i-1, j-1]
-                        lhs[non_zero_entry_idx + 1] = stencil.get(.im1_j); // A[i-1, j]
-                        lhs[non_zero_entry_idx + 2] = stencil.get(.im1_jp1); // A[i-1, j+1]
-                        lhs[non_zero_entry_idx + 3] = stencil.get(.i_jm1); // A[i, j-1]
-                        lhs[non_zero_entry_idx + 4] = stencil.get(.i_j); // A[i, j]
-                        lhs[non_zero_entry_idx + 5] = stencil.get(.i_jp1); // A[i, j+1]
-                        lhs[non_zero_entry_idx + 6] = stencil.get(.ip1_jm1); // A[i+1, j-1]
-                        lhs[non_zero_entry_idx + 7] = stencil.get(.ip1_j); // A[i+1, j]
-                        lhs[non_zero_entry_idx + 8] = stencil.get(.ip1_jp1); // A[i+1, j+1]
-
-                        rhs_x[row_idx] = 0;
-                        rhs_y[row_idx] = 0;
-
-                        non_zero_entry_idx += 9;
-                        point_idx += 1;
-                        row_idx += 1;
-                    }
-
-                    // edge i_max
-                    {
-                        lhs[non_zero_entry_idx] = 1;
-                        rhs_x[row_idx] = block.points.data[point_idx].data[0];
-                        rhs_y[row_idx] = block.points.data[point_idx].data[1];
-
-                        non_zero_entry_idx += 1;
-                        point_idx += 1;
-                        row_idx += 1;
-                    }
+                    non_zero_entry_idx += 9;
+                    point_idx += 1;
+                    row_idx += 1;
                 }
 
-                // edge j_max
-                for (0..block.points.size[1]) |_| {
+                // edge i_max
+                {
                     lhs[non_zero_entry_idx] = 1;
                     rhs_x[row_idx] = block.points.data[point_idx].data[0];
                     rhs_y[row_idx] = block.points.data[point_idx].data[1];
@@ -642,16 +569,28 @@ const RowCompressedMatrixSystem2d = struct {
                     row_idx += 1;
                 }
             }
-        }
 
-        // TODO: move this to a seperate function
-        for (self.mesh.connections.items) |connection| {
+            // edge j_max
+            for (0..block.points.size[1]) |_| {
+                lhs[non_zero_entry_idx] = 1;
+                rhs_x[row_idx] = block.points.data[point_idx].data[0];
+                rhs_y[row_idx] = block.points.data[point_idx].data[1];
+
+                non_zero_entry_idx += 1;
+                point_idx += 1;
+                row_idx += 1;
+            }
+        }
+    }
+
+    fn fillBlockConnectionData(mesh_data: *const discrete.Mesh) void {
+        for (mesh_data.connections.items) |connection| {
             const point_data = [2][]types.Vec2d{
-                self.mesh.blocks.items[connection.data[0].block].points.data,
-                self.mesh.blocks.items[connection.data[1].block].points.data,
+                mesh_data.blocks.items[connection.data[0].block].points.data,
+                mesh_data.blocks.items[connection.data[1].block].points.data,
             };
 
-            var it = RangeFillMatrixIterator.init(connection, self.mesh);
+            var it = RangeFillMatrixIterator.init(connection, mesh_data);
 
             // TODO: check how to solve each point.
             // TODO: solve range 0 and connect range 1 to connected range 0 point
@@ -672,8 +611,8 @@ const RowCompressedMatrixSystem2d = struct {
             // A(matrix_idx_0)         A(matrix_idx)     A(matrix_idx_1)
             // A(matrix_idx_0 + inc_0) A(matrix_idx + 1) A(matrix_idx_1 + inc_1)
 
-            const matrix_idx_inc_intern_0: [3]usize = if (it.in_connection_direction_shift[0] > 0) .{ 0, 1, 2 } else .{ 2, 1, 0 };
-            const matrix_idx_inc_intern_1: [3]usize = if (it.in_connection_direction_shift[1] > 0) .{ 3, 4, 5 } else .{ 5, 4, 3 };
+            // const matrix_idx_inc_intern_0: [3]usize = if (it.in_connection_direction_shift[0] > 0) .{ 0, 1, 2 } else .{ 2, 1, 0 };
+            // const matrix_idx_inc_intern_1: [3]usize = if (it.in_connection_direction_shift[1] > 0) .{ 3, 4, 5 } else .{ 5, 4, 3 };
 
             while (it.next()) |connected_boundary_points| {
                 std.debug.assert(types.eqlApprox(point_data[0][connected_boundary_points[0]], point_data[1][connected_boundary_points[1]], 1e-12));
@@ -684,9 +623,7 @@ const RowCompressedMatrixSystem2d = struct {
                 {
                     const row_idx = boundary_idx_0;
 
-                    // TODO: retrieve the starting index for the coefficients of this row (either Ai or Ap)
-
-                    const row_non_zero_entries_start_idx = undefined;
+                    const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(row_idx);
 
                     const im1_j = point_data[0][@intCast(boundary_idx_0 - it.in_connection_direction_shift[0])];
                     const i_jm1 = point_data[0][@intCast(boundary_idx_0 + it.first_internal_point_shift[0])];
@@ -697,20 +634,19 @@ const RowCompressedMatrixSystem2d = struct {
 
                     // add 9 point stencil data in the right order (associated points must be ascending)
 
-                    lhs[row_non_zero_entries_start_idx + matrix_idx_inc_intern_0[0]] = stencil.get(.im1_jm1); // A[matrix_idx, matrix_idx_0 - matrix_increment_0]
-                    lhs[row_non_zero_entries_start_idx + matrix_idx_inc_intern_0[1]] = stencil.get(.i_jm1); // A[matrix_idx, matrix_idx_0]
-                    lhs[row_non_zero_entries_start_idx + matrix_idx_inc_intern_0[2]] = stencil.get(.ip1_jm1); // A[matrix_idx, matrix_idx_0 + matrix_increment_0]
+                    // TODO: compute the offset dynamically (loop at matrix_idx_inc_intern as inspiration.); right now the indices are hard coded for the first connection.
 
-                    lhs[row_non_zero_entries_start_idx + matrix_idx_inc_intern_1[0]] = stencil.get(.im1_jp1); // A[matrix_idx, matrix_idx_1 - matrix_increment_1]
-                    lhs[row_non_zero_entries_start_idx + matrix_idx_inc_intern_1[1]] = stencil.get(.i_jp1); // A[matrix_idx, matrix_idx_1]
-                    lhs[row_non_zero_entries_start_idx + matrix_idx_inc_intern_1[2]] = stencil.get(.ip1_jp1); // A[matrix_idx, matrix_idx_1 + matrix_increment_1]
+                    lhs[row_non_zero_entries_start_idx + 2] = stencil.get(.im1_jm1); // A[matrix_idx, matrix_idx_0 - matrix_increment_0]
+                    lhs[row_non_zero_entries_start_idx + 1] = stencil.get(.i_jm1); // A[matrix_idx, matrix_idx_0]
+                    lhs[row_non_zero_entries_start_idx + 0] = stencil.get(.ip1_jm1); // A[matrix_idx, matrix_idx_0 + matrix_increment_0]
 
-                    // these points are always associated with the points of block 0
-                    // TODO: we need to put these at the right position!
+                    lhs[row_non_zero_entries_start_idx + 5] = stencil.get(.im1_j); // A[matrix_idx, matrix_idx - 1]
+                    lhs[row_non_zero_entries_start_idx + 4] = stencil.get(.i_j); // A[matrix_idx, matrix_idx]
+                    lhs[row_non_zero_entries_start_idx + 3] = stencil.get(.ip1_j); // A[matrix_idx, matrix_idx + 1]
 
-                    lhs[row_idx + 6] = stencil.get(.im1_j); // A[matrix_idx, matrix_idx - 1]
-                    lhs[row_idx + 7] = stencil.get(.i_j); // A[matrix_idx, matrix_idx]
-                    lhs[row_idx + 8] = stencil.get(.ip1_j); // A[matrix_idx, matrix_idx + 1]
+                    lhs[row_non_zero_entries_start_idx + 8] = stencil.get(.im1_jp1); // A[matrix_idx, matrix_idx_1 - matrix_increment_1]
+                    lhs[row_non_zero_entries_start_idx + 7] = stencil.get(.i_jp1); // A[matrix_idx, matrix_idx_1]
+                    lhs[row_non_zero_entries_start_idx + 6] = stencil.get(.ip1_jp1); // A[matrix_idx, matrix_idx_1 + matrix_increment_1]
 
                     rhs_x[row_idx] = 0;
                     rhs_y[row_idx] = 0;
@@ -720,7 +656,7 @@ const RowCompressedMatrixSystem2d = struct {
                 // NOTE: it might be more efficient to do this in a 2nd loop to reduce cache misses.
                 {
                     const row_idx = boundary_idx_1;
-                    const row_non_zero_entries_start_idx = undefined;
+                    const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(row_idx);
 
                     lhs[row_non_zero_entries_start_idx] = 1.0;
                     lhs[row_non_zero_entries_start_idx + 1] = -1.0;
@@ -729,6 +665,21 @@ const RowCompressedMatrixSystem2d = struct {
                 }
             }
         }
+    }
+
+    fn fillAndSolve(self: *RowCompressedMatrixSystem2d) !void {
+        var lhs = self.lhs_values;
+
+        var rhs_x = self.rhs_x;
+        var rhs_y = self.rhs_y;
+
+        // laplace conditions (zero intialization)
+        const s = 0.0;
+        const t = 0.0;
+
+        // TODO: adjust naming: where are the fixed points set!? The second function handles only connected boundary points !?
+        fillBlockInternalPointData(lhs[0..], rhs_x[0..], rhs_y[0..], s, t, self.mesh);
+        fillBlockConnectionData();
 
         const dof = self.rhs_x.len;
         try umfpack.solve2(@intCast(dof), @intCast(dof), self.lhs_p, self.lhs_i, lhs, rhs_x, self.x_new[0..], rhs_y, self.y_new[0..]);
@@ -737,40 +688,67 @@ const RowCompressedMatrixSystem2d = struct {
 
 const BlockBoundaryPointKind = enum {
     fix, // not smoothed
+
+    // interface points are either smoothed or connected to a smoothed point
+    smooth,
+    connect,
+
     interface, // smoothed just like interior points
+
     junction, // smoothed using Laplacian smoothing
 };
 
 /// provides for every block boundary point the point type info (fixed, ...) based on the number of connections found for each block boundary point
 const BlockBoundaryPointsInfo = struct {
-    connections_count: boundary.PointData(usize),
+    // /// contains all connections a point is contained in (in place buffer of given size)
+    // point_connections: boundary.PointData(std.BoundedArray(usize, 4)),
+
+    /// contains for each point a buffer with all connected points
+    connected_points: boundary.PointData(std.BoundedArray(usize, 4)),
 
     fn init(allocator: std.mem.Allocator, mesh_data: *const discrete.Mesh) BlockBoundaryPointsInfo {
-        var connections_count = try boundary.PointData(usize).init(allocator, mesh_data);
+        // var point_connections = try boundary.PointData(std.BoundedArray(usize, 4)).init(allocator, mesh_data);
+        var info = BlockBoundaryPointsInfo{ .connected_points = try .init(allocator, mesh_data) };
 
-        // init count to 0
-        @memset(connections_count.buffer[0..], 0);
-
-        // increase count for each connection that contains the point
         for (mesh_data.connections.items) |connection| {
-            for (0..2) |side_idx| {
-                const range = connection.data[side_idx];
-                var it = connections_count.iterateRange(range);
-                while (it.nextPtr()) |count| {
-                    count += 1;
-                }
-            }
+            var it_0 = info.connected_points.iterateRange(connection.data[0]);
+            var it_1 = info.connected_points.iterateRange(connection.data[1]);
+
+            _ = it_0;
+            _ = it_1;
+
+            // while (true) {
+            //
+            // }
+
+            // while(it.next()) |connected_points| {
+            //
+            // }
         }
 
-        // // TODO: remove this: hard coded fixed
-        // boundary_point_props.set(4, .{ 0, 0 }, .fix);
-        // boundary_point_props.set(4, .{ 0, 0 }, .fix);
+        // // tag boundary points based on connections
+        // var boundary_point_kind = try boundary.PointData(BoundaryPointProp).init(allocator, mesh_data);
+        // defer boundary_point_kind.deinit();
 
-        return .{ .connections_count = connections_count };
+        // for (boundary_point_connections.buffer, boundary_point_kind.buffer) |connections, *kind| {
+        //     switch (connections.len) {
+        //         0 => kind.* = .fix,
+        //         1 => kind.* = .interface,
+        //         else => kind.* = .junction,
+        //     }
+        // }
+
+        // TODO: remove this: hard coded fixed
+        boundary_point_props.set(4, .{ 0, 0 }, .fix);
+        boundary_point_props.set(4, .{ 0, 0 }, .fix);
+
+        // info.point_connections.set(4, .{0, 0})
+
+        return info;
     }
 
     fn deinit(self: BlockBoundaryPointsInfo) void {
-        self.connections_count.deinit();
+        self.point_connections.deinit();
     }
 
     fn getKind(
@@ -783,7 +761,7 @@ const BlockBoundaryPointsInfo = struct {
     }
 };
 
-fn categorizeBlockBoundaryPoints(allocator: std.mem.Allocator, mesh_data: *const discrete.Mesh) boundary.PointData(BlockBoundaryPointProp) {
+fn categorizeBlockBoundaryPoints(allocator: std.mem.Allocator, mesh_data: *const discrete.Mesh) boundary.PointData(BlockBoundaryPointKind) {
 
     // (1) collect for all block boundary points the number of connections the point is contained in.
     // (2) Define how the point is to be put into the system matrix based on the number of connections.
