@@ -363,10 +363,11 @@ const Turbine = struct {
         try mesh.addBlock("downstream", downstream);
 
         // Connections
-        // TODO remove this
+        // TODO: remove this
+        //
         // _ = down_id;
-        // _ = up_id;
-        // _ = in_id;
+        _ = up_id;
+        _ = in_id;
         // _ = upstream_id;
         try mesh.connections.appendSlice(&.{
             boundary.Connection.init(.{

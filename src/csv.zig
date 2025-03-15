@@ -28,7 +28,7 @@ pub fn parseCsvIntoVec2d(allocator: std.mem.Allocator, file_path: []const u8) !s
 
         // try to split the line into floats
         var i_float: u2 = 0;
-        var it = std.mem.tokenize(u8, line, " "); // TODO extend to different seperators
+        var it = std.mem.tokenizeScalar(u8, line, ' '); // TODO: extend to different seperators
         while (it.next()) |entry| {
             if (i_float == expected_n_floats) {
                 std.log.err("csv parsing error: too many entries in line detected\n  file: {s}\n  line {}: {s}", .{ file_path, i_line, line });

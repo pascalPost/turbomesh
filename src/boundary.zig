@@ -120,9 +120,9 @@ pub const Connection = struct {
 };
 
 const ConnectionIterator = struct {
-    data: RangeIterator[2],
+    data: [2]RangeIterator,
 
-    fn next(self: *@This()) ?struct { usize, usize } {
+    pub fn next(self: *@This()) ?struct { usize, usize } {
         const n_0 = self.data[0].next() orelse {
             return null;
         };
@@ -150,8 +150,7 @@ pub const Condition = struct {
     kind: ConditionTag,
 };
 
-/// A flat array data structure for all mesh block boundary points.
-/// The block data is saved in column major ordering.
+/// A flat array data structure for all mesh block boundary points. The block data is saved in column major ordering.
 pub fn PointData(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
@@ -162,11 +161,11 @@ pub fn PointData(comptime T: type) type {
 
         /// returns a struct with an allocated (not yet initiallized) buffer for all boundary points
         /// of the mesh.
-        pub fn init(allocator: std.mem.Allocator, mesh: *const discrete.Mesh) PointData(T) {
+        pub fn init(allocator: std.mem.Allocator, mesh: *const discrete.Mesh) !PointData(T) {
             var data = PointData(T){
                 .allocator = allocator,
                 .buffer = undefined,
-                .blocks = try allocator.alloc(BlockInfo, mesh.blocks.item.len),
+                .blocks = try allocator.alloc(BlockInfo, mesh.blocks.items.len),
             };
 
             var count: usize = 0;
@@ -186,15 +185,15 @@ pub fn PointData(comptime T: type) type {
             self.allocator.free(self.blocks);
         }
 
-        pub fn get(self: PointData(T), global_point_idx: usize) T {
-            return self.buffer[self.bufferIndex(global_point_idx)];
+        pub fn get(self: PointData(T), global_point_idx: usize) !T {
+            return self.buffer[try self.bufferIndex(global_point_idx)];
         }
 
-        pub fn getPtr(self: *PointData(T), global_point_idx: usize) *T {
-            return self.buffer[self.bufferIndex(global_point_idx)];
+        pub fn getPtr(self: *PointData(T), global_point_idx: usize) !*T {
+            return &self.buffer[try self.bufferIndex(global_point_idx)];
         }
 
-        pub fn bufferIndex(self: PointData(T), global_point_idx: usize) usize {
+        pub fn bufferIndex(self: PointData(T), global_point_idx: usize) !usize {
             // TODO: move the transformation of a global id to a block and point id into mesh
 
             var block_idx: usize = self.blocks.len - 1;
