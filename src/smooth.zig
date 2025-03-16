@@ -219,6 +219,7 @@ const RowCompressedMatrixSystem2d = struct {
         var non_zero_entries_capacity: usize = 0;
 
         var row_idx_range_start_for_each_block = try allocator.alloc(usize, mesh_data.blocks.items.len);
+        errdefer allocator.free(row_idx_range_start_for_each_block);
 
         for (mesh_data.blocks.items, 0..) |block, block_idx| {
             const points = block.points;
@@ -235,6 +236,7 @@ const RowCompressedMatrixSystem2d = struct {
         }
 
         const buffer_int = try allocator.alloc(c_int, (dof + 1) + non_zero_entries_capacity);
+        errdefer allocator.free(buffer_int);
 
         // left hand side (lhs) in compressed row form
         var lhs_p = buffer_int[0 .. dof + 1]; // cum sum of non-zero entries in columns
@@ -243,6 +245,7 @@ const RowCompressedMatrixSystem2d = struct {
         std.debug.assert(lhs_i.len == non_zero_entries_capacity);
 
         const buffer_float = try allocator.alloc(f64, 4 * dof + non_zero_entries_capacity);
+        errdefer allocator.free(buffer_float);
 
         const x_new = buffer_float[0..dof];
         const y_new = buffer_float[dof .. 2 * dof];
@@ -274,6 +277,7 @@ const RowCompressedMatrixSystem2d = struct {
         // matrix entries.
 
         const connected_points = try BlockBoundaryPointConnections.init(allocator, mesh_data);
+        defer connected_points.deinit();
 
         try system.nonZeroMatrixEntries(dof, non_zero_entries_capacity, connected_points);
 
@@ -698,12 +702,21 @@ const BlockBoundaryPointConnections = struct {
         var connected_points = BlockBoundaryPointConnections{
             .data = try .init(allocator, mesh_data),
         };
+        errdefer connected_points.deinit();
+
+        for (connected_points.data.buffer[0..]) |*boundary_point| boundary_point.* = try .init(0);
 
         for (mesh_data.connections.items) |connection| {
             var it = connection.iterate(mesh_data);
-            while (it.next()) |connected_boundary_points| {
-                try (try connected_points.data.getPtr(connected_boundary_points[0])).append(@intCast(connected_boundary_points[1]));
-                try (try connected_points.data.getPtr(connected_boundary_points[1])).append(@intCast(connected_boundary_points[0]));
+            while (it.next()) |connected_points_local_indices| {
+                // local to global indices
+                const connected_point_global_idx_0 = connected_points.data.blocks[connection.data[0].block].buffer_start_idx + connected_points_local_indices[0];
+                const connected_point_global_idx_1 = connected_points.data.blocks[connection.data[1].block].buffer_start_idx + connected_points_local_indices[1];
+
+                std.debug.print("{d} {d}\n", .{ connected_point_global_idx_0, connected_point_global_idx_1 });
+
+                try (try connected_points.data.getPtr(connected_point_global_idx_0)).append(@intCast(connected_point_global_idx_1));
+                try (try connected_points.data.getPtr(connected_point_global_idx_1)).append(@intCast(connected_point_global_idx_0));
             }
         }
 

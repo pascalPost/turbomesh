@@ -157,6 +157,8 @@ pub fn PointData(comptime T: type) type {
         buffer: []T,
 
         // NOTE: a struct of arrays would be more efficient... There is something in the std to use.
+        // TODO: think about removing this. Right now every PointData field would carry this info... However,
+        // this way, changes to the mesh will not affect this info here... Think about a good solution.
         blocks: []BlockInfo,
 
         /// returns a struct with an allocated (not yet initiallized) buffer for all boundary points
@@ -197,7 +199,7 @@ pub fn PointData(comptime T: type) type {
             // TODO: move the transformation of a global id to a block and point id into mesh
 
             var block_idx: usize = self.blocks.len - 1;
-            while (global_point_idx > self.blocks[block_idx].buffer_start_idx) : (block_idx -= 1) {}
+            while (global_point_idx < self.blocks[block_idx].buffer_start_idx) : (block_idx -= 1) {}
 
             const block = self.blocks[block_idx];
 
@@ -224,17 +226,17 @@ pub fn PointData(comptime T: type) type {
             //             (0,0) (1,0) (2,0) (3,0) (4,0)
             //                     i_min
 
-            if (point_idx[1] == 0) {
+            if (point_idx[0] == 0) {
                 // j_min
                 return point_idx[1];
-            } else if (point_idx[1] == block.size[1] - 1) {
+            } else if (point_idx[0] == block.size[0] - 1) {
                 // j_max
                 return block.size[1] + 2 * (block.size[0] - 2) + point_idx[1];
-            } else if (point_idx[0] == 0) {
+            } else if (point_idx[1] == 0) {
                 // i_min
                 std.debug.assert(point_idx[1] != 0);
                 return block.size[1] + (point_idx[0] - 1) * 2;
-            } else if (point_idx[0] == block.size[0] - 1) {
+            } else if (point_idx[1] == block.size[1] - 1) {
                 // i_max
                 std.debug.assert(point_idx[1] != block.size[1] - 1);
                 return block.size[1] - 1 + (point_idx[0] - 1) * 2;
