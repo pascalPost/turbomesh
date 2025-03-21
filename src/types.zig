@@ -6,6 +6,8 @@ const nan = std.math.nan(Float);
 
 pub const Index2d = struct { Index, Index };
 
+// pub const MeshIndex2d
+
 pub const Vec2d = struct {
     data: [2]Float,
 

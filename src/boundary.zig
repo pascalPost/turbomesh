@@ -78,15 +78,15 @@ const RangeIterator = struct {
 };
 
 pub const Connection = struct {
-    data: [2]Range,
+    ranges: [2]Range,
 
-    pub fn init(data: [2]Range) Connection {
-        return .{ .data = data };
+    pub fn init(ranges: [2]Range) Connection {
+        return .{ .ranges = ranges };
     }
 
     pub fn len(self: Connection) usize {
-        const length = self.data[0].len();
-        std.debug.assert(length == self.data[1].len());
+        const length = self.ranges[0].len();
+        std.debug.assert(length == self.ranges[1].len());
         return length;
     }
 
@@ -97,14 +97,14 @@ pub const Connection = struct {
     }
 
     pub fn iterate(self: Connection, mesh: *const discrete.Mesh) ConnectionIterator {
-        const it_0 = self.data[0].iterate(mesh);
-        const it_1 = self.data[1].iterate(mesh);
+        const it_0 = self.ranges[0].iterate(mesh);
+        const it_1 = self.ranges[1].iterate(mesh);
         return .{ .data = .{ it_0, it_1 } };
     }
 
     pub fn internalRanges(self: Connection) [2]Range {
         var new_range: [2]Range = undefined;
-        @memcpy(new_range[0..], self.data[0..]);
+        @memcpy(new_range[0..], self.ranges[0..]);
 
         for (new_range[0..]) |*r| {
             if (r.start < r.end) {
@@ -156,61 +156,35 @@ pub fn PointData(comptime T: type) type {
         allocator: std.mem.Allocator,
         buffer: []T,
 
-        // NOTE: a struct of arrays would be more efficient... There is something in the std to use.
-        // TODO: think about removing this. Right now every PointData field would carry this info... However,
-        // this way, changes to the mesh will not affect this info here... Think about a good solution.
-        blocks: []BlockInfo,
+        /// starting index of each block within buffer.
+        block_range_start: []usize,
 
         /// returns a struct with an allocated (not yet initiallized) buffer for all boundary points
         /// of the mesh.
         pub fn init(allocator: std.mem.Allocator, mesh: *const discrete.Mesh) !PointData(T) {
-            var data = PointData(T){
-                .allocator = allocator,
-                .buffer = undefined,
-                .blocks = try allocator.alloc(BlockInfo, mesh.blocks.items.len),
-            };
+            var block_range_start = try allocator.alloc(usize, mesh.blocks.items.len);
 
-            var count: usize = 0;
+            var total_boundary_points: usize = 0;
             for (mesh.blocks.items, 0..) |block, block_idx| {
                 const size = block.points.size;
-                data.blocks[block_idx] = .{ .buffer_start_idx = count, .size = size };
-                count += size[0] * size[1];
+                block_range_start[block_idx] = total_boundary_points;
+                const block_boundary_points = 2 * (size[1] + size[0] - 2);
+                total_boundary_points += block_boundary_points;
             }
 
-            data.buffer = try allocator.alloc(T, count);
-
-            return data;
+            return .{
+                .allocator = allocator,
+                .buffer = try allocator.alloc(T, total_boundary_points),
+                .block_range_start = block_range_start,
+            };
         }
 
         pub fn deinit(self: PointData(T)) void {
             self.allocator.free(self.buffer);
-            self.allocator.free(self.blocks);
+            self.allocator.free(self.block_range_start);
         }
 
-        pub fn get(self: PointData(T), global_point_idx: usize) !T {
-            return self.buffer[try self.bufferIndex(global_point_idx)];
-        }
-
-        pub fn getPtr(self: *PointData(T), global_point_idx: usize) !*T {
-            return &self.buffer[try self.bufferIndex(global_point_idx)];
-        }
-
-        pub fn bufferIndex(self: PointData(T), global_point_idx: usize) !usize {
-            // TODO: move the transformation of a global id to a block and point id into mesh
-
-            var block_idx: usize = self.blocks.len - 1;
-            while (global_point_idx < self.blocks[block_idx].buffer_start_idx) : (block_idx -= 1) {}
-
-            const block = self.blocks[block_idx];
-
-            const local_point_idx = global_point_idx - block.buffer_start_idx;
-
-            // compute 2d index
-            const point_idx = blk: {
-                const point_i = @divTrunc(local_point_idx, block.size[1]);
-                const point_j = local_point_idx - point_i * block.size[1];
-                break :blk types.Index2d{ point_i, point_j };
-            };
+        pub fn bufferIndex(self: PointData(T), boundary_point: struct { block: usize, idx: types.Index2d }, block_size: types.Index2d) !usize {
 
             // Here is an example for a block of size 5x7:
             //
@@ -226,29 +200,27 @@ pub fn PointData(comptime T: type) type {
             //             (0,0) (1,0) (2,0) (3,0) (4,0)
             //                     i_min
 
-            if (point_idx[0] == 0) {
-                // j_min
-                return point_idx[1];
-            } else if (point_idx[0] == block.size[0] - 1) {
-                // j_max
-                return block.size[1] + 2 * (block.size[0] - 2) + point_idx[1];
-            } else if (point_idx[1] == 0) {
-                // i_min
-                std.debug.assert(point_idx[1] != 0);
-                return block.size[1] + (point_idx[0] - 1) * 2;
-            } else if (point_idx[1] == block.size[1] - 1) {
-                // i_max
-                std.debug.assert(point_idx[1] != block.size[1] - 1);
-                return block.size[1] - 1 + (point_idx[0] - 1) * 2;
-            } else {
-                return error.NotBoundaryIndex;
-            }
-        }
+            const block_boundary_point_idx = blk: {
+                if (boundary_point.idx[0] == 0) {
+                    // j_min
+                    break :blk boundary_point.idx[1];
+                } else if (boundary_point.idx[0] == block_size[0] - 1) {
+                    // j_max
+                    break :blk block_size[1] + 2 * (block_size[0] - 2) + boundary_point.idx[1];
+                } else if (boundary_point.idx[1] == 0) {
+                    // i_min
+                    std.debug.assert(boundary_point.idx[1] != 0);
+                    break :blk block_size[1] + (boundary_point.idx[0] - 1) * 2;
+                } else if (boundary_point.idx[1] == block_size[1] - 1) {
+                    // i_max
+                    std.debug.assert(boundary_point.idx[1] != block_size[1] - 1);
+                    break :blk block_size[1] - 1 + (boundary_point.idx[0] - 1) * 2;
+                } else {
+                    return error.NotBoundaryIndex;
+                }
+            };
 
-        /// internal type to collect the size and buffer start of each block.
-        const BlockInfo = struct {
-            buffer_start_idx: usize,
-            size: types.Index2d,
-        };
+            return self.blocks[boundary_point.block].buffer_start_idx + block_boundary_point_idx;
+        }
     };
 }
