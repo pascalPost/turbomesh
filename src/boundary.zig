@@ -184,7 +184,7 @@ pub fn PointData(comptime T: type) type {
             self.allocator.free(self.block_range_start);
         }
 
-        pub fn bufferIndex(self: PointData(T), boundary_point: struct { block: usize, idx: types.Index2d }, block_size: types.Index2d) !usize {
+        pub fn bufferIndex(self: PointData(T), boundary_point: types.MeshIndex2d, block_size: types.Index2d) !usize {
 
             // Here is an example for a block of size 5x7:
             //
@@ -201,26 +201,26 @@ pub fn PointData(comptime T: type) type {
             //                     i_min
 
             const block_boundary_point_idx = blk: {
-                if (boundary_point.idx[0] == 0) {
+                if (boundary_point.point[0] == 0) {
                     // j_min
-                    break :blk boundary_point.idx[1];
-                } else if (boundary_point.idx[0] == block_size[0] - 1) {
+                    break :blk boundary_point.point[1];
+                } else if (boundary_point.point[0] == block_size[0] - 1) {
                     // j_max
-                    break :blk block_size[1] + 2 * (block_size[0] - 2) + boundary_point.idx[1];
-                } else if (boundary_point.idx[1] == 0) {
+                    break :blk block_size[1] + 2 * (block_size[0] - 2) + boundary_point.point[1];
+                } else if (boundary_point.point[1] == 0) {
                     // i_min
-                    std.debug.assert(boundary_point.idx[1] != 0);
-                    break :blk block_size[1] + (boundary_point.idx[0] - 1) * 2;
-                } else if (boundary_point.idx[1] == block_size[1] - 1) {
+                    std.debug.assert(boundary_point.point[1] != 0);
+                    break :blk block_size[1] + (boundary_point.point[0] - 1) * 2;
+                } else if (boundary_point.point[1] == block_size[1] - 1) {
                     // i_max
-                    std.debug.assert(boundary_point.idx[1] != block_size[1] - 1);
-                    break :blk block_size[1] - 1 + (boundary_point.idx[0] - 1) * 2;
+                    std.debug.assert(boundary_point.point[1] != block_size[1] - 1);
+                    break :blk block_size[1] - 1 + (boundary_point.point[0] - 1) * 2;
                 } else {
                     return error.NotBoundaryIndex;
                 }
             };
 
-            return self.blocks[boundary_point.block].buffer_start_idx + block_boundary_point_idx;
+            return self.block_range_start[boundary_point.block] + block_boundary_point_idx;
         }
     };
 }

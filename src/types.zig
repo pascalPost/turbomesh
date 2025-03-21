@@ -4,9 +4,11 @@ pub const Index = usize;
 pub const Float = f64;
 const nan = std.math.nan(Float);
 
+/// 2D point index type.
 pub const Index2d = struct { Index, Index };
 
-// pub const MeshIndex2d
+/// Mesh global 2D block point index type.
+pub const MeshIndex2d = struct { block: usize, point: Index2d };
 
 pub const Vec2d = struct {
     data: [2]Float,
