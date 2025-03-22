@@ -212,6 +212,9 @@ const RowCompressedMatrixSystem2d = struct {
     /// row index range start for each block (global point index)
     row_idx_range_start_for_each_block: []usize,
 
+    // TODO: replace this with a boundary buffer of just the kind!
+    connected_points: BlockBoundaryPointConnections,
+
     fn init(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh) !RowCompressedMatrixSystem2d {
         connectionDataCheck(mesh_data);
 
@@ -255,6 +258,16 @@ const RowCompressedMatrixSystem2d = struct {
 
         const lhs_values = buffer_float[4 * dof ..];
 
+        // Handling of the inter-block connections:
+        // For now, we will add rows for each connected point to enforce identity of the connected points.
+        // Each connected point adds his part of stencil data to the system matrix.
+        // This renders the stencil info most easy (of the considered option) at the expense of additional
+        // matrix entries.
+        const index_converter = try IndexConverter.init(mesh_data, allocator);
+        defer index_converter.deinit();
+
+        const connected_points = try BlockBoundaryPointConnections.init(allocator, mesh_data, index_converter);
+
         var system = RowCompressedMatrixSystem2d{
             .mesh = mesh_data,
             .allocator = allocator,
@@ -268,48 +281,8 @@ const RowCompressedMatrixSystem2d = struct {
             .x_new = x_new,
             .y_new = y_new,
             .row_idx_range_start_for_each_block = row_idx_range_start_for_each_block,
+            .connected_points = connected_points,
         };
-
-        // Handling of the inter-block connections:
-        // For now, we will add rows for each connected point to enforce identity of the connected points.
-        // Each connected point adds his part of stencil data to the system matrix.
-        // This renders the stencil info most easy (of the considered option) at the expense of additional
-        // matrix entries.
-        const index_converter = try IndexConverter.init(mesh_data, allocator);
-        defer index_converter.deinit();
-
-        const connected_points = try BlockBoundaryPointConnections.init(allocator, mesh_data, index_converter);
-        defer connected_points.deinit();
-
-        // TODO: remove
-        {
-            const local_idx = index_converter.localIndex(31324);
-            const idx = IndexConverter.index(local_idx.block, local_idx.local_idx, mesh_data);
-            const boundary_idx = try connected_points.data.bufferIndex(idx, mesh_data.blocks.items[4].points.size);
-            const kind = connected_points.getKind(boundary_idx, 31324);
-            std.debug.assert(kind == .fix);
-        }
-        {
-            const local_idx = index_converter.localIndex(43259);
-            const idx = IndexConverter.index(local_idx.block, local_idx.local_idx, mesh_data);
-            const boundary_idx = try connected_points.data.bufferIndex(idx, mesh_data.blocks.items[6].points.size);
-            const kind = connected_points.getKind(boundary_idx, 43259);
-            std.debug.assert(kind == .connect);
-        }
-        {
-            const local_idx = index_converter.localIndex(31304);
-            const idx = IndexConverter.index(local_idx.block, local_idx.local_idx, mesh_data);
-            const boundary_idx = try connected_points.data.bufferIndex(idx, mesh_data.blocks.items[4].points.size);
-            const kind = connected_points.getKind(boundary_idx, 31304);
-            std.debug.assert(kind == .fix);
-        }
-        {
-            const local_idx = index_converter.localIndex(43279);
-            const idx = IndexConverter.index(local_idx.block, local_idx.local_idx, mesh_data);
-            const boundary_idx = try connected_points.data.bufferIndex(idx, mesh_data.blocks.items[6].points.size);
-            const kind = connected_points.getKind(boundary_idx, 43279);
-            std.debug.assert(kind == .connect);
-        }
 
         try system.nonZeroMatrixEntries(dof, non_zero_entries_capacity, connected_points, index_converter);
 
@@ -317,9 +290,10 @@ const RowCompressedMatrixSystem2d = struct {
     }
 
     fn deinit(self: RowCompressedMatrixSystem2d) void {
-        defer self.allocator.free(self.buffer_int);
-        defer self.allocator.free(self.buffer_float);
-        defer self.allocator.free(self.row_idx_range_start_for_each_block);
+        self.allocator.free(self.buffer_int);
+        self.allocator.free(self.buffer_float);
+        self.allocator.free(self.row_idx_range_start_for_each_block);
+        self.connected_points.deinit();
     }
 
     /// returns the non zero entries range for the given row (the row index range start for each block can be retrieved from an array in the struct)
@@ -507,22 +481,66 @@ const RowCompressedMatrixSystem2d = struct {
         self.fillNonZeroMatrixEntriesForConnections(&non_zero_entries, index_converter);
     }
 
-    fn fillBlockInternalPointData(lhs: []f64, rhs_x: []f64, rhs_y: []f64, s: f64, t: f64, mesh_data: *const discrete.Mesh) void {
+    fn fillBlockBoundaryPointData(
+        self: @This(),
+        lhs: []f64,
+        rhs_x: []f64,
+        rhs_y: []f64,
+        block: discrete.Block2d,
+        boundary_point_idx: *usize,
+        row_idx: *usize,
+        point_idx: *usize,
+        non_zero_entry_idx: *usize,
+    ) void {
+        switch (self.connected_points.getKind(boundary_point_idx.*, row_idx.*)) {
+            .fix => {
+                lhs[non_zero_entry_idx.*] = 1;
+                non_zero_entry_idx.* += 1;
+
+                rhs_x[row_idx.*] = block.points.data[point_idx.*].data[0];
+            },
+            .smooth => {
+                // will be done based on connection loop.
+
+                rhs_x[row_idx.*] = 0;
+                rhs_y[row_idx.*] = 0;
+            },
+            .connect => {
+                // NOTE: we would only need to fill this data one time.
+                // TODO: do this in a one time loop up front.
+                lhs[non_zero_entry_idx.*] = 1;
+                lhs[non_zero_entry_idx.* + 1] = -1;
+                non_zero_entry_idx.* += 2;
+
+                rhs_x[row_idx.*] = 0;
+                rhs_y[row_idx.*] = 0;
+            },
+            .junction => unreachable,
+        }
+
+        row_idx.* += 1;
+        boundary_point_idx.* += 1;
+        point_idx.* += 1;
+    }
+
+    fn fillBlockInternalPointData(
+        self: @This(),
+        lhs: []f64,
+        rhs_x: []f64,
+        rhs_y: []f64,
+        s: f64,
+        t: f64,
+    ) void {
         var non_zero_entry_idx: usize = 0;
         var row_idx: usize = 0;
+        var boundary_point_idx: usize = 0;
 
-        for (mesh_data.blocks.items) |block| {
+        for (self.mesh.blocks.items) |block| {
             var point_idx: usize = 0;
 
             // edge j_min
             for (0..block.points.size[1]) |_| {
-                lhs[non_zero_entry_idx] = 1;
-                rhs_x[row_idx] = block.points.data[point_idx].data[0];
-                rhs_y[row_idx] = block.points.data[point_idx].data[1];
-
-                non_zero_entry_idx += 1;
-                point_idx += 1;
-                row_idx += 1;
+                self.fillBlockBoundaryPointData(lhs, rhs_x, rhs_y, block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
             }
 
             // middle
@@ -530,13 +548,7 @@ const RowCompressedMatrixSystem2d = struct {
 
                 // edge i_min
                 {
-                    lhs[non_zero_entry_idx] = 1;
-                    rhs_x[row_idx] = block.points.data[point_idx].data[0];
-                    rhs_y[row_idx] = block.points.data[point_idx].data[1];
-
-                    non_zero_entry_idx += 1;
-                    point_idx += 1;
-                    row_idx += 1;
+                    self.fillBlockBoundaryPointData(lhs, rhs_x, rhs_y, block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
                 }
 
                 // internal points with full 9 point stencil
@@ -568,30 +580,23 @@ const RowCompressedMatrixSystem2d = struct {
 
                 // edge i_max
                 {
-                    lhs[non_zero_entry_idx] = 1;
-                    rhs_x[row_idx] = block.points.data[point_idx].data[0];
-                    rhs_y[row_idx] = block.points.data[point_idx].data[1];
-
-                    non_zero_entry_idx += 1;
-                    point_idx += 1;
-                    row_idx += 1;
+                    self.fillBlockBoundaryPointData(lhs, rhs_x, rhs_y, block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
                 }
             }
 
             // edge j_max
             for (0..block.points.size[1]) |_| {
-                lhs[non_zero_entry_idx] = 1;
-                rhs_x[row_idx] = block.points.data[point_idx].data[0];
-                rhs_y[row_idx] = block.points.data[point_idx].data[1];
-
-                non_zero_entry_idx += 1;
-                point_idx += 1;
-                row_idx += 1;
+                self.fillBlockBoundaryPointData(lhs, rhs_x, rhs_y, block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
             }
         }
     }
 
-    fn fillBlockConnectionData(self: @This(), lhs: []f64, rhs_x: []f64, rhs_y: []f64, s: f64, t: f64) void {
+    fn fillBlockConnectionData(
+        self: @This(),
+        lhs: []f64,
+        s: f64,
+        t: f64,
+    ) void {
         for (self.mesh.connections.items) |connection| {
             const point_data = [2][]types.Vec2d{
                 self.mesh.blocks.items[connection.ranges[0].block].points.data,
@@ -599,10 +604,6 @@ const RowCompressedMatrixSystem2d = struct {
             };
 
             var it = RangeFillMatrixIterator.init(connection, self.mesh);
-
-            // TODO: check how to solve each point.
-            // TODO: solve range 0 and connect range 1 to connected range 0 point
-            // TODO: make sure that the corner points are conencted!
 
             //           |
             //       connection
@@ -622,15 +623,17 @@ const RowCompressedMatrixSystem2d = struct {
             // const matrix_idx_inc_intern_0: [3]usize = if (it.in_connection_direction_shift[0] > 0) .{ 0, 1, 2 } else .{ 2, 1, 0 };
             // const matrix_idx_inc_intern_1: [3]usize = if (it.in_connection_direction_shift[1] > 0) .{ 3, 4, 5 } else .{ 5, 4, 3 };
 
-            while (it.next()) |connected_boundary_points| {
+            // TODO: remove this hard coding for the first point
+            _ = it.next();
+
+            for (0..it.count) |_| {
+                const connected_boundary_points = it.next().?;
                 std.debug.assert(types.eqlApprox(point_data[0][connected_boundary_points[0]], point_data[1][connected_boundary_points[1]], 1e-12));
                 const boundary_idx_0: c_int = @intCast(connected_boundary_points[0]);
                 const boundary_idx_1: c_int = @intCast(connected_boundary_points[1]);
 
                 // we add the stencil data to the 1st point and force equality to it's solution for the 2nd point
                 {
-                    const row_idx: usize = @intCast(boundary_idx_0);
-
                     const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(boundary_idx_0);
 
                     const im1_j = point_data[0][@intCast(boundary_idx_0 - it.in_connection_direction_shift[0])];
@@ -644,32 +647,19 @@ const RowCompressedMatrixSystem2d = struct {
 
                     // TODO: compute the offset dynamically (loop at matrix_idx_inc_intern as inspiration.); right now the indices are hard coded for the first connection.
 
-                    lhs[row_non_zero_entries_start_idx + 2] = stencil.get(.im1_jm1); // A[matrix_idx, matrix_idx_0 - matrix_increment_0]
-                    lhs[row_non_zero_entries_start_idx + 1] = stencil.get(.i_jm1); // A[matrix_idx, matrix_idx_0]
-                    lhs[row_non_zero_entries_start_idx + 0] = stencil.get(.ip1_jm1); // A[matrix_idx, matrix_idx_0 + matrix_increment_0]
+                    lhs[row_non_zero_entries_start_idx + 5] = stencil.get(.im1_jm1); // A[matrix_idx, matrix_idx_0 - matrix_increment_0]
+                    lhs[row_non_zero_entries_start_idx + 4] = stencil.get(.i_jm1); // A[matrix_idx, matrix_idx_0]
+                    lhs[row_non_zero_entries_start_idx + 3] = stencil.get(.ip1_jm1); // A[matrix_idx, matrix_idx_0 + matrix_increment_0]
 
-                    lhs[row_non_zero_entries_start_idx + 5] = stencil.get(.im1_j); // A[matrix_idx, matrix_idx - 1]
-                    lhs[row_non_zero_entries_start_idx + 4] = stencil.get(.i_j); // A[matrix_idx, matrix_idx]
-                    lhs[row_non_zero_entries_start_idx + 3] = stencil.get(.ip1_j); // A[matrix_idx, matrix_idx + 1]
+                    lhs[row_non_zero_entries_start_idx + 2] = stencil.get(.im1_j); // A[matrix_idx, matrix_idx - 1]
+                    lhs[row_non_zero_entries_start_idx + 1] = stencil.get(.i_j); // A[matrix_idx, matrix_idx]
+                    lhs[row_non_zero_entries_start_idx + 0] = stencil.get(.ip1_j); // A[matrix_idx, matrix_idx + 1]
 
-                    lhs[row_non_zero_entries_start_idx + 8] = stencil.get(.im1_jp1); // A[matrix_idx, matrix_idx_1 - matrix_increment_1]
+                    lhs[row_non_zero_entries_start_idx + 6] = stencil.get(.im1_jp1); // A[matrix_idx, matrix_idx_1 - matrix_increment_1]
                     lhs[row_non_zero_entries_start_idx + 7] = stencil.get(.i_jp1); // A[matrix_idx, matrix_idx_1]
-                    lhs[row_non_zero_entries_start_idx + 6] = stencil.get(.ip1_jp1); // A[matrix_idx, matrix_idx_1 + matrix_increment_1]
+                    lhs[row_non_zero_entries_start_idx + 8] = stencil.get(.ip1_jp1); // A[matrix_idx, matrix_idx_1 + matrix_increment_1]
 
-                    rhs_x[row_idx] = 0;
-                    rhs_y[row_idx] = 0;
-                }
-
-                // enforce equality of the connected 2nd point with the 1st
-                // NOTE: it might be more efficient to do this in a 2nd loop to reduce cache misses.
-                {
-                    const row_idx: usize = @intCast(boundary_idx_1);
-                    const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(boundary_idx_1);
-
-                    lhs[row_non_zero_entries_start_idx] = 1.0;
-                    lhs[row_non_zero_entries_start_idx + 1] = -1.0;
-                    rhs_x[row_idx] = 0;
-                    rhs_y[row_idx] = 0;
+                    // NOTE: RHS is already set in the point based loop.
                 }
             }
         }
@@ -686,8 +676,8 @@ const RowCompressedMatrixSystem2d = struct {
         const t = 0.0;
 
         // TODO: adjust naming: where are the fixed points set!? The second function handles only connected boundary points !?
-        fillBlockInternalPointData(lhs[0..], rhs_x[0..], rhs_y[0..], s, t, self.mesh);
-        self.fillBlockConnectionData(lhs[0..], rhs_x[0..], rhs_y[0..], s, t);
+        self.fillBlockInternalPointData(lhs[0..], rhs_x[0..], rhs_y[0..], s, t);
+        self.fillBlockConnectionData(lhs[0..], s, t);
 
         const dof = self.rhs_x.len;
         try umfpack.solve2(@intCast(dof), @intCast(dof), self.lhs_p, self.lhs_i, lhs, rhs_x, self.x_new[0..], rhs_y, self.y_new[0..]);
