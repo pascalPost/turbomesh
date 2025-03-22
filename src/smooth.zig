@@ -66,8 +66,8 @@ pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations:
         {
             var row_block_start_idx: usize = 0;
             for (mesh_data.blocks.items) |block| {
-                for (1..block.points.size[0] - 1) |i| {
-                    for (1..block.points.size[1] - 1) |j| {
+                for (0..block.points.size[0]) |i| {
+                    for (0..block.points.size[1]) |j| {
                         const point_idx = block.points.index(.{ i, j });
                         const row_idx = row_block_start_idx + point_idx;
                         const p = block.points.data[point_idx];
@@ -90,8 +90,8 @@ pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations:
         {
             var row_block_start_idx: usize = 0;
             for (mesh_data.blocks.items) |block| {
-                for (1..block.points.size[0] - 1) |i| {
-                    for (1..block.points.size[1] - 1) |j| {
+                for (0..block.points.size[0]) |i| {
+                    for (0..block.points.size[1]) |j| {
                         const point_idx = block.points.index(.{ i, j });
                         const row_idx = row_block_start_idx + point_idx;
                         block.points.data[point_idx] = types.Vec2d.init(system.x_new[row_idx], system.y_new[row_idx]);
@@ -225,6 +225,8 @@ const RowCompressedMatrixSystem2d = struct {
         errdefer allocator.free(row_idx_range_start_for_each_block);
 
         for (mesh_data.blocks.items, 0..) |block, block_idx| {
+            row_idx_range_start_for_each_block[block_idx] = dof;
+
             const points = block.points;
             const block_dof = points.size[0] * points.size[1];
             dof += block_dof;
@@ -234,8 +236,6 @@ const RowCompressedMatrixSystem2d = struct {
             // neighboring points need to bes solved
             const block_non_zero_entries = dof * 9;
             non_zero_entries_capacity += block_non_zero_entries;
-
-            row_idx_range_start_for_each_block[block_idx] = dof;
         }
 
         const buffer_int = try allocator.alloc(c_int, (dof + 1) + non_zero_entries_capacity);
@@ -494,13 +494,16 @@ const RowCompressedMatrixSystem2d = struct {
     ) void {
         switch (self.connected_points.getKind(boundary_point_idx.*, row_idx.*)) {
             .fix => {
+                // TODO: we can also set RHS to 1 and only set the LHS.
                 lhs[non_zero_entry_idx.*] = 1;
                 non_zero_entry_idx.* += 1;
 
                 rhs_x[row_idx.*] = block.points.data[point_idx.*].data[0];
+                rhs_y[row_idx.*] = block.points.data[point_idx.*].data[1];
             },
             .smooth => {
-                // will be done based on connection loop.
+                // NOTE: here, we only skip the necessary stencil data since the values are set next in a connection based loop.
+                non_zero_entry_idx.* += 9;
 
                 rhs_x[row_idx.*] = 0;
                 rhs_y[row_idx.*] = 0;
@@ -592,7 +595,7 @@ const RowCompressedMatrixSystem2d = struct {
     }
 
     fn fillBlockConnectionData(
-        self: @This(),
+        self: RowCompressedMatrixSystem2d,
         lhs: []f64,
         s: f64,
         t: f64,
@@ -634,7 +637,9 @@ const RowCompressedMatrixSystem2d = struct {
 
                 // we add the stencil data to the 1st point and force equality to it's solution for the 2nd point
                 {
-                    const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(boundary_idx_0);
+                    // TODO: this could be enhanced by computing this just once for the connection (plus +1 or -1 for the next connection point)
+                    const global_idx_0 = @as(c_int, @intCast(self.row_idx_range_start_for_each_block[connection.ranges[0].block])) + boundary_idx_0;
+                    const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(global_idx_0);
 
                     const im1_j = point_data[0][@intCast(boundary_idx_0 - it.in_connection_direction_shift[0])];
                     const i_jm1 = point_data[0][@intCast(boundary_idx_0 + it.first_internal_point_shift[0])];
