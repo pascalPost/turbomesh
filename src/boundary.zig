@@ -122,7 +122,7 @@ pub const Connection = struct {
 const ConnectionIterator = struct {
     data: [2]RangeIterator,
 
-    pub fn next(self: *@This()) ?struct { usize, usize } {
+    pub fn next(self: *ConnectionIterator) ?struct { usize, usize } {
         const n_0 = self.data[0].next() orelse {
             return null;
         };

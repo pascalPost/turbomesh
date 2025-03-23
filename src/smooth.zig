@@ -430,8 +430,8 @@ const RowCompressedMatrixSystem2d = struct {
                 const connected_boundary_points_local_idx = it.next().?;
 
                 // local to global index
-                const boundary_idx_0: c_int = @intCast(index_converter.globalIndex(connection.ranges[0].block, connected_boundary_points_local_idx[0]));
-                const boundary_idx_1: c_int = @intCast(index_converter.globalIndex(connection.ranges[1].block, connected_boundary_points_local_idx[1]));
+                const boundary_idx_0: c_int = @intCast(index_converter.globalIndex(connection.ranges[0].block, connected_boundary_points_local_idx[0]).value);
+                const boundary_idx_1: c_int = @intCast(index_converter.globalIndex(connection.ranges[1].block, connected_boundary_points_local_idx[1]).value);
 
                 // smooth 1st point
                 {
@@ -631,9 +631,9 @@ const RowCompressedMatrixSystem2d = struct {
 
             for (0..it.count) |_| {
                 const connected_boundary_points = it.next().?;
-                std.debug.assert(types.eqlApprox(point_data[0][connected_boundary_points[0]], point_data[1][connected_boundary_points[1]], 1e-12));
-                const boundary_idx_0: c_int = @intCast(connected_boundary_points[0]);
-                const boundary_idx_1: c_int = @intCast(connected_boundary_points[1]);
+                std.debug.assert(types.eqlApprox(point_data[0][connected_boundary_points[0].value], point_data[1][connected_boundary_points[1].value], 1e-12));
+                const boundary_idx_0: c_int = @intCast(connected_boundary_points[0].value);
+                const boundary_idx_1: c_int = @intCast(connected_boundary_points[1].value);
 
                 // we add the stencil data to the 1st point and force equality to it's solution for the 2nd point
                 {
@@ -719,17 +719,17 @@ const BlockBoundaryPointConnections = struct {
                 // TODO: is there a nicer way to doing this?
 
                 // local to global point indices
-                const global_idx_0 = index_converter.globalIndex(connection.ranges[0].block, connected_points_local_indices[0]);
-                const global_idx_1 = index_converter.globalIndex(connection.ranges[1].block, connected_points_local_indices[1]);
+                const global_idx_0 = index_converter.globalIndex(connection.ranges[0].block, .{ .value = connected_points_local_indices[0] });
+                const global_idx_1 = index_converter.globalIndex(connection.ranges[1].block, .{ .value = connected_points_local_indices[1] });
 
-                const local_idx_0 = IndexConverter.index(connection.ranges[0].block, connected_points_local_indices[0], mesh_data);
-                const local_idx_1 = IndexConverter.index(connection.ranges[1].block, connected_points_local_indices[1], mesh_data);
+                const local_idx_0 = IndexConverter.index(connection.ranges[0].block, .{ .value = connected_points_local_indices[0] }, mesh_data);
+                const local_idx_1 = IndexConverter.index(connection.ranges[1].block, .{ .value = connected_points_local_indices[1] }, mesh_data);
 
                 const buffer_idx_0 = try connected_points.data.bufferIndex(local_idx_0, mesh_data.blocks.items[connection.ranges[0].block].points.size);
                 const buffer_idx_1 = try connected_points.data.bufferIndex(local_idx_1, mesh_data.blocks.items[connection.ranges[1].block].points.size);
 
-                try connected_points.data.buffer[buffer_idx_0].append(@intCast(global_idx_1));
-                try connected_points.data.buffer[buffer_idx_1].append(@intCast(global_idx_0));
+                try connected_points.data.buffer[buffer_idx_0].append(@intCast(global_idx_1.value));
+                try connected_points.data.buffer[buffer_idx_1].append(@intCast(global_idx_0.value));
             }
         }
 
@@ -768,17 +768,17 @@ const RangeFillMatrixIterator = struct {
     count: usize,
     first_internal_point_shift: [2]c_int,
     in_connection_direction_shift: [2]c_int,
-    position: [2]usize,
+    position: [2]LocalIndex,
 
-    fn next(self: *@This()) ?[2]usize {
+    fn next(self: *RangeFillMatrixIterator) ?[2]LocalIndex {
         if (self.count == 0) return null;
         const position = self.position;
 
         self.count -= 1;
 
         self.position = .{
-            @intCast(@as(isize, @intCast(self.position[0])) + self.in_connection_direction_shift[0]),
-            @intCast(@as(isize, @intCast(self.position[1])) + self.in_connection_direction_shift[1]),
+            .{ .value = @intCast(@as(isize, @intCast(self.position[0].value)) + self.in_connection_direction_shift[0]) },
+            .{ .value = @intCast(@as(isize, @intCast(self.position[1].value)) + self.in_connection_direction_shift[1]) },
         };
 
         return position;
@@ -799,22 +799,22 @@ const RangeFillMatrixIterator = struct {
                 .i_min => {
                     data.first_internal_point_shift[side_idx] = 1;
                     data.in_connection_direction_shift[side_idx] = @intCast(points.size[1]);
-                    data.position[side_idx] = points.index(.{ start, 0 });
+                    data.position[side_idx] = .{ .value = points.index(.{ start, 0 }) };
                 },
                 .i_max => {
                     data.first_internal_point_shift[side_idx] = -1;
                     data.in_connection_direction_shift[side_idx] = @intCast(points.size[1]);
-                    data.position[side_idx] = points.index(.{ start, points.size[1] - 1 });
+                    data.position[side_idx] = .{ .value = points.index(.{ start, points.size[1] - 1 }) };
                 },
                 .j_min => {
                     data.first_internal_point_shift[side_idx] = @intCast(points.size[1]);
                     data.in_connection_direction_shift[side_idx] = 1;
-                    data.position[side_idx] = points.index(.{ 0, start });
+                    data.position[side_idx] = .{ .value = points.index(.{ 0, start }) };
                 },
                 .j_max => {
                     data.first_internal_point_shift[side_idx] = -@as(c_int, @intCast(points.size[1]));
                     data.in_connection_direction_shift[side_idx] = 1;
-                    data.position[side_idx] = points.index(.{ points.size[0] - 1, start });
+                    data.position[side_idx] = .{ .value = points.index(.{ points.size[0] - 1, start }) };
                 },
             }
             if (start > end) {
@@ -829,8 +829,19 @@ const RangeFillMatrixIterator = struct {
     }
 };
 
-const GlobalIndex = usize;
-const LocalIndex = usize;
+// NOTE: the different index types are introduce to help express the required index type in a type save manner.
+// I do not know if this is wearth it TBH, but perhaps it will be helpful in the future to not only rely in sane
+// variable naming...
+// When it comes to implementation, it seems resonable to do it this way as the tuple type index notatin can leed
+// to confusion with the array unpacking indexing.
+
+// DOCS: explain the different types of indices with examples. Explain why type safety is added here like this.
+
+/// A (flat) global unique point identifier.
+const GlobalIndex = struct { value: usize };
+
+/// A (flat) block local unique point identifier: index into a block array.
+const LocalIndex = struct { value: usize };
 
 /// Convert index types necessary for smoothing.
 const IndexConverter = struct {
@@ -842,7 +853,7 @@ const IndexConverter = struct {
 
         var total_num_points: usize = 0;
         for (mesh_data.blocks.items, 0..) |block, block_idx| {
-            global_point_index_range_start[block_idx] = total_num_points;
+            global_point_index_range_start[block_idx] = .{ .value = total_num_points };
             total_num_points += block.points.size[0] * block.points.size[1];
         }
 
@@ -857,7 +868,7 @@ const IndexConverter = struct {
     }
 
     fn globalIndex(self: IndexConverter, block: usize, local_idx: LocalIndex) GlobalIndex {
-        return self.global_point_index_range_start[block] + local_idx;
+        return .{ .value = self.global_point_index_range_start[block].value + local_idx.value };
     }
 
     fn localIndex(self: IndexConverter, global_idx: GlobalIndex) struct {
@@ -873,8 +884,8 @@ const IndexConverter = struct {
     fn index(block_idx: usize, local_idx: LocalIndex, mesh_data: *const discrete.Mesh) types.MeshIndex2d {
         const block = mesh_data.blocks.items[block_idx];
         const point_idx = blk: {
-            const point_i = @divTrunc(local_idx, block.points.size[1]);
-            const point_j = local_idx - point_i * block.points.size[1];
+            const point_i = @divTrunc(local_idx.value, block.points.size[1]);
+            const point_j = local_idx.value - point_i * block.points.size[1];
             break :blk types.Index2d{ point_i, point_j };
         };
         return .{ .block = block_idx, .point = point_idx };
