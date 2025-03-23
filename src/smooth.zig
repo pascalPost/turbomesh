@@ -421,36 +421,46 @@ const RowCompressedMatrixSystem2d = struct {
             // as required by the compressed row format
             var it = RangeFillMatrixIterator.init(connection, self.mesh);
 
+            // it.first_internal_point_shift[0] > 0
+
+            // NOTE: this is needed to add the point indices in ascending order depending on the direction of the connection.
+            const direction_modifier: [2]c_int = .{
+                if (it.in_connection_direction_shift[0] > 0) 1.0 else -1.0,
+                if (it.in_connection_direction_shift[1] > 0) 1.0 else -1.0,
+            };
+
+            // NOTE: this is needed to have the right ordering of the points taken from the 0th block of the connection.
+            const shift: [2]c_int = if (it.first_internal_point_shift[0] > 0) .{ 0, it.first_internal_point_shift[0] } else .{ it.first_internal_point_shift[0], 0 };
+
             // TODO: remove this hardcoded handling
             // we set point 0 to fixed and point 1 to connected to 0
             _ = it.next().?;
 
             for (0..it.count) |_| {
-                // TODO: introduce a seperate type for the different index types.
-                const connected_boundary_points_local_idx = it.next().?;
-
-                // local to global index
-                const boundary_idx_0: c_int = @intCast(index_converter.globalIndex(connection.ranges[0].block, connected_boundary_points_local_idx[0]).value);
-                const boundary_idx_1: c_int = @intCast(index_converter.globalIndex(connection.ranges[1].block, connected_boundary_points_local_idx[1]).value);
+                const connected_points_local_idx = it.next().?;
+                const connected_points_global_idx = [2]c_int{
+                    @intCast(index_converter.globalIndex(connection.ranges[0].block, connected_points_local_idx[0]).value),
+                    @intCast(index_converter.globalIndex(connection.ranges[1].block, connected_points_local_idx[1]).value),
+                };
 
                 // smooth 1st point
                 {
-                    const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(boundary_idx_0);
+                    const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(connected_points_global_idx[0]);
 
                     // NOTE: here we set the data based on the connections; the allocation happend in the previous function based on a point loop.
-                    // TODO: compute this dynamically. For now this is hardcoded for the first connection.
 
-                    non_zero_entries.items[row_non_zero_entries_start_idx + 0] = boundary_idx_0 + it.in_connection_direction_shift[0];
-                    non_zero_entries.items[row_non_zero_entries_start_idx + 1] = boundary_idx_0;
-                    non_zero_entries.items[row_non_zero_entries_start_idx + 2] = boundary_idx_0 - it.in_connection_direction_shift[0];
+                    non_zero_entries.items[row_non_zero_entries_start_idx + 0] = connected_points_global_idx[0] + shift[0] - it.in_connection_direction_shift[0] * direction_modifier[0];
+                    non_zero_entries.items[row_non_zero_entries_start_idx + 1] = connected_points_global_idx[0] + shift[0];
+                    non_zero_entries.items[row_non_zero_entries_start_idx + 2] = connected_points_global_idx[0] + shift[0] + it.in_connection_direction_shift[0] * direction_modifier[0];
 
-                    non_zero_entries.items[row_non_zero_entries_start_idx + 3] = boundary_idx_0 + it.first_internal_point_shift[0] + it.in_connection_direction_shift[0];
-                    non_zero_entries.items[row_non_zero_entries_start_idx + 4] = boundary_idx_0 + it.first_internal_point_shift[0];
-                    non_zero_entries.items[row_non_zero_entries_start_idx + 5] = boundary_idx_0 + it.first_internal_point_shift[0] - it.in_connection_direction_shift[0];
+                    non_zero_entries.items[row_non_zero_entries_start_idx + 3] = connected_points_global_idx[0] + shift[1] - it.in_connection_direction_shift[0] * direction_modifier[0];
+                    non_zero_entries.items[row_non_zero_entries_start_idx + 4] = connected_points_global_idx[0] + shift[1];
+                    non_zero_entries.items[row_non_zero_entries_start_idx + 5] = connected_points_global_idx[0] + shift[1] + it.in_connection_direction_shift[0] * direction_modifier[0];
 
-                    non_zero_entries.items[row_non_zero_entries_start_idx + 6] = boundary_idx_1 + it.first_internal_point_shift[1] - it.in_connection_direction_shift[1];
-                    non_zero_entries.items[row_non_zero_entries_start_idx + 7] = boundary_idx_1 + it.first_internal_point_shift[1];
-                    non_zero_entries.items[row_non_zero_entries_start_idx + 8] = boundary_idx_1 + it.first_internal_point_shift[1] + it.in_connection_direction_shift[1];
+                    // NOTE: the entries into the 2nd block always come last since the block index is higher and thus the global indices are higher.
+                    non_zero_entries.items[row_non_zero_entries_start_idx + 6] = connected_points_global_idx[1] + it.first_internal_point_shift[1] - it.in_connection_direction_shift[1] * direction_modifier[1];
+                    non_zero_entries.items[row_non_zero_entries_start_idx + 7] = connected_points_global_idx[1] + it.first_internal_point_shift[1];
+                    non_zero_entries.items[row_non_zero_entries_start_idx + 8] = connected_points_global_idx[1] + it.first_internal_point_shift[1] + it.in_connection_direction_shift[1] * direction_modifier[1];
 
                     // check that we have all entries ascending as required by the row compressed format.
                     std.debug.assert(blk: {
@@ -623,49 +633,54 @@ const RowCompressedMatrixSystem2d = struct {
             // A(matrix_idx_0)         A(matrix_idx)     A(matrix_idx_1)
             // A(matrix_idx_0 + inc_0) A(matrix_idx + 1) A(matrix_idx_1 + inc_1)
 
-            // const matrix_idx_inc_intern_0: [3]usize = if (it.in_connection_direction_shift[0] > 0) .{ 0, 1, 2 } else .{ 2, 1, 0 };
-            // const matrix_idx_inc_intern_1: [3]usize = if (it.in_connection_direction_shift[1] > 0) .{ 3, 4, 5 } else .{ 5, 4, 3 };
+            // NOTE: this is needed to add the point indices in ascending order depending on the direction of the connection (see the non zero matrix entries definition).
+            const direction_modifier: [2]isize = .{
+                if (it.in_connection_direction_shift[0] > 0) 1.0 else -1.0,
+                if (it.in_connection_direction_shift[1] > 0) 1.0 else -1.0,
+            };
+
+            // NOTE: this is needed to have the right ordering of the points taken from the 0th block of the connection.
+            // point (i) stencil index for j-1 and j: is to be used together with the in direction shift to compute the right place in the 9 point stencil non zero entries.
+            const point_stencil_idx: [2]usize = if (it.first_internal_point_shift[0] > 0) .{ 1, 4 } else .{ 4, 1 };
 
             // TODO: remove this hard coding for the first point
             _ = it.next();
 
             for (0..it.count) |_| {
-                const connected_boundary_points = it.next().?;
-                std.debug.assert(types.eqlApprox(point_data[0][connected_boundary_points[0].value], point_data[1][connected_boundary_points[1].value], 1e-12));
-                const boundary_idx_0: c_int = @intCast(connected_boundary_points[0].value);
-                const boundary_idx_1: c_int = @intCast(connected_boundary_points[1].value);
+                const connected_points = it.next().?;
+                std.debug.assert(types.eqlApprox(point_data[0][connected_points[0].value], point_data[1][connected_points[1].value], 1e-12));
+                const point_idx: [2]c_int = .{
+                    @intCast(connected_points[0].value),
+                    @intCast(connected_points[1].value),
+                };
 
-                // we add the stencil data to the 1st point and force equality to it's solution for the 2nd point
-                {
-                    // TODO: this could be enhanced by computing this just once for the connection (plus +1 or -1 for the next connection point)
-                    const global_idx_0 = @as(c_int, @intCast(self.row_idx_range_start_for_each_block[connection.ranges[0].block])) + boundary_idx_0;
-                    const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(global_idx_0);
+                // TODO: this could be enhanced by computing this just once for the connection (plus +1 or -1 for the next connection point)
+                const global_idx_0 = @as(c_int, @intCast(self.row_idx_range_start_for_each_block[connection.ranges[0].block])) + point_idx[0];
+                const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(global_idx_0);
 
-                    const im1_j = point_data[0][@intCast(boundary_idx_0 - it.in_connection_direction_shift[0])];
-                    const i_jm1 = point_data[0][@intCast(boundary_idx_0 + it.first_internal_point_shift[0])];
-                    const ip1_j = point_data[0][@intCast(boundary_idx_0 + it.in_connection_direction_shift[0])];
-                    const i_jp1 = point_data[1][@intCast(boundary_idx_1 + it.first_internal_point_shift[1])];
+                const im1_j = point_data[0][@intCast(point_idx[0] - it.in_connection_direction_shift[0])];
+                const i_jm1 = point_data[0][@intCast(point_idx[0] + it.first_internal_point_shift[0])];
+                const ip1_j = point_data[0][@intCast(point_idx[0] + it.in_connection_direction_shift[0])];
+                const i_jp1 = point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])];
 
-                    const stencil = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                const stencil = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                    // add 9 point stencil data in the right order (associated points must be ascending)
+                // points inside block 0
+                lhs[row_non_zero_entries_start_idx + @as(usize, @intCast(@as(isize, @intCast(point_stencil_idx[1])) - direction_modifier[0]))] = stencil.get(.im1_jm1);
+                lhs[row_non_zero_entries_start_idx + point_stencil_idx[1]] = stencil.get(.i_jm1);
+                lhs[row_non_zero_entries_start_idx + @as(usize, @intCast(@as(isize, @intCast(point_stencil_idx[1])) + direction_modifier[0]))] = stencil.get(.ip1_jm1);
 
-                    // TODO: compute the offset dynamically (loop at matrix_idx_inc_intern as inspiration.); right now the indices are hard coded for the first connection.
+                // points on boundary connection (taken from block 0)
+                lhs[row_non_zero_entries_start_idx + @as(usize, @intCast(@as(isize, @intCast(point_stencil_idx[0])) - direction_modifier[0]))] = stencil.get(.im1_j);
+                lhs[row_non_zero_entries_start_idx + point_stencil_idx[0]] = stencil.get(.i_j);
+                lhs[row_non_zero_entries_start_idx + @as(usize, @intCast(@as(isize, @intCast(point_stencil_idx[0])) + direction_modifier[0]))] = stencil.get(.ip1_j);
 
-                    lhs[row_non_zero_entries_start_idx + 5] = stencil.get(.im1_jm1); // A[matrix_idx, matrix_idx_0 - matrix_increment_0]
-                    lhs[row_non_zero_entries_start_idx + 4] = stencil.get(.i_jm1); // A[matrix_idx, matrix_idx_0]
-                    lhs[row_non_zero_entries_start_idx + 3] = stencil.get(.ip1_jm1); // A[matrix_idx, matrix_idx_0 + matrix_increment_0]
+                // points inside block 1
+                lhs[row_non_zero_entries_start_idx + @as(usize, @intCast(7 - direction_modifier[1]))] = stencil.get(.im1_jp1);
+                lhs[row_non_zero_entries_start_idx + 7] = stencil.get(.i_jp1);
+                lhs[row_non_zero_entries_start_idx + @as(usize, @intCast(7 + direction_modifier[1]))] = stencil.get(.ip1_jp1);
 
-                    lhs[row_non_zero_entries_start_idx + 2] = stencil.get(.im1_j); // A[matrix_idx, matrix_idx - 1]
-                    lhs[row_non_zero_entries_start_idx + 1] = stencil.get(.i_j); // A[matrix_idx, matrix_idx]
-                    lhs[row_non_zero_entries_start_idx + 0] = stencil.get(.ip1_j); // A[matrix_idx, matrix_idx + 1]
-
-                    lhs[row_non_zero_entries_start_idx + 6] = stencil.get(.im1_jp1); // A[matrix_idx, matrix_idx_1 - matrix_increment_1]
-                    lhs[row_non_zero_entries_start_idx + 7] = stencil.get(.i_jp1); // A[matrix_idx, matrix_idx_1]
-                    lhs[row_non_zero_entries_start_idx + 8] = stencil.get(.ip1_jp1); // A[matrix_idx, matrix_idx_1 + matrix_increment_1]
-
-                    // NOTE: RHS is already set in the point based loop.
-                }
+                // NOTE: RHS is already set in the point based loop.
             }
         }
     }
