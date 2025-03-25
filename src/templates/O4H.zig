@@ -32,16 +32,16 @@ const Turbine = struct {
         down_j: types.Index,
         up_j: types.Index,
 
-        // TODO can be made optional if computed automatically based on the average size
+        // TODO: can be made optional if computed automatically based on the average size
         upstream_i: types.Index,
         downstream_i: types.Index,
     },
 
     fn run(self: *const Turbine, allocator: std.mem.Allocator) !discrete.Mesh {
 
-        // TODO remove pressure side and suction side and just use up and down (to be neutral w.r.t. turbine or compressor)
+        // TODO: remove pressure side and suction side and just use up and down (to be neutral w.r.t. turbine or compressor)
 
-        // TODO add geometry and discrete entities to manager
+        // TODO: add geometry and discrete entities to manager
 
         const num_cells_ss =
             self.num_cells.in_up_j + self.num_cells.middle_i + self.num_cells.out_up_j;
@@ -57,8 +57,8 @@ const Turbine = struct {
         var ss_edge = try discrete.Edge.init(allocator, num_cells_ss + 1, .{ .spline = profile.suction_side }, self.blade_clustering);
         defer ss_edge.deinit();
 
-        // TODO introducing a tolerance, this should not be necessary anymore.
-        // TODO handle this by a connect points function (?)
+        // TODO: introducing a tolerance, this should not be necessary anymore.
+        // TODO: handle this by a connect points function (?)
         const leading_edge = ss_edge.points[0];
         ps_edge.points[0] = leading_edge;
 
@@ -69,8 +69,8 @@ const Turbine = struct {
 
         // compute o-grid target by projecting the blade normal outward
 
-        // TODO make this runtime dependent
-        // TODO replace with a percentage value of the chord length
+        // TODO: make this runtime dependent
+        // TODO: replace with a percentage value of the chord length
         const d = 0.001;
 
         const ps_outer_edge = discrete.Edge{ .allocator = allocator, .points = try projectNormal(allocator, ps_edge.points[0..], d), .clustering = try allocator.dupe(Float, ps_edge.clustering) };
@@ -146,7 +146,7 @@ const Turbine = struct {
         // |---------- x_10
         // x_11
 
-        // TODO remove hard coded positions for block
+        // TODO: remove hard coded positions for block
 
         const in_j_min = try discrete.Edge.combine(allocator, &.{ .{
             .edge = &ss_i_max,
@@ -163,7 +163,7 @@ const Turbine = struct {
         const in_x_00 = in_j_min.points[0];
         const in_x_01 = in_j_min.points[in_j_min.points.len - 1];
 
-        // TODO remove this hardcoded distance
+        // TODO: remove this hardcoded distance
         const in_x_10 = sub(in_x_00, Vec2d.init(0.02, -0.001));
         const in_x_11 = sub(in_x_01, Vec2d.init(0.02, 0.02));
 
@@ -198,7 +198,7 @@ const Turbine = struct {
         const out_x_00 = out_j_min.points[0];
         const out_x_01 = out_j_min.points[out_j_min.points.len - 1];
 
-        // TODO remove hard coded coordinate
+        // TODO: remove hard coded coordinate
         const out_x_10 = add(out_x_00, Vec2d.init(0.01, -0.02));
         const out_x_11 = add(out_x_01, Vec2d.init(0.02, -0.01));
 
@@ -365,19 +365,17 @@ const Turbine = struct {
         // Connections
         // TODO: remove this
         //
-        // _ = down_id;
         _ = up_id;
-        _ = in_id;
         // _ = upstream_id;
         try mesh.connections.appendSlice(&.{
             boundary.Connection.init(.{
                 .{ .block = down_id, .side = boundary.Side.j_min, .start = self.num_cells.down_j, .end = 0 },
                 .{ .block = upstream_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.down_j },
             }),
-            // boundary.Connection.init(.{
-            //     .{ .block = in_id, .side = boundary.Side.j_max, .start = in_j_min.points.len - 1, .end = 0 },
-            //     .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j, .end = self.num_cells.down_j + in_j_min.points.len - 1 },
-            // }),
+            boundary.Connection.init(.{
+                .{ .block = in_id, .side = boundary.Side.j_max, .start = in_j_min.points.len - 1, .end = 0 },
+                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j, .end = self.num_cells.down_j + in_j_min.points.len - 1 },
+            }),
             // boundary.Connection.init(.{
             //     .{ .block = up_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.up_j },
             //     .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j + in_j_min.points.len - 1, .end = upstream_j_max.points.len - 1 },
@@ -389,7 +387,7 @@ const Turbine = struct {
         });
 
         // Boundary conditions
-        // TODO add boundary conditions
+        // TODO: add boundary conditions
 
         return mesh;
     }
@@ -468,7 +466,7 @@ test "turbine template" {
 
     // try mesh.write(allocator, "o4h_linear.cgns");
 
-    try smooth.mesh(allocator, &mesh, 20);
+    try smooth.mesh(allocator, &mesh, 1);
 
     try mesh.write(allocator, "o4h.cgns");
 }

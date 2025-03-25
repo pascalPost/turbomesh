@@ -560,9 +560,7 @@ const RowCompressedMatrixSystem2d = struct {
             for (1..block.points.size[0] - 1) |_| {
 
                 // edge i_min
-                {
-                    self.fillBlockBoundaryPointData(lhs, rhs_x, rhs_y, block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
-                }
+                self.fillBlockBoundaryPointData(lhs, rhs_x, rhs_y, block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
 
                 // internal points with full 9 point stencil
                 for (1..block.points.size[1] - 1) |_| {
@@ -592,9 +590,7 @@ const RowCompressedMatrixSystem2d = struct {
                 }
 
                 // edge i_max
-                {
-                    self.fillBlockBoundaryPointData(lhs, rhs_x, rhs_y, block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
-                }
+                self.fillBlockBoundaryPointData(lhs, rhs_x, rhs_y, block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
             }
 
             // edge j_max
@@ -748,14 +744,38 @@ const BlockBoundaryPointConnections = struct {
             }
         }
 
+        // TODO: collect all connecting points
+
+        // TODO: remove this hard coding for testing 2 connections: make sure that all identical points are handled correctly.
+        try connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 4, .point = .{ 0, 0 } }, mesh_data.blocks.items[4].points.size)].append(26221);
+
+        std.debug.print("31304: {any}\n", .{connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 4, .point = .{ 0, 0 } }, mesh_data.blocks.items[4].points.size)].slice()});
+
         // TODO: either check that all boundary points are defined (would work with a tagged union) or handle end points of connections seperately (if
         // these are not junction points, set the 1st to fixed and connect the 2nd).
 
         // TODO: remove this hard coding of the end points of the 1st connection.
         {
             const size = mesh_data.blocks.items[4].points.size;
-            connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 4, .point = .{ 0, 0 } }, size)].clear();
+            // connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 4, .point = .{ 0, 0 } }, size)].clear();
             connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 4, .point = .{ 0, 20 } }, size)].clear();
+        }
+        {
+            const size = mesh_data.blocks.items[2].points.size;
+            connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 2, .point = .{ 53, 115 } }, size)].clear();
+            connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 2, .point = .{ 53, 0 } }, size)].clear();
+        }
+
+        // sort junction point data in ascending order
+        for (connected_points.data.buffer, 0..) |*point_data, idx| {
+            if (point_data.len > 1) {
+                // add yourself to have a consistent ordering for all points
+                const global_idx = connected_points.data.pointIndex(idx, mesh_data);
+                try point_data.append(@intCast(global_idx));
+
+                std.mem.sort(c_int, point_data.slice(), {}, std.sort.asc(c_int));
+                std.debug.print("junction : {any}\n", .{point_data.slice()});
+            }
         }
 
         return connected_points;
@@ -774,7 +794,10 @@ const BlockBoundaryPointConnections = struct {
             0 => .fix,
             // TODO: remove this test out of here: return a struct that has a func to test this.
             1 => if (point_data.get(0) > global_point_index) .smooth else .connect, // smooth lower index point and connect higher index point
-            else => .junction,
+            else => {
+                for (point_data.slice()[1..]) |p| std.debug.assert(point_data.get(0) < p);
+                return if (point_data.get(0) == global_point_index) .junction else .connect; // treat first point as junction and the others as connected to the first point
+            },
         };
     }
 };
