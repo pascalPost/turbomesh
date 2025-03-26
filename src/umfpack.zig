@@ -22,53 +22,53 @@ pub fn solve2(
     // {
     //     var file = try std.fs.cwd().createFile("Ap.txt", .{});
     //     defer file.close();
-
+    //
     //     const writer = file.writer();
-
+    //
     //     for (ap) |a| {
     //         try writer.print("{}\n", .{a});
     //     }
     // }
-
+    //
     // {
     //     var file = try std.fs.cwd().createFile("Ai.txt", .{});
     //     defer file.close();
-
+    //
     //     const writer = file.writer();
-
+    //
     //     for (ai) |a| {
     //         try writer.print("{}\n", .{a});
     //     }
     // }
-
+    //
     // {
     //     var file = try std.fs.cwd().createFile("Ax.txt", .{});
     //     defer file.close();
-
+    //
     //     const writer = file.writer();
-
+    //
     //     for (ax) |a| {
     //         try writer.print("{}\n", .{a});
     //     }
     // }
-
+    //
     // {
     //     var file = try std.fs.cwd().createFile("rhs_x.txt", .{});
     //     defer file.close();
-
+    //
     //     const writer = file.writer();
-
+    //
     //     for (rhs_x) |a| {
     //         try writer.print("{}\n", .{a});
     //     }
     // }
-
+    //
     // {
     //     var file = try std.fs.cwd().createFile("rhs_y.txt", .{});
     //     defer file.close();
-
+    //
     //     const writer = file.writer();
-
+    //
     //     for (rhs_y) |a| {
     //         try writer.print("{}\n", .{a});
     //     }

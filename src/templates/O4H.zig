@@ -363,10 +363,12 @@ const Turbine = struct {
         try mesh.addBlock("downstream", downstream);
 
         // Connections
-        // TODO: remove this
         //
+        // TODO: consider removing the Side definition... Check if this eases the code.
+        //
+        // TODO: remove this
         _ = up_id;
-        // _ = upstream_id;
+
         try mesh.connections.appendSlice(&.{
             boundary.Connection.init(.{
                 .{ .block = down_id, .side = boundary.Side.j_min, .start = self.num_cells.down_j, .end = 0 },
@@ -376,13 +378,13 @@ const Turbine = struct {
                 .{ .block = in_id, .side = boundary.Side.j_max, .start = in_j_min.points.len - 1, .end = 0 },
                 .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j, .end = self.num_cells.down_j + in_j_min.points.len - 1 },
             }),
+            boundary.Connection.init(.{
+                .{ .block = in_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_i },
+                .{ .block = down_id, .side = boundary.Side.i_min, .start = self.num_cells.in_i, .end = 0 },
+            }),
             // boundary.Connection.init(.{
             //     .{ .block = up_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.up_j },
             //     .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j + in_j_min.points.len - 1, .end = upstream_j_max.points.len - 1 },
-            // }),
-            // boundary.Connection.init(.{
-            //     .{ .block = in_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_i },
-            //     .{ .block = down_id, .side = boundary.Side.i_min, .start = self.num_cells.in_i, .end = 0 },
             // }),
         });
 

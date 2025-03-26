@@ -184,7 +184,7 @@ pub fn PointData(comptime T: type) type {
             self.allocator.free(self.block_range_start);
         }
 
-        pub fn bufferIndex(self: PointData(T), boundary_point: types.MeshIndex2d, block_size: types.Index2d) !usize {
+        pub fn bufferIndex(self: PointData(T), boundary_point: types.MeshIndex2d, mesh: *const discrete.Mesh) !usize {
 
             // Here is an example for a block of size 5x7:
             //
@@ -200,6 +200,8 @@ pub fn PointData(comptime T: type) type {
             //             (0,0) (1,0) (2,0) (3,0) (4,0)
             //                     i_min
 
+            const block_size = mesh.blocks.items[boundary_point.block].points.size;
+
             const block_boundary_point_idx = blk: {
                 if (boundary_point.point[0] == 0) {
                     // j_min
@@ -209,12 +211,10 @@ pub fn PointData(comptime T: type) type {
                     break :blk block_size[1] + 2 * (block_size[0] - 2) + boundary_point.point[1];
                 } else if (boundary_point.point[1] == 0) {
                     // i_min
-                    std.debug.assert(boundary_point.point[1] != 0);
                     break :blk block_size[1] + (boundary_point.point[0] - 1) * 2;
                 } else if (boundary_point.point[1] == block_size[1] - 1) {
                     // i_max
-                    std.debug.assert(boundary_point.point[1] != block_size[1] - 1);
-                    break :blk block_size[1] - 1 + (boundary_point.point[0] - 1) * 2;
+                    break :blk block_size[1] - 1 + boundary_point.point[0] * 2;
                 } else {
                     return error.NotBoundaryIndex;
                 }
