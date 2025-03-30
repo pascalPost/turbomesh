@@ -330,10 +330,19 @@ const RowCompressedMatrixSystem2d = struct {
                 try non_zero_entries.append(row_idx.*);
             },
             .junction => {
-                unreachable;
-                // TODO: connect all points to the index with lowest value.
-                // add laplace smoothing for the lowest index: will have as many non zero entries for this row
-                // equal to the number of connected points.
+                // TODO: remove hard coding.
+                std.debug.assert(row_idx.* == 26221);
+                _ = try non_zero_entries.appendSlice(&[_]c_int{
+                    26104,
+                    26105,
+                    26220,
+                    26221,
+                    31305,
+                    31326,
+                    43119,
+                    43120,
+                    43121,
+                });
             },
         }
         boundary_point_idx.* += 1;
@@ -517,6 +526,8 @@ const RowCompressedMatrixSystem2d = struct {
         point_idx: *usize,
         non_zero_entry_idx: *usize,
     ) void {
+        // TODO: remove setting the RHS in this loop. It only needs to be set once before looping.
+
         switch (self.connected_points.getKind(boundary_point_idx.*, row_idx.*)) {
             .fix => {
                 // TODO: we can also set RHS to 1 and only set the LHS.
@@ -543,7 +554,21 @@ const RowCompressedMatrixSystem2d = struct {
                 rhs_x[row_idx.*] = 0;
                 rhs_y[row_idx.*] = 0;
             },
-            .junction => unreachable,
+            .junction => {
+                lhs[non_zero_entry_idx.*] = 1; // 26104
+                lhs[non_zero_entry_idx.* + 1] = 1; // 26105
+                lhs[non_zero_entry_idx.* + 2] = 1; // 26220
+                lhs[non_zero_entry_idx.* + 3] = -8; // 26221
+                lhs[non_zero_entry_idx.* + 4] = 1; // 31305
+                lhs[non_zero_entry_idx.* + 5] = 1; // 31326
+                lhs[non_zero_entry_idx.* + 6] = 1; // 43119
+                lhs[non_zero_entry_idx.* + 7] = 1; // 43120
+                lhs[non_zero_entry_idx.* + 8] = 1; // 43121
+                non_zero_entry_idx.* += 9;
+
+                rhs_x[row_idx.*] = 0;
+                rhs_y[row_idx.*] = 0;
+            },
         }
 
         row_idx.* += 1;
@@ -806,7 +831,7 @@ const BlockBoundaryPointConnections = struct {
             // connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 4, .point = .{ 0, 0 } }, size)].clear();
             connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 4, .point = .{ 0, 20 } }, mesh_data)].clear();
             // connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 4, .point = .{ 115, 0 } }, size)].clear();
-            connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 2, .point = .{ 53, 115 } }, mesh_data)].clear();
+            // connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 2, .point = .{ 53, 115 } }, mesh_data)].clear();
             connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 2, .point = .{ 53, 0 } }, mesh_data)].clear();
             connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 2, .point = .{ 0, 115 } }, mesh_data)].clear();
         }
