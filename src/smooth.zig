@@ -305,6 +305,7 @@ const RowCompressedMatrixSystem2d = struct {
         };
 
         try system.nonZeroMatrixEntries(dof, non_zero_entries_capacity, connected_points, index_converter);
+        system.initBoundaryValues();
 
         return system;
     }
@@ -534,9 +535,6 @@ const RowCompressedMatrixSystem2d = struct {
 
     fn fillBlockBoundaryPointData(
         self: @This(),
-        lhs: []f64,
-        rhs_x: []f64,
-        rhs_y: []f64,
         block: discrete.Block2d,
         boundary_point_idx: *usize,
         row_idx: *usize,
@@ -548,44 +546,43 @@ const RowCompressedMatrixSystem2d = struct {
         switch (self.connected_points.getKind(boundary_point_idx.*, row_idx.*)) {
             .fix => {
                 // TODO: we can also set RHS to 1 and only set the LHS.
-                lhs[non_zero_entry_idx.*] = 1;
+                self.lhs_values[non_zero_entry_idx.*] = 1;
                 non_zero_entry_idx.* += 1;
 
-                rhs_x[row_idx.*] = block.points.data[point_idx.*].data[0];
-                rhs_y[row_idx.*] = block.points.data[point_idx.*].data[1];
+                self.rhs_x[row_idx.*] = block.points.data[point_idx.*].data[0];
+                self.rhs_y[row_idx.*] = block.points.data[point_idx.*].data[1];
             },
             .smooth => {
                 // NOTE: here, we only skip the necessary stencil data since the values are set next in a connection based loop.
                 non_zero_entry_idx.* += 9;
 
-                rhs_x[row_idx.*] = 0;
-                rhs_y[row_idx.*] = 0;
+                self.rhs_x[row_idx.*] = 0;
+                self.rhs_y[row_idx.*] = 0;
             },
             .connect => {
                 // NOTE: we would only need to fill this data one time.
-                // TODO: do this in a one time loop up front.
-                lhs[non_zero_entry_idx.*] = 1;
-                lhs[non_zero_entry_idx.* + 1] = -1;
+                self.lhs_values[non_zero_entry_idx.*] = 1;
+                self.lhs_values[non_zero_entry_idx.* + 1] = -1;
                 non_zero_entry_idx.* += 2;
 
                 // NOTE: for periodic connection this is not zero and set in a connection based loop.
-                rhs_x[row_idx.*] = 0;
-                rhs_y[row_idx.*] = 0;
+                self.rhs_x[row_idx.*] = 0;
+                self.rhs_y[row_idx.*] = 0;
             },
             .junction => {
-                lhs[non_zero_entry_idx.*] = 1; // 26104
-                lhs[non_zero_entry_idx.* + 1] = 1; // 26105
-                lhs[non_zero_entry_idx.* + 2] = 1; // 26220
-                lhs[non_zero_entry_idx.* + 3] = -8; // 26221
-                lhs[non_zero_entry_idx.* + 4] = 1; // 31305
-                lhs[non_zero_entry_idx.* + 5] = 1; // 31326
-                lhs[non_zero_entry_idx.* + 6] = 1; // 43119
-                lhs[non_zero_entry_idx.* + 7] = 1; // 43120
-                lhs[non_zero_entry_idx.* + 8] = 1; // 43121
+                self.lhs_values[non_zero_entry_idx.*] = 1; // 26104
+                self.lhs_values[non_zero_entry_idx.* + 1] = 1; // 26105
+                self.lhs_values[non_zero_entry_idx.* + 2] = 1; // 26220
+                self.lhs_values[non_zero_entry_idx.* + 3] = -8; // 26221
+                self.lhs_values[non_zero_entry_idx.* + 4] = 1; // 31305
+                self.lhs_values[non_zero_entry_idx.* + 5] = 1; // 31326
+                self.lhs_values[non_zero_entry_idx.* + 6] = 1; // 43119
+                self.lhs_values[non_zero_entry_idx.* + 7] = 1; // 43120
+                self.lhs_values[non_zero_entry_idx.* + 8] = 1; // 43121
                 non_zero_entry_idx.* += 9;
 
-                rhs_x[row_idx.*] = 0;
-                rhs_y[row_idx.*] = 0;
+                self.rhs_x[row_idx.*] = 0;
+                self.rhs_y[row_idx.*] = 0;
             },
         }
 
@@ -594,14 +591,7 @@ const RowCompressedMatrixSystem2d = struct {
         point_idx.* += 1;
     }
 
-    fn fillBlockInternalPointData(
-        self: @This(),
-        lhs: []f64,
-        rhs_x: []f64,
-        rhs_y: []f64,
-        s: f64,
-        t: f64,
-    ) void {
+    fn initBoundaryValues(self: @This()) void {
         var non_zero_entry_idx: usize = 0;
         var row_idx: usize = 0;
         var boundary_point_idx: usize = 0;
@@ -611,14 +601,70 @@ const RowCompressedMatrixSystem2d = struct {
 
             // edge j_min
             for (0..block.points.size[1]) |_| {
-                self.fillBlockBoundaryPointData(lhs, rhs_x, rhs_y, block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+                self.fillBlockBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+            }
+
+            for (1..block.points.size[0] - 1) |_| {
+                // edge i_min
+                self.fillBlockBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+
+                // middle
+                for (1..block.points.size[1] - 1) |_| {
+                    non_zero_entry_idx += 9;
+                    point_idx += 1;
+                    row_idx += 1;
+                }
+
+                // edge i_max
+                self.fillBlockBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+            }
+
+            // edge j_max
+            for (0..block.points.size[1]) |_| {
+                self.fillBlockBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+            }
+        }
+
+        for (self.mesh.connections.items) |connection| {
+            if (connection.periodicity) |periodicity| {
+                var it = RangeFillMatrixIterator.init(connection, self.mesh);
+
+                // TODO: remove this hard coding for the first point
+                _ = it.next();
+
+                for (0..it.count) |_| {
+                    const connected_points = it.next().?;
+                    const global_idx_1 = self.row_idx_range_start_for_each_block[connection.ranges[1].block] + connected_points[1].value;
+
+                    // adjust RHS for periodicity for the connected point
+                    self.rhs_x[global_idx_1] = -periodicity.data[0];
+                    self.rhs_y[global_idx_1] = -periodicity.data[1];
+                }
+            }
+        }
+    }
+
+    fn fillBlockInternalPointData(
+        self: @This(),
+        s: f64,
+        t: f64,
+    ) void {
+        var row_idx: usize = 0;
+
+        for (self.mesh.blocks.items) |block| {
+            var point_idx: usize = 0;
+
+            // edge j_min
+            for (0..block.points.size[1]) |_| {
+                point_idx += 1;
+                row_idx += 1;
             }
 
             // middle
             for (1..block.points.size[0] - 1) |_| {
-
                 // edge i_min
-                self.fillBlockBoundaryPointData(lhs, rhs_x, rhs_y, block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+                row_idx += 1;
+                point_idx += 1;
 
                 // internal points with full 9 point stencil
                 for (1..block.points.size[1] - 1) |_| {
@@ -629,18 +675,20 @@ const RowCompressedMatrixSystem2d = struct {
 
                     const stencil = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
-                    lhs[non_zero_entry_idx + 0] = stencil.get(.im1_jm1); // A[i-1, j-1]
-                    lhs[non_zero_entry_idx + 1] = stencil.get(.im1_j); // A[i-1, j]
-                    lhs[non_zero_entry_idx + 2] = stencil.get(.im1_jp1); // A[i-1, j+1]
-                    lhs[non_zero_entry_idx + 3] = stencil.get(.i_jm1); // A[i, j-1]
-                    lhs[non_zero_entry_idx + 4] = stencil.get(.i_j); // A[i, j]
-                    lhs[non_zero_entry_idx + 5] = stencil.get(.i_jp1); // A[i, j+1]
-                    lhs[non_zero_entry_idx + 6] = stencil.get(.ip1_jm1); // A[i+1, j-1]
-                    lhs[non_zero_entry_idx + 7] = stencil.get(.ip1_j); // A[i+1, j]
-                    lhs[non_zero_entry_idx + 8] = stencil.get(.ip1_jp1); // A[i+1, j+1]
+                    var non_zero_entry_idx = self.nonZeroEntriesRangeStart(@intCast(row_idx));
 
-                    rhs_x[row_idx] = 0;
-                    rhs_y[row_idx] = 0;
+                    self.lhs_values[non_zero_entry_idx + 0] = stencil.get(.im1_jm1); // A[i-1, j-1]
+                    self.lhs_values[non_zero_entry_idx + 1] = stencil.get(.im1_j); // A[i-1, j]
+                    self.lhs_values[non_zero_entry_idx + 2] = stencil.get(.im1_jp1); // A[i-1, j+1]
+                    self.lhs_values[non_zero_entry_idx + 3] = stencil.get(.i_jm1); // A[i, j-1]
+                    self.lhs_values[non_zero_entry_idx + 4] = stencil.get(.i_j); // A[i, j]
+                    self.lhs_values[non_zero_entry_idx + 5] = stencil.get(.i_jp1); // A[i, j+1]
+                    self.lhs_values[non_zero_entry_idx + 6] = stencil.get(.ip1_jm1); // A[i+1, j-1]
+                    self.lhs_values[non_zero_entry_idx + 7] = stencil.get(.ip1_j); // A[i+1, j]
+                    self.lhs_values[non_zero_entry_idx + 8] = stencil.get(.ip1_jp1); // A[i+1, j+1]
+
+                    self.rhs_x[row_idx] = 0;
+                    self.rhs_y[row_idx] = 0;
 
                     non_zero_entry_idx += 9;
                     point_idx += 1;
@@ -648,21 +696,19 @@ const RowCompressedMatrixSystem2d = struct {
                 }
 
                 // edge i_max
-                self.fillBlockBoundaryPointData(lhs, rhs_x, rhs_y, block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+                row_idx += 1;
+                point_idx += 1;
             }
 
             // edge j_max
             for (0..block.points.size[1]) |_| {
-                self.fillBlockBoundaryPointData(lhs, rhs_x, rhs_y, block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+                row_idx += 1;
             }
         }
     }
 
     fn fillBlockConnectionData(
         self: RowCompressedMatrixSystem2d,
-        lhs: []f64,
-        rhs_x: []f64,
-        rhs_y: []f64,
         s: f64,
         t: f64,
     ) void {
@@ -737,7 +783,6 @@ const RowCompressedMatrixSystem2d = struct {
             _ = it.next();
 
             if (connection.periodicity) |periodicity| {
-                const it_copy = it;
                 for (0..it.count) |_| {
                     const connected_points = it.next().?;
                     const point_idx: [2]c_int = .{ @intCast(connected_points[0].value), @intCast(connected_points[1].value) };
@@ -754,34 +799,23 @@ const RowCompressedMatrixSystem2d = struct {
                     const stencil = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
                     // points inside block 0
-                    lhs[row_non_zero_entries_start_idx + point_stencil_idx[0]] = stencil.get(.im1_jm1);
-                    lhs[row_non_zero_entries_start_idx + point_stencil_idx[1]] = stencil.get(.i_jm1);
-                    lhs[row_non_zero_entries_start_idx + point_stencil_idx[2]] = stencil.get(.ip1_jm1);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[0]] = stencil.get(.im1_jm1);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[1]] = stencil.get(.i_jm1);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[2]] = stencil.get(.ip1_jm1);
 
                     // points on boundary connection (taken from block 0)
-                    lhs[row_non_zero_entries_start_idx + point_stencil_idx[3]] = stencil.get(.im1_j);
-                    lhs[row_non_zero_entries_start_idx + point_stencil_idx[4]] = stencil.get(.i_j);
-                    lhs[row_non_zero_entries_start_idx + point_stencil_idx[5]] = stencil.get(.ip1_j);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[3]] = stencil.get(.im1_j);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[4]] = stencil.get(.i_j);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[5]] = stencil.get(.ip1_j);
 
                     // points inside block 1
-                    lhs[row_non_zero_entries_start_idx + @as(usize, @intCast(7 - direction_modifier[1]))] = stencil.get(.im1_jp1);
-                    lhs[row_non_zero_entries_start_idx + 7] = stencil.get(.i_jp1);
-                    lhs[row_non_zero_entries_start_idx + @as(usize, @intCast(7 + direction_modifier[1]))] = stencil.get(.ip1_jp1);
+                    self.lhs_values[row_non_zero_entries_start_idx + @as(usize, @intCast(7 - direction_modifier[1]))] = stencil.get(.im1_jp1);
+                    self.lhs_values[row_non_zero_entries_start_idx + 7] = stencil.get(.i_jp1);
+                    self.lhs_values[row_non_zero_entries_start_idx + @as(usize, @intCast(7 + direction_modifier[1]))] = stencil.get(.ip1_jp1);
 
                     // adjust RHS for periodicity
-                    rhs_x[@intCast(global_idx_0)] = -periodicity.data[0] * (stencil.get(.im1_jp1) + stencil.get(.i_jp1) + stencil.get(.ip1_jp1));
-                    rhs_y[@intCast(global_idx_0)] = -periodicity.data[1] * (stencil.get(.im1_jp1) + stencil.get(.i_jp1) + stencil.get(.ip1_jp1));
-                }
-
-                // TODO: move this to initialization as this needs to run only once.
-                it = it_copy;
-                for (0..it.count) |_| {
-                    const connected_points = it.next().?;
-                    const global_idx_1 = self.row_idx_range_start_for_each_block[connection.ranges[1].block] + connected_points[1].value;
-
-                    // adjust RHS for periodicity for the connected point
-                    rhs_x[global_idx_1] = -periodicity.data[0];
-                    rhs_y[global_idx_1] = -periodicity.data[1];
+                    self.rhs_x[@intCast(global_idx_0)] = -periodicity.data[0] * (stencil.get(.im1_jp1) + stencil.get(.i_jp1) + stencil.get(.ip1_jp1));
+                    self.rhs_y[@intCast(global_idx_0)] = -periodicity.data[1] * (stencil.get(.im1_jp1) + stencil.get(.i_jp1) + stencil.get(.ip1_jp1));
                 }
             } else {
                 for (0..it.count) |_| {
@@ -800,19 +834,19 @@ const RowCompressedMatrixSystem2d = struct {
                     const stencil = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
                     // points inside block 0
-                    lhs[row_non_zero_entries_start_idx + point_stencil_idx[0]] = stencil.get(.im1_jm1);
-                    lhs[row_non_zero_entries_start_idx + point_stencil_idx[1]] = stencil.get(.i_jm1);
-                    lhs[row_non_zero_entries_start_idx + point_stencil_idx[2]] = stencil.get(.ip1_jm1);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[0]] = stencil.get(.im1_jm1);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[1]] = stencil.get(.i_jm1);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[2]] = stencil.get(.ip1_jm1);
 
                     // points on boundary connection (taken from block 0)
-                    lhs[row_non_zero_entries_start_idx + point_stencil_idx[3]] = stencil.get(.im1_j);
-                    lhs[row_non_zero_entries_start_idx + point_stencil_idx[4]] = stencil.get(.i_j);
-                    lhs[row_non_zero_entries_start_idx + point_stencil_idx[5]] = stencil.get(.ip1_j);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[3]] = stencil.get(.im1_j);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[4]] = stencil.get(.i_j);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[5]] = stencil.get(.ip1_j);
 
                     // points inside block 1
-                    lhs[row_non_zero_entries_start_idx + @as(usize, @intCast(7 - direction_modifier[1]))] = stencil.get(.im1_jp1);
-                    lhs[row_non_zero_entries_start_idx + 7] = stencil.get(.i_jp1);
-                    lhs[row_non_zero_entries_start_idx + @as(usize, @intCast(7 + direction_modifier[1]))] = stencil.get(.ip1_jp1);
+                    self.lhs_values[row_non_zero_entries_start_idx + @as(usize, @intCast(7 - direction_modifier[1]))] = stencil.get(.im1_jp1);
+                    self.lhs_values[row_non_zero_entries_start_idx + 7] = stencil.get(.i_jp1);
+                    self.lhs_values[row_non_zero_entries_start_idx + @as(usize, @intCast(7 + direction_modifier[1]))] = stencil.get(.ip1_jp1);
 
                     // NOTE: RHS is already set in the point based loop.
                 }
@@ -821,23 +855,15 @@ const RowCompressedMatrixSystem2d = struct {
     }
 
     fn fillAndSolve(self: *RowCompressedMatrixSystem2d) !void {
-        var lhs = self.lhs_values;
-
-        var rhs_x = self.rhs_x;
-        var rhs_y = self.rhs_y;
-
         // laplace conditions (zero intialization)
         const s = 0.0;
         const t = 0.0;
 
-        // TODO: adjust naming: where are the fixed points set!? The second function handles only connected boundary points !?
-        // TODO: move this to initialization as it only needs to run once!
-        self.fillBlockInternalPointData(lhs[0..], rhs_x[0..], rhs_y[0..], s, t);
-
-        self.fillBlockConnectionData(lhs[0..], rhs_x[0..], rhs_y[0..], s, t);
+        self.fillBlockInternalPointData(s, t);
+        self.fillBlockConnectionData(s, t);
 
         const dof = self.rhs_x.len;
-        try umfpack.solve2(@intCast(dof), @intCast(dof), self.lhs_p, self.lhs_i, lhs, rhs_x, self.x_new[0..], rhs_y, self.y_new[0..]);
+        try umfpack.solve2(@intCast(dof), @intCast(dof), self.lhs_p, self.lhs_i, self.lhs_values, self.rhs_x, self.x_new, self.rhs_y, self.y_new);
     }
 };
 
@@ -851,20 +877,20 @@ const BlockBoundaryPointKind = enum {
     junction, // smoothed using Laplacian smoothing
 };
 
-// TODO: remove above kind enum and rename this type.
-const Tags = enum {
-    fixed,
-
-    connection_end,
-
-    smoothed,
-
-    connected,
-
-    periodic,
-
-    laplacian,
-};
+// // TODO: remove above kind enum and rename this type.
+// const Tags = enum {
+//     fixed,
+//
+//     connection_end,
+//
+//     smoothed,
+//
+//     connected,
+//
+//     periodic,
+//
+//     laplacian,
+// };
 
 /// contains for each block boundary point all connected points in a flat array. The number of connections allows
 /// to categorize each boundary point w.r.t. how to smooth it.
@@ -904,64 +930,6 @@ const BlockBoundaryPointConnections = struct {
                 try connected_points.data.buffer[buffer_idx_1].append(@intCast(global_idx_0.value));
             }
         }
-
-        // for (mesh_data.connections.items) |connection| {
-        //     var it = connection.iterate(mesh_data);
-        //
-        //     // first end point
-        //     {
-        //         const local_flat_indices = it.next();
-        //
-        //         // TODO: move all of this index transformation into a seperate function!
-        //
-        //         const global_idx_0 = index_converter.globalIndex(connection.ranges[0].block, .{ .value = connected_points_local_indices[0] });
-        //         const global_idx_1 = index_converter.globalIndex(connection.ranges[1].block, .{ .value = connected_points_local_indices[1] });
-        //
-        //         const local_idx_0 = IndexConverter.index(.{ .block = connection.ranges[0].block, .local_idx = .{ .value = connected_points_local_indices[0] } }, mesh_data);
-        //         const local_idx_1 = IndexConverter.index(.{ .block = connection.ranges[1].block, .local_idx = .{ .value = connected_points_local_indices[1] } }, mesh_data);
-        //
-        //         const buffer_idx_0 = try connected_points.data.bufferIndex(local_idx_0, mesh_data);
-        //         const buffer_idx_1 = try connected_points.data.bufferIndex(local_idx_1, mesh_data);
-        //
-        //         try connected_points.tags.buffer[buffer_idx_0] = .connection_end;
-        //         try connected_points.tags.buffer[buffer_idx_1] = .connection_end;
-        //     }
-        //
-        //     // connection internal points
-        //     const internal_point_tag = if (connection.periodicity) |_| .periodic else .connected;
-        //     for (0..it.count) |_| {
-        //         const local_flat_indices = it.next();
-        //
-        //         const global_idx_0 = index_converter.globalIndex(connection.ranges[0].block, .{ .value = connected_points_local_indices[0] });
-        //         const global_idx_1 = index_converter.globalIndex(connection.ranges[1].block, .{ .value = connected_points_local_indices[1] });
-        //
-        //         const local_idx_0 = IndexConverter.index(.{ .block = connection.ranges[0].block, .local_idx = .{ .value = connected_points_local_indices[0] } }, mesh_data);
-        //         const local_idx_1 = IndexConverter.index(.{ .block = connection.ranges[1].block, .local_idx = .{ .value = connected_points_local_indices[1] } }, mesh_data);
-        //
-        //         const buffer_idx_0 = try connected_points.data.bufferIndex(local_idx_0, mesh_data);
-        //         const buffer_idx_1 = try connected_points.data.bufferIndex(local_idx_1, mesh_data);
-        //
-        //         try connected_points.tags.buffer[buffer_idx_0] = .smoothed;
-        //         try connected_points.tags.buffer[buffer_idx_1] = internal_point_tag;
-        //     }
-        //
-        //     // second end point
-        //     {
-        //         const local_flat_indices = it.next();
-        //
-        //         const global_idx_0 = index_converter.globalIndex(connection.ranges[0].block, .{ .value = connected_points_local_indices[0] });
-        //         const global_idx_1 = index_converter.globalIndex(connection.ranges[1].block, .{ .value = connected_points_local_indices[1] });
-        //
-        //         const local_idx_0 = IndexConverter.index(.{ .block = connection.ranges[0].block, .local_idx = .{ .value = connected_points_local_indices[0] } }, mesh_data);
-        //         const local_idx_1 = IndexConverter.index(.{ .block = connection.ranges[1].block, .local_idx = .{ .value = connected_points_local_indices[1] } }, mesh_data);
-        //
-        //         const buffer_idx_0 = try connected_points.data.bufferIndex(local_idx_0, mesh_data);
-        //         const buffer_idx_1 = try connected_points.data.bufferIndex(local_idx_1, mesh_data);
-        //
-        //         try connected_points.tags.buffer[buffer_idx_0] = .connection_end;
-        //         try connected_points.tags.buffer[buffer_idx_1] = .connection_end;
-        //     }
-        // }
 
         // TODO: collect all connecting points
         // TODO: remove duplicats.
