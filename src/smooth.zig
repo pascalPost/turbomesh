@@ -164,22 +164,42 @@ fn connectionDataCheck(mesh_data: *const discrete.Mesh) void {
         var it_0 = range_0.iterate(mesh_data);
         var it_1 = range_1.iterate(mesh_data);
 
-        var point_idx: usize = 0;
-        while (true) {
-            const p_0 = it_0.next() orelse {
-                std.debug.assert(it_1.next() == null);
-                break;
-            };
-            const p_1 = it_1.next().?;
+        if (connection.periodicity) |periodicity| {
+            var point_idx: usize = 0;
+            while (true) {
+                const p_0 = it_0.next() orelse {
+                    std.debug.assert(it_1.next() == null);
+                    break;
+                };
+                const p_1 = it_1.next().?;
 
-            const x_0 = mesh_data.blocks.items[range_0.block].points.data[p_0];
-            const x_1 = mesh_data.blocks.items[range_1.block].points.data[p_1];
+                const x_0 = types.add(mesh_data.blocks.items[range_0.block].points.data[p_0], periodicity);
+                const x_1 = mesh_data.blocks.items[range_1.block].points.data[p_1];
 
-            if (!types.eqlApprox(x_0, x_1, abs_tol)) {
-                std.debug.panic("non matching points for connection {} point {}:\n\t{}\n\t{}\n", .{ connection_idx, point_idx, x_0, x_1 });
+                if (!types.eqlApprox(x_0, x_1, abs_tol)) {
+                    std.debug.panic("non matching points for connection {} point {}:\n\t{}\n\t{}\n", .{ connection_idx, point_idx, x_0, x_1 });
+                }
+
+                point_idx += 1;
             }
+        } else {
+            var point_idx: usize = 0;
+            while (true) {
+                const p_0 = it_0.next() orelse {
+                    std.debug.assert(it_1.next() == null);
+                    break;
+                };
+                const p_1 = it_1.next().?;
 
-            point_idx += 1;
+                const x_0 = mesh_data.blocks.items[range_0.block].points.data[p_0];
+                const x_1 = mesh_data.blocks.items[range_1.block].points.data[p_1];
+
+                if (!types.eqlApprox(x_0, x_1, abs_tol)) {
+                    std.debug.panic("non matching points for connection {} point {}:\n\t{}\n\t{}\n", .{ connection_idx, point_idx, x_0, x_1 });
+                }
+
+                point_idx += 1;
+            }
         }
     }
 }
@@ -551,6 +571,8 @@ const RowCompressedMatrixSystem2d = struct {
                 lhs[non_zero_entry_idx.* + 1] = -1;
                 non_zero_entry_idx.* += 2;
 
+                // TODO: this needs to be set depending on weather it is a simple or periodic connection. Right now it only handles
+                // simple connections.
                 rhs_x[row_idx.*] = 0;
                 rhs_y[row_idx.*] = 0;
             },
@@ -718,11 +740,7 @@ const RowCompressedMatrixSystem2d = struct {
 
             for (0..it.count) |_| {
                 const connected_points = it.next().?;
-                std.debug.assert(types.eqlApprox(point_data[0][connected_points[0].value], point_data[1][connected_points[1].value], 1e-12));
-                const point_idx: [2]c_int = .{
-                    @intCast(connected_points[0].value),
-                    @intCast(connected_points[1].value),
-                };
+                const point_idx: [2]c_int = .{ @intCast(connected_points[0].value), @intCast(connected_points[1].value) };
 
                 // TODO: this could be enhanced by computing this just once for the connection (plus +1 or -1 for the next connection point)
                 const global_idx_0 = @as(c_int, @intCast(self.row_idx_range_start_for_each_block[connection.ranges[0].block])) + point_idx[0];
@@ -784,15 +802,35 @@ const BlockBoundaryPointKind = enum {
     junction, // smoothed using Laplacian smoothing
 };
 
+// TODO: remove above kind enum and rename this type.
+const Tags = enum {
+    fixed,
+
+    connection_end,
+
+    smoothed,
+
+    connected,
+
+    periodic,
+
+    laplacian,
+};
+
 /// contains for each block boundary point all connected points in a flat array. The number of connections allows
 /// to categorize each boundary point w.r.t. how to smooth it.
 const BlockBoundaryPointConnections = struct {
     // NOTE: we use a c_int here only to match what is needed by the matrix lib; usize would be the natural choice.
+    // TODO: rename to connected points.
     data: boundary.PointData(std.BoundedArray(c_int, 4)),
+
+    // TODO: we need to somehow tag the different points
+    tags: boundary.PointData(Tags),
 
     fn init(allocator: std.mem.Allocator, mesh_data: *const discrete.Mesh, index_converter: IndexConverter) !BlockBoundaryPointConnections {
         var connected_points = BlockBoundaryPointConnections{
             .data = try .init(allocator, mesh_data),
+            .tags = try .init(allocator, mesh_data),
         };
         errdefer connected_points.deinit();
 
@@ -818,6 +856,64 @@ const BlockBoundaryPointConnections = struct {
             }
         }
 
+        for (mesh_data.connections.items) |connection| {
+            var it = connection.iterate(mesh_data);
+
+            // first end point
+            {
+                const local_flat_indices = it.next();
+
+                // TODO: move all of this index transformation into a seperate function!
+
+                const global_idx_0 = index_converter.globalIndex(connection.ranges[0].block, .{ .value = connected_points_local_indices[0] });
+                const global_idx_1 = index_converter.globalIndex(connection.ranges[1].block, .{ .value = connected_points_local_indices[1] });
+
+                const local_idx_0 = IndexConverter.index(.{ .block = connection.ranges[0].block, .local_idx = .{ .value = connected_points_local_indices[0] } }, mesh_data);
+                const local_idx_1 = IndexConverter.index(.{ .block = connection.ranges[1].block, .local_idx = .{ .value = connected_points_local_indices[1] } }, mesh_data);
+
+                const buffer_idx_0 = try connected_points.data.bufferIndex(local_idx_0, mesh_data);
+                const buffer_idx_1 = try connected_points.data.bufferIndex(local_idx_1, mesh_data);
+
+                try connected_points.tags.buffer[buffer_idx_0] = .connection_end;
+                try connected_points.tags.buffer[buffer_idx_1] = .connection_end;
+            }
+
+            // connection internal points
+            const internal_point_tag = if (connection.periodicity) |_| .periodic else .connected;
+            for (0..it.count) |_| {
+                const local_flat_indices = it.next();
+
+                const global_idx_0 = index_converter.globalIndex(connection.ranges[0].block, .{ .value = connected_points_local_indices[0] });
+                const global_idx_1 = index_converter.globalIndex(connection.ranges[1].block, .{ .value = connected_points_local_indices[1] });
+
+                const local_idx_0 = IndexConverter.index(.{ .block = connection.ranges[0].block, .local_idx = .{ .value = connected_points_local_indices[0] } }, mesh_data);
+                const local_idx_1 = IndexConverter.index(.{ .block = connection.ranges[1].block, .local_idx = .{ .value = connected_points_local_indices[1] } }, mesh_data);
+
+                const buffer_idx_0 = try connected_points.data.bufferIndex(local_idx_0, mesh_data);
+                const buffer_idx_1 = try connected_points.data.bufferIndex(local_idx_1, mesh_data);
+
+                try connected_points.tags.buffer[buffer_idx_0] = .smoothed;
+                try connected_points.tags.buffer[buffer_idx_1] = internal_point_tag;
+            }
+
+            // second end point
+            {
+                const local_flat_indices = it.next();
+
+                const global_idx_0 = index_converter.globalIndex(connection.ranges[0].block, .{ .value = connected_points_local_indices[0] });
+                const global_idx_1 = index_converter.globalIndex(connection.ranges[1].block, .{ .value = connected_points_local_indices[1] });
+
+                const local_idx_0 = IndexConverter.index(.{ .block = connection.ranges[0].block, .local_idx = .{ .value = connected_points_local_indices[0] } }, mesh_data);
+                const local_idx_1 = IndexConverter.index(.{ .block = connection.ranges[1].block, .local_idx = .{ .value = connected_points_local_indices[1] } }, mesh_data);
+
+                const buffer_idx_0 = try connected_points.data.bufferIndex(local_idx_0, mesh_data);
+                const buffer_idx_1 = try connected_points.data.bufferIndex(local_idx_1, mesh_data);
+
+                try connected_points.tags.buffer[buffer_idx_0] = .connection_end;
+                try connected_points.tags.buffer[buffer_idx_1] = .connection_end;
+            }
+        }
+
         // TODO: collect all connecting points
         // TODO: remove duplicats.
 
@@ -834,6 +930,11 @@ const BlockBoundaryPointConnections = struct {
             // connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 2, .point = .{ 53, 115 } }, mesh_data)].clear();
             connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 2, .point = .{ 53, 0 } }, mesh_data)].clear();
             connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 2, .point = .{ 0, 115 } }, mesh_data)].clear();
+
+            // TODO: adjust points for periodic connection!
+            connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 5, .point = .{ 0, 23 } }, mesh_data)].clear();
+            connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 5, .point = .{ 194, 23 } }, mesh_data)].clear();
+            connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 4, .point = .{ 194, 20 } }, mesh_data)].clear();
         }
 
         // sort junction point data in ascending order

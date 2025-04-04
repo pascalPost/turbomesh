@@ -1,5 +1,7 @@
 # Introduction
 
+## Mathematical Background
+
 ## Single Block Smoothing
 
 ## Multi Block Smoothing
@@ -36,6 +38,14 @@ After each block internal point, the block boundary points are processed.
 ## Show what happens with the stencil on the boundary
 
 ## Connections
+
+TODO: discussion about different options
+
+- a single DOF (or matrix entry) for each connection point
+- a DOF for each point in the mesh (that means 2 or more entries for each point pair connected by connections)
+- Ghost Cells with additional DOF
+
+## Periodic connections
 
 Number of internal points per block (equal to the rows in the system matrix)
 

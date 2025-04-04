@@ -15,7 +15,24 @@ const sub = types.sub;
 const scale = types.scale;
 const abs = types.abs;
 
-const Turbine = struct {
+/// O4H multi block template:
+///
+///  _______________________________________________________________________________________________
+/// |               |                                                            j^|                |
+/// |               |                           up (5)                         i<- |                |
+/// |               |______________________________________________________________|                |
+/// |               |    i<-|   /               ss (0)                 \           |                |
+/// |               |       vj /  ____________________________________  \          |                |
+/// |               |         /  /                                    \  \         |                |
+/// |  upstream (6) | IN (2) |--|* leading edge        trailing edge *|--| out (3) | downstream (7) |
+/// |               |         \  \____________________________________/  / ^j      |                |
+/// |               |          \                ps (1)                  /  ->i     |                |
+/// |               |___________\______________________________________/___________|                |
+/// | ^j            |  ->i                                                         | ^j             |
+/// | |             |  |                       down (4)                            | |              |
+/// | ->i           |  vj                                                          | ->i            |
+/// |_______________________________________________________________________________________________
+const O4H = struct {
     ps_csv_path: []const u8,
     ss_csv_path: []const u8,
     pitch: types.Float,
@@ -37,7 +54,7 @@ const Turbine = struct {
         downstream_i: types.Index,
     },
 
-    fn run(self: *const Turbine, allocator: std.mem.Allocator) !discrete.Mesh {
+    fn run(self: *const O4H, allocator: std.mem.Allocator) !discrete.Mesh {
 
         // TODO: remove pressure side and suction side and just use up and down (to be neutral w.r.t. turbine or compressor)
 
@@ -363,29 +380,29 @@ const Turbine = struct {
         try mesh.addBlock("downstream", downstream);
 
         // Connections
-        //
         // TODO: consider removing the Side definition... Check if this eases the code.
-        //
-        // TODO: remove this
-        _ = up_id;
 
         try mesh.connections.appendSlice(&.{
             boundary.Connection.init(.{
                 .{ .block = down_id, .side = boundary.Side.j_min, .start = self.num_cells.down_j, .end = 0 },
                 .{ .block = upstream_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.down_j },
-            }),
+            }, null),
             boundary.Connection.init(.{
                 .{ .block = in_id, .side = boundary.Side.j_max, .start = in_j_min.points.len - 1, .end = 0 },
                 .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j, .end = self.num_cells.down_j + in_j_min.points.len - 1 },
-            }),
+            }, null),
             boundary.Connection.init(.{
                 .{ .block = in_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_i },
                 .{ .block = down_id, .side = boundary.Side.i_min, .start = self.num_cells.in_i, .end = 0 },
-            }),
+            }, null),
             // boundary.Connection.init(.{
             //     .{ .block = up_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.up_j },
             //     .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j + in_j_min.points.len - 1, .end = upstream_j_max.points.len - 1 },
             // }),
+            boundary.Connection.init(.{
+                .{ .block = down_id, .side = boundary.Side.i_max, .start = 0, .end = down_i_min.points.len - 1 },
+                .{ .block = up_id, .side = boundary.Side.i_max, .start = down_i_min.points.len - 1, .end = 0 },
+            }, .{ .data = .{ 0, self.pitch } }),
         });
 
         // Boundary conditions
@@ -440,9 +457,9 @@ fn projectNormal(allocator: std.mem.Allocator, edge: []Vec2d, distance: Float) !
     return projected;
 }
 
-test "turbine template" {
+test "O4H template" {
     const allocator = std.testing.allocator;
-    const template = Turbine{
+    const template = O4H{
         .ps_csv_path = "./examples/T106/T106_ps.dat",
         .ss_csv_path = "./examples/T106/T106_ss.dat",
         .pitch = 0.08836, // m

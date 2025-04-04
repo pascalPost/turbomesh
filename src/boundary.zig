@@ -77,11 +77,22 @@ const RangeIterator = struct {
     }
 };
 
+// pub const PeriodicConnection = struct {
+//     connection: Connection,
+//
+//     periodicity: types.Vec2d,
+//
+//     buffer: []types.Vec2d,
+// };
+
 pub const Connection = struct {
     ranges: [2]Range,
 
-    pub fn init(ranges: [2]Range) Connection {
-        return .{ .ranges = ranges };
+    /// periodicity mapping range[0] to range[1]
+    periodicity: ?types.Vec2d,
+
+    pub fn init(ranges: [2]Range, periodicity: ?types.Vec2d) Connection {
+        return .{ .ranges = ranges, .periodicity = periodicity };
     }
 
     pub fn len(self: Connection) usize {
