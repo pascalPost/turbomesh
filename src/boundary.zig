@@ -56,6 +56,20 @@ pub const Range = struct {
 
         return iterator;
     }
+
+    /// returns the block local ids of the connection endpoints.
+    pub fn endpoints(self: Range, mesh: *const discrete.Mesh) [2]usize {
+        const size = mesh.blocks.items[self.block].points.size;
+        return switch (self.side) {
+            .i_min => .{ self.start * size[1], self.end * size[1] }, // (self.start, 0) & (self.end, 0)
+            .j_max => blk: {
+                const base = (size[0] - 1) * size[1];
+                break :blk .{ base + self.start, base + self.end }; // (size[0] - 1, self.start) & (size[0] - 1, self.end)
+            },
+            .i_max => .{ self.start * size[1] + size[1] - 1, self.end * size[1] + size[1] - 1 }, // (self.start, size[1] - 1) & (self.end, size[1] - 1)
+            .j_min => .{ self.start, self.end }, // (0, self.start) & (0, self.end)
+        };
+    }
 };
 
 const RangeIterator = struct {
@@ -77,18 +91,10 @@ const RangeIterator = struct {
     }
 };
 
-// pub const PeriodicConnection = struct {
-//     connection: Connection,
-//
-//     periodicity: types.Vec2d,
-//
-//     buffer: []types.Vec2d,
-// };
-
 pub const Connection = struct {
     ranges: [2]Range,
 
-    /// periodicity mapping range[0] to range[1]
+    /// periodicity mapping range[0] to range[1].
     periodicity: ?types.Vec2d,
 
     pub fn init(ranges: [2]Range, periodicity: ?types.Vec2d) Connection {
@@ -144,12 +150,6 @@ const ConnectionIterator = struct {
     }
 };
 
-pub const Periodic = struct {
-    a: Range,
-    b: Range,
-    periodicity: types.Vec2d,
-};
-
 const ConditionTag = enum {
     wall,
     inlet,
@@ -162,23 +162,18 @@ pub const Condition = struct {
 };
 
 /// A flat array data structure for all mesh block boundary points. The block data is saved in column major ordering.
+/// The buffer index can be computed with the seperate index converter.
 pub fn PointData(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
         buffer: []T,
 
-        /// starting index of each block within buffer.
-        block_range_start: []usize,
-
         /// returns a struct with an allocated (not yet initiallized) buffer for all boundary points
         /// of the mesh.
         pub fn init(allocator: std.mem.Allocator, mesh: *const discrete.Mesh) !PointData(T) {
-            var block_range_start = try allocator.alloc(usize, mesh.blocks.items.len);
-
             var total_boundary_points: usize = 0;
-            for (mesh.blocks.items, 0..) |block, block_idx| {
+            for (mesh.blocks.items) |block| {
                 const size = block.points.size;
-                block_range_start[block_idx] = total_boundary_points;
                 const block_boundary_points = 2 * (size[1] + size[0] - 2);
                 total_boundary_points += block_boundary_points;
             }
@@ -186,89 +181,118 @@ pub fn PointData(comptime T: type) type {
             return .{
                 .allocator = allocator,
                 .buffer = try allocator.alloc(T, total_boundary_points),
-                .block_range_start = block_range_start,
             };
         }
 
         pub fn deinit(self: PointData(T)) void {
             self.allocator.free(self.buffer);
-            self.allocator.free(self.block_range_start);
-        }
-
-        pub fn bufferIndex(self: PointData(T), boundary_point: types.MeshIndex2d, mesh: *const discrete.Mesh) !usize {
-
-            // Here is an example for a block of size 5x7:
-            //
-            //                     i_max
-            //             (0,6) (1,6) (2,6) (3,6) (4,6)
-            //       (0,6) *[06] *[08] *[10] *[12] *[19] (4,6)
-            //       (0,5) *[05]                   *[18] (4,5)
-            //       (0,4) *[04]                   *[17] (4,4)
-            // j_min (0,3) *[03]                   *[16] (4,3) j_max
-            //       (0,2) *[02]                   *[15] (4,2)
-            //       (0,1) *[01]                   *[14] (4,1)
-            //       (0,0) *[00] *[07] *[09] *[11] *[13] (4,0)
-            //             (0,0) (1,0) (2,0) (3,0) (4,0)
-            //                     i_min
-
-            const block_size = mesh.blocks.items[boundary_point.block].points.size;
-
-            const block_boundary_point_idx = blk: {
-                if (boundary_point.point[0] == 0) {
-                    // j_min
-                    break :blk boundary_point.point[1];
-                } else if (boundary_point.point[0] == block_size[0] - 1) {
-                    // j_max
-                    break :blk block_size[1] + 2 * (block_size[0] - 2) + boundary_point.point[1];
-                } else if (boundary_point.point[1] == 0) {
-                    // i_min
-                    break :blk block_size[1] + (boundary_point.point[0] - 1) * 2;
-                } else if (boundary_point.point[1] == block_size[1] - 1) {
-                    // i_max
-                    break :blk block_size[1] - 1 + boundary_point.point[0] * 2;
-                } else {
-                    return error.NotBoundaryIndex;
-                }
-            };
-
-            return self.block_range_start[boundary_point.block] + block_boundary_point_idx;
-        }
-
-        pub fn pointIndex(self: PointData(T), buffer_idx: usize, mesh: *const discrete.Mesh) usize {
-            var block_idx = self.block_range_start.len - 1;
-            while (self.block_range_start[block_idx] > buffer_idx) : (block_idx -= 1) {}
-            const local_idx = buffer_idx - self.block_range_start[block_idx];
-            const size = mesh.blocks.items[block_idx].points.size;
-
-            const local_point_idx = blk: {
-                if (local_idx <= size[1]) {
-                    // j_min (i = 0, j = local_idx)
-                    break :blk local_idx;
-                } else if (local_idx >= size[1] + 2 * (size[0] - 2)) {
-                    // j_max (
-                    const i = size[0] - 1;
-                    const j = local_idx - (size[1] + 2 * (size[0] - 2));
-                    std.debug.assert(j < size[1]);
-                    break :blk j + i * size[1];
-                } else if (local_idx % 2 == 0) {
-                    // i_max
-                    const j = size[1] - 1;
-                    const i = (local_idx - size[1] + 1) / 2;
-                    break :blk j + i * size[1];
-                } else {
-                    // i_min
-                    // const j = 0;
-                    const i = ((local_idx - size[1]) / 2) + 1;
-                    break :blk i * size[1];
-                }
-            };
-
-            var block_start_idx: usize = 0;
-            for (mesh.blocks.items[0..block_idx]) |block| {
-                block_start_idx += block.points.size[0] * block.points.size[1];
-            }
-
-            return block_start_idx + local_point_idx;
         }
     };
 }
+
+/// Helper to compute the buffer ids from point ids and vice verca.
+pub const PointDataBufferIndexConverter = struct {
+    allocator: std.mem.Allocator,
+    mesh: *const discrete.Mesh,
+
+    /// starting index of each block within buffer.
+    block_range_start_table: []usize,
+
+    pub fn init(allocator: std.mem.Allocator, mesh: *const discrete.Mesh) !PointDataBufferIndexConverter {
+        var converter = PointDataBufferIndexConverter{
+            .allocator = allocator,
+            .mesh = mesh,
+            .block_range_start_table = try allocator.alloc(usize, mesh.blocks.items.len),
+        };
+
+        var total_boundary_points: usize = 0;
+        for (mesh.blocks.items, 0..) |block, block_idx| {
+            const size = block.points.size;
+            converter.block_range_start_table[block_idx] = total_boundary_points;
+            const block_boundary_points = 2 * (size[1] + size[0] - 2);
+            total_boundary_points += block_boundary_points;
+        }
+
+        return converter;
+    }
+
+    pub fn deinit(self: PointDataBufferIndexConverter) void {
+        self.allocator.free(self.block_range_start_table);
+    }
+
+    pub fn bufferIndex(self: PointDataBufferIndexConverter, boundary_point: types.MeshIndex2d) !usize {
+
+        // Here is an example for a block of size 5x7:
+        //
+        //                     i_max
+        //             (0,6) (1,6) (2,6) (3,6) (4,6)
+        //       (0,6) *[06] *[08] *[10] *[12] *[19] (4,6)
+        //       (0,5) *[05]                   *[18] (4,5)
+        //       (0,4) *[04]                   *[17] (4,4)
+        // j_min (0,3) *[03]                   *[16] (4,3) j_max
+        //       (0,2) *[02]                   *[15] (4,2)
+        //       (0,1) *[01]                   *[14] (4,1)
+        //       (0,0) *[00] *[07] *[09] *[11] *[13] (4,0)
+        //             (0,0) (1,0) (2,0) (3,0) (4,0)
+        //                     i_min
+
+        const block_size = self.mesh.blocks.items[boundary_point.block].points.size;
+
+        const block_boundary_point_idx = blk: {
+            if (boundary_point.point[0] == 0) {
+                // j_min
+                break :blk boundary_point.point[1];
+            } else if (boundary_point.point[0] == block_size[0] - 1) {
+                // j_max
+                break :blk block_size[1] + 2 * (block_size[0] - 2) + boundary_point.point[1];
+            } else if (boundary_point.point[1] == 0) {
+                // i_min
+                break :blk block_size[1] + (boundary_point.point[0] - 1) * 2;
+            } else if (boundary_point.point[1] == block_size[1] - 1) {
+                // i_max
+                break :blk block_size[1] - 1 + boundary_point.point[0] * 2;
+            } else {
+                return error.NotBoundaryIndex;
+            }
+        };
+
+        return self.block_range_start_table[boundary_point.block] + block_boundary_point_idx;
+    }
+
+    pub fn pointIndex(self: PointDataBufferIndexConverter, buffer_idx: usize) usize {
+        var block_idx = self.block_range_start.len - 1;
+        while (self.block_range_start[block_idx] > buffer_idx) : (block_idx -= 1) {}
+        const local_idx = buffer_idx - self.block_range_start[block_idx];
+        const size = self.mesh.blocks.items[block_idx].points.size;
+
+        const local_point_idx = blk: {
+            if (local_idx <= size[1]) {
+                // j_min (i = 0, j = local_idx)
+                break :blk local_idx;
+            } else if (local_idx >= size[1] + 2 * (size[0] - 2)) {
+                // j_max (
+                const i = size[0] - 1;
+                const j = local_idx - (size[1] + 2 * (size[0] - 2));
+                std.debug.assert(j < size[1]);
+                break :blk j + i * size[1];
+            } else if (local_idx % 2 == 0) {
+                // i_max
+                const j = size[1] - 1;
+                const i = (local_idx - size[1] + 1) / 2;
+                break :blk j + i * size[1];
+            } else {
+                // i_min
+                // const j = 0;
+                const i = ((local_idx - size[1]) / 2) + 1;
+                break :blk i * size[1];
+            }
+        };
+
+        var block_start_idx: usize = 0;
+        for (self.mesh.blocks.items[0..block_idx]) |block| {
+            block_start_idx += block.points.size[0] * block.points.size[1];
+        }
+
+        return block_start_idx + local_point_idx;
+    }
+};

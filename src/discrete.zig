@@ -164,7 +164,6 @@ pub const Mesh = struct {
     blocks: std.ArrayList(Block2d),
     names: std.ArrayList([:0]const u8),
     connections: std.ArrayList(boundary.Connection),
-    periodics: std.ArrayList(boundary.Periodic),
     boundary_conditions: std.ArrayList(boundary.Condition),
 
     // vec of boundaries
@@ -174,7 +173,6 @@ pub const Mesh = struct {
             .blocks = std.ArrayList(Block2d).init(allocator),
             .names = std.ArrayList([:0]const u8).init(allocator),
             .connections = std.ArrayList(boundary.Connection).init(allocator),
-            .periodics = std.ArrayList(boundary.Periodic).init(allocator),
             .boundary_conditions = std.ArrayList(boundary.Condition).init(allocator),
         };
     }
@@ -185,7 +183,6 @@ pub const Mesh = struct {
         self.blocks.deinit();
         self.names.deinit();
         self.connections.deinit();
-        self.periodics.deinit();
         self.boundary_conditions.deinit();
     }
 

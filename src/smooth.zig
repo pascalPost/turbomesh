@@ -202,6 +202,8 @@ fn connectionDataCheck(mesh_data: *const discrete.Mesh) void {
             }
         }
     }
+
+    // TODO: check that endpoints match! That allows to ease the connection handling!
 }
 
 const RowCompressedMatrixSystem2d = struct {
@@ -232,11 +234,12 @@ const RowCompressedMatrixSystem2d = struct {
     /// row index range start for each block (global point index)
     row_idx_range_start_for_each_block: []usize,
 
-    // TODO: replace this with a boundary buffer of just the kind!
-    connected_points: BlockBoundaryPointConnections,
+    boundary_points: BlockBoundaryPoints,
 
     fn init(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh) !RowCompressedMatrixSystem2d {
         connectionDataCheck(mesh_data);
+
+        // TODO: check that endpoints match! That allows to ease the connection handling!
 
         var dof: usize = 0;
         var non_zero_entries_capacity: usize = 0;
@@ -278,15 +281,8 @@ const RowCompressedMatrixSystem2d = struct {
 
         const lhs_values = buffer_float[4 * dof ..];
 
-        // Handling of the inter-block connections:
-        // For now, we will add rows for each connected point to enforce identity of the connected points.
-        // Each connected point adds his part of stencil data to the system matrix.
-        // This renders the stencil info most easy (of the considered option) at the expense of additional
-        // matrix entries.
         const index_converter = try IndexConverter.init(mesh_data, allocator);
         defer index_converter.deinit();
-
-        const connected_points = try BlockBoundaryPointConnections.init(allocator, mesh_data, index_converter);
 
         var system = RowCompressedMatrixSystem2d{
             .mesh = mesh_data,
@@ -301,11 +297,11 @@ const RowCompressedMatrixSystem2d = struct {
             .x_new = x_new,
             .y_new = y_new,
             .row_idx_range_start_for_each_block = row_idx_range_start_for_each_block,
-            .connected_points = connected_points,
+            .boundary_points = try .init(allocator, index_converter, mesh_data),
         };
 
-        try system.nonZeroMatrixEntries(dof, non_zero_entries_capacity, connected_points, index_converter);
-        system.initBoundaryValues();
+        try system.initNonZeroMatrixEntries(dof, non_zero_entries_capacity, index_converter);
+        system.initBoundaryData();
 
         return system;
     }
@@ -314,7 +310,7 @@ const RowCompressedMatrixSystem2d = struct {
         self.allocator.free(self.buffer_int);
         self.allocator.free(self.buffer_float);
         self.allocator.free(self.row_idx_range_start_for_each_block);
-        self.connected_points.deinit();
+        self.boundary_points.deinit();
     }
 
     /// returns the non zero entries range for the given row (the row index range start for each block can be retrieved from an array in the struct)
@@ -322,11 +318,11 @@ const RowCompressedMatrixSystem2d = struct {
         return @intCast(self.lhs_p[@intCast(row_idx)]);
     }
 
-    fn addOrAllocNonZeroMatrixEntriesForBoundaryPoint(
+    fn initNonZeroMatrixEntriesForBoundaryPoint(
         non_zero_entries: *std.ArrayList(c_int),
         row_count: *std.ArrayList(c_int),
-        boundary_point_idx: *usize,
-        connected_points: BlockBoundaryPointConnections,
+        boundary_point_id: *usize,
+        boundary_points: BlockBoundaryPoints,
         row_idx: *c_int, // equivalent to the global point index
     ) !void {
         // for all points on the boundary we need to check how this point is to be added to the system matrix:
@@ -334,24 +330,22 @@ const RowCompressedMatrixSystem2d = struct {
         // - smoothed: 9 entries for the full stencil
         // - laplacian: TBD (probably also 9 entries) TODO: fill this info.
 
-        switch (connected_points.getKind(boundary_point_idx.*, @intCast(row_idx.*))) {
-            .fix => {
+        switch (boundary_points.kind.buffer[boundary_point_id.*]) {
+            .fixed => {
                 try non_zero_entries.append(row_idx.*); // A[i, j]
             },
-            .smooth => {
+            .smoothed => {
                 // smooth the block boundary point based on the same 9 point stancil that is used for block
                 // internal points. The actual data is set in a connection based loop after this undefined
                 // allocation.
                 _ = try non_zero_entries.addManyAsSlice(9);
             },
-            .connect => {
+            .connected => {
                 // enforce the equality for the connected points with two entries.
-                // NOTE: the ordering must be ascending. Since we smooth the smaller global index, it must come first.
-                try non_zero_entries.append(connected_points.data.buffer[boundary_point_idx.*].get(0));
-                try non_zero_entries.append(row_idx.*);
+                _ = try non_zero_entries.addManyAsSlice(2);
             },
-            .junction => {
-                // TODO: remove hard coding.
+            .laplacian_smoothed => {
+                // TODO: remove hard coding. Check that for this point the data is set correctly.
                 std.debug.assert(row_idx.* == 26221);
                 _ = try non_zero_entries.appendSlice(&[_]c_int{
                     26104,
@@ -366,17 +360,16 @@ const RowCompressedMatrixSystem2d = struct {
                 });
             },
         }
-        boundary_point_idx.* += 1;
+        boundary_point_id.* += 1;
 
         try row_count.append(@intCast(non_zero_entries.items.len));
         row_idx.* += 1;
     }
 
-    fn addOrAllocNonZeroMatrixEntries(
+    fn initNonZeroMatrixEntriesPointBased(
         self: @This(),
         non_zero_entries: *std.ArrayList(c_int),
         row_count: *std.ArrayList(c_int),
-        connected_points: BlockBoundaryPointConnections,
     ) !void {
         var boundary_point_idx: usize = 0;
         var row_idx: c_int = 0;
@@ -395,14 +388,14 @@ const RowCompressedMatrixSystem2d = struct {
 
             // edge j_min
             for (0..block.points.size[1]) |_| {
-                try addOrAllocNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, connected_points, &row_idx);
+                try initNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, self.boundary_points, &row_idx);
             }
 
             // middle
             for (1..block.points.size[0] - 1) |_| {
 
                 // edge i_min
-                try addOrAllocNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, connected_points, &row_idx);
+                try initNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, self.boundary_points, &row_idx);
 
                 // internal points with full 9 point stencil
                 for (1..block.points.size[1] - 1) |_| {
@@ -420,21 +413,21 @@ const RowCompressedMatrixSystem2d = struct {
                 }
 
                 // edge i_max
-                try addOrAllocNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, connected_points, &row_idx);
+                try initNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, self.boundary_points, &row_idx);
             }
 
             // edge j_max
             for (0..block.points.size[1]) |_| {
-                try addOrAllocNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, connected_points, &row_idx);
+                try initNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, self.boundary_points, &row_idx);
             }
         }
     }
 
-    fn fillNonZeroMatrixEntriesForConnections(
+    fn initNonZeroMatrixEntriesConnectionBased(
         self: @This(),
         non_zero_entries: *std.ArrayList(c_int),
         index_converter: IndexConverter,
-    ) void {
+    ) !void {
         for (self.mesh.connections.items) |connection| {
             // NOTE: we rely on block 0 matrix entries to be ahead of the block 1 matrix entries,
             // otherwise we run into an invalid matrix error. We could handle this here dynamically in the future:
@@ -459,68 +452,106 @@ const RowCompressedMatrixSystem2d = struct {
             // NOTE: this is needed to have the right ordering of the points taken from the 0th block of the connection.
             const shift: [2]c_int = if (it.first_internal_point_shift[0] > 0) .{ 0, it.first_internal_point_shift[0] } else .{ it.first_internal_point_shift[0], 0 };
 
-            // TODO: remove this hardcoded handling
-            // we set point 0 to fixed and point 1 to connected to 0
-            _ = it.next().?;
+            try self.initNonZeroMatrixForConnectionEndpoint(it.next().?, connection, non_zero_entries, index_converter);
 
-            // smooth 1st point
+            // middle of the connection
             for (0..it.count) |_| {
                 const connected_points_local_idx = it.next().?;
                 const connected_points_global_idx = [2]c_int{
-                    @intCast(index_converter.globalIndex(connection.ranges[0].block, connected_points_local_idx[0]).value),
-                    @intCast(index_converter.globalIndex(connection.ranges[1].block, connected_points_local_idx[1]).value),
+                    @intCast(index_converter.globalIndex(.{ .block = connection.ranges[0].block, .local_idx = connected_points_local_idx[0] }).value),
+                    @intCast(index_converter.globalIndex(.{ .block = connection.ranges[1].block, .local_idx = connected_points_local_idx[1] }).value),
                 };
 
-                const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(connected_points_global_idx[0]);
-
-                // NOTE: here we set the data based on the connections; the allocation happend in the previous function based on a point loop.
-
-                // TODO: do this w/o switch; e.g., via the indices set once for a connection.
-                switch (connection.ranges[0].side) {
-                    .i_min, .i_max => {
-                        non_zero_entries.items[row_non_zero_entries_start_idx + 0] = connected_points_global_idx[0] + shift[0] - it.in_connection_direction_shift[0] * direction_modifier[0];
-                        non_zero_entries.items[row_non_zero_entries_start_idx + 2] = connected_points_global_idx[0] + shift[0];
-                        non_zero_entries.items[row_non_zero_entries_start_idx + 4] = connected_points_global_idx[0] + shift[0] + it.in_connection_direction_shift[0] * direction_modifier[0];
-
-                        non_zero_entries.items[row_non_zero_entries_start_idx + 1] = connected_points_global_idx[0] + shift[1] - it.in_connection_direction_shift[0] * direction_modifier[0];
-                        non_zero_entries.items[row_non_zero_entries_start_idx + 3] = connected_points_global_idx[0] + shift[1];
-                        non_zero_entries.items[row_non_zero_entries_start_idx + 5] = connected_points_global_idx[0] + shift[1] + it.in_connection_direction_shift[0] * direction_modifier[0];
-                    },
-                    .j_min, .j_max => {
-                        non_zero_entries.items[row_non_zero_entries_start_idx + 0] = connected_points_global_idx[0] + shift[0] - it.in_connection_direction_shift[0] * direction_modifier[0];
-                        non_zero_entries.items[row_non_zero_entries_start_idx + 1] = connected_points_global_idx[0] + shift[0];
-                        non_zero_entries.items[row_non_zero_entries_start_idx + 2] = connected_points_global_idx[0] + shift[0] + it.in_connection_direction_shift[0] * direction_modifier[0];
-
-                        non_zero_entries.items[row_non_zero_entries_start_idx + 3] = connected_points_global_idx[0] + shift[1] - it.in_connection_direction_shift[0] * direction_modifier[0];
-                        non_zero_entries.items[row_non_zero_entries_start_idx + 4] = connected_points_global_idx[0] + shift[1];
-                        non_zero_entries.items[row_non_zero_entries_start_idx + 5] = connected_points_global_idx[0] + shift[1] + it.in_connection_direction_shift[0] * direction_modifier[0];
-                    },
+                // connect 2nd point to 1st
+                {
+                    std.debug.assert(connected_points_global_idx[0] < connected_points_global_idx[1]);
+                    const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(connected_points_global_idx[1]);
+                    non_zero_entries.items[row_non_zero_entries_start_idx] = connected_points_global_idx[0];
+                    non_zero_entries.items[row_non_zero_entries_start_idx + 1] = connected_points_global_idx[1];
                 }
 
-                // NOTE: the entries into the 2nd block always come last since the block index is higher and thus the global indices are higher.
-                non_zero_entries.items[row_non_zero_entries_start_idx + 6] = connected_points_global_idx[1] + it.first_internal_point_shift[1] - it.in_connection_direction_shift[1] * direction_modifier[1];
-                non_zero_entries.items[row_non_zero_entries_start_idx + 7] = connected_points_global_idx[1] + it.first_internal_point_shift[1];
-                non_zero_entries.items[row_non_zero_entries_start_idx + 8] = connected_points_global_idx[1] + it.first_internal_point_shift[1] + it.in_connection_direction_shift[1] * direction_modifier[1];
+                // smooth 1st point
+                {
+                    const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(connected_points_global_idx[0]);
 
-                // check that we have all entries ascending as required by the row compressed format.
-                std.debug.assert(blk: {
-                    for (0..8) |i| {
-                        if (non_zero_entries.items[row_non_zero_entries_start_idx + i] >= non_zero_entries.items[row_non_zero_entries_start_idx + i + 1]) {
-                            std.debug.print("wrong ordering of connection stencil data for point {d}: {any}\n", .{ connected_points_global_idx[0], non_zero_entries.items[row_non_zero_entries_start_idx .. row_non_zero_entries_start_idx + 9] });
-                            break :blk true;
-                        }
+                    // NOTE: here we set the data based on the connections; the allocation happend in the previous function based on a point loop.
+
+                    // TODO: do this w/o switch; e.g., via the indices set once for a connection.
+                    switch (connection.ranges[0].side) {
+                        .i_min, .i_max => {
+                            non_zero_entries.items[row_non_zero_entries_start_idx] = connected_points_global_idx[0] + shift[0] - it.in_connection_direction_shift[0] * direction_modifier[0];
+                            non_zero_entries.items[row_non_zero_entries_start_idx + 2] = connected_points_global_idx[0] + shift[0];
+                            non_zero_entries.items[row_non_zero_entries_start_idx + 4] = connected_points_global_idx[0] + shift[0] + it.in_connection_direction_shift[0] * direction_modifier[0];
+
+                            non_zero_entries.items[row_non_zero_entries_start_idx + 1] = connected_points_global_idx[0] + shift[1] - it.in_connection_direction_shift[0] * direction_modifier[0];
+                            non_zero_entries.items[row_non_zero_entries_start_idx + 3] = connected_points_global_idx[0] + shift[1];
+                            non_zero_entries.items[row_non_zero_entries_start_idx + 5] = connected_points_global_idx[0] + shift[1] + it.in_connection_direction_shift[0] * direction_modifier[0];
+                        },
+                        .j_min, .j_max => {
+                            non_zero_entries.items[row_non_zero_entries_start_idx] = connected_points_global_idx[0] + shift[0] - it.in_connection_direction_shift[0] * direction_modifier[0];
+                            non_zero_entries.items[row_non_zero_entries_start_idx + 1] = connected_points_global_idx[0] + shift[0];
+                            non_zero_entries.items[row_non_zero_entries_start_idx + 2] = connected_points_global_idx[0] + shift[0] + it.in_connection_direction_shift[0] * direction_modifier[0];
+
+                            non_zero_entries.items[row_non_zero_entries_start_idx + 3] = connected_points_global_idx[0] + shift[1] - it.in_connection_direction_shift[0] * direction_modifier[0];
+                            non_zero_entries.items[row_non_zero_entries_start_idx + 4] = connected_points_global_idx[0] + shift[1];
+                            non_zero_entries.items[row_non_zero_entries_start_idx + 5] = connected_points_global_idx[0] + shift[1] + it.in_connection_direction_shift[0] * direction_modifier[0];
+                        },
                     }
-                    break :blk true;
-                });
+
+                    // NOTE: the entries into the 2nd block always come last since the block index is higher and thus the global indices are higher.
+                    non_zero_entries.items[row_non_zero_entries_start_idx + 6] = connected_points_global_idx[1] + it.first_internal_point_shift[1] - it.in_connection_direction_shift[1] * direction_modifier[1];
+                    non_zero_entries.items[row_non_zero_entries_start_idx + 7] = connected_points_global_idx[1] + it.first_internal_point_shift[1];
+                    non_zero_entries.items[row_non_zero_entries_start_idx + 8] = connected_points_global_idx[1] + it.first_internal_point_shift[1] + it.in_connection_direction_shift[1] * direction_modifier[1];
+
+                    // check that we have all entries ascending as required by the row compressed format.
+                    std.debug.assert(blk: {
+                        for (0..8) |i| {
+                            if (non_zero_entries.items[row_non_zero_entries_start_idx + i] >= non_zero_entries.items[row_non_zero_entries_start_idx + i + 1]) {
+                                std.debug.print("wrong ordering of connection stencil data for point {d}: {any}\n", .{ connected_points_global_idx[0], non_zero_entries.items[row_non_zero_entries_start_idx .. row_non_zero_entries_start_idx + 9] });
+                                break :blk true;
+                            }
+                        }
+                        break :blk true;
+                    });
+                }
             }
+
+            try self.initNonZeroMatrixForConnectionEndpoint(it.position, connection, non_zero_entries, index_converter);
         }
     }
 
-    fn nonZeroMatrixEntries(
+    fn initNonZeroMatrixForConnectionEndpoint(
+        self: @This(),
+        local_ids: [2]LocalIndex,
+        connection: boundary.Connection,
+        non_zero_entries: *std.ArrayList(c_int),
+        index_converter: IndexConverter,
+    ) !void {
+        const local_id_2d = IndexConverter.index(.{ .block = connection.ranges[0].block, .local_idx = local_ids[0] }, self.mesh);
+        const buffer_id = try self.boundary_points.index_converter.bufferIndex(local_id_2d);
+
+        switch (self.boundary_points.kind.buffer[buffer_id]) {
+            .fixed => {
+                // connect the 2nd point to the 1st
+                const connected_points_global_idx = [2]c_int{
+                    @intCast(index_converter.globalIndex(.{ .block = connection.ranges[0].block, .local_idx = local_ids[0] }).value),
+                    @intCast(index_converter.globalIndex(.{ .block = connection.ranges[1].block, .local_idx = local_ids[1] }).value),
+                };
+
+                std.debug.assert(connected_points_global_idx[0] < connected_points_global_idx[1]);
+                const row_non_zero_entries_start_idx = self.nonZeroEntriesRangeStart(connected_points_global_idx[1]);
+                non_zero_entries.items[row_non_zero_entries_start_idx] = connected_points_global_idx[0];
+                non_zero_entries.items[row_non_zero_entries_start_idx + 1] = connected_points_global_idx[1];
+            },
+            .laplacian_smoothed => {}, // already set
+            else => undefined,
+        }
+    }
+
+    fn initNonZeroMatrixEntries(
         self: *RowCompressedMatrixSystem2d,
         dof: usize,
         non_zero_entries_capacity: usize,
-        connected_points: BlockBoundaryPointConnections,
         index_converter: IndexConverter,
     ) !void {
         var fba_count = std.heap.FixedBufferAllocator.init(std.mem.sliceAsBytes(self.lhs_p[1..]));
@@ -529,69 +560,85 @@ const RowCompressedMatrixSystem2d = struct {
         var fba_entries = std.heap.FixedBufferAllocator.init(std.mem.sliceAsBytes(self.lhs_i[0..]));
         var non_zero_entries = try std.ArrayList(c_int).initCapacity(fba_entries.allocator(), non_zero_entries_capacity);
 
-        try self.addOrAllocNonZeroMatrixEntries(&non_zero_entries, &row_count, connected_points);
-        self.fillNonZeroMatrixEntriesForConnections(&non_zero_entries, index_converter);
+        try self.initNonZeroMatrixEntriesPointBased(&non_zero_entries, &row_count);
+
+        // init laplacian points
+
+        for (self.boundary_points.laplacian_points.items) |laplacian_point| {
+            // TODO: fill in stencil info for 1st point
+            const smoothed_id = laplacian_point.global_ids.get(0);
+
+            // set all other points to connected to 1st
+            for (laplacian_point.global_ids.slice()[1..]) |global_id| {
+                const non_zero_entries_range_start = self.nonZeroEntriesRangeStart(@intCast(global_id));
+                non_zero_entries.items[non_zero_entries_range_start] = @intCast(smoothed_id);
+                non_zero_entries.items[non_zero_entries_range_start + 1] = @intCast(global_id);
+            }
+        }
+
+        try self.initNonZeroMatrixEntriesConnectionBased(&non_zero_entries, index_converter);
     }
 
-    fn fillBlockBoundaryPointData(
+    fn initBoundaryPointData(
         self: @This(),
         block: discrete.Block2d,
-        boundary_point_idx: *usize,
-        row_idx: *usize,
-        point_idx: *usize,
-        non_zero_entry_idx: *usize,
+        boundary_point_id: *usize,
+        row_id: *usize,
+        point_id: *usize,
+        non_zero_entry_id: *usize,
     ) void {
         // TODO: remove setting the RHS in this loop. It only needs to be set once before looping.
 
-        switch (self.connected_points.getKind(boundary_point_idx.*, row_idx.*)) {
-            .fix => {
+        switch (self.boundary_points.kind.buffer[boundary_point_id.*]) {
+            .fixed => {
                 // TODO: we can also set RHS to 1 and only set the LHS.
-                self.lhs_values[non_zero_entry_idx.*] = 1;
-                non_zero_entry_idx.* += 1;
+                self.lhs_values[non_zero_entry_id.*] = 1;
+                non_zero_entry_id.* += 1;
 
-                self.rhs_x[row_idx.*] = block.points.data[point_idx.*].data[0];
-                self.rhs_y[row_idx.*] = block.points.data[point_idx.*].data[1];
+                self.rhs_x[row_id.*] = block.points.data[point_id.*].data[0];
+                self.rhs_y[row_id.*] = block.points.data[point_id.*].data[1];
             },
-            .smooth => {
+            .smoothed => {
                 // NOTE: here, we only skip the necessary stencil data since the values are set next in a connection based loop.
-                non_zero_entry_idx.* += 9;
+                non_zero_entry_id.* += 9;
 
-                self.rhs_x[row_idx.*] = 0;
-                self.rhs_y[row_idx.*] = 0;
+                self.rhs_x[row_id.*] = 0;
+                self.rhs_y[row_id.*] = 0;
             },
-            .connect => {
+            .connected => {
                 // NOTE: we would only need to fill this data one time.
-                self.lhs_values[non_zero_entry_idx.*] = 1;
-                self.lhs_values[non_zero_entry_idx.* + 1] = -1;
-                non_zero_entry_idx.* += 2;
+                self.lhs_values[non_zero_entry_id.*] = 1;
+                self.lhs_values[non_zero_entry_id.* + 1] = -1;
+                non_zero_entry_id.* += 2;
 
                 // NOTE: for periodic connection this is not zero and set in a connection based loop.
-                self.rhs_x[row_idx.*] = 0;
-                self.rhs_y[row_idx.*] = 0;
+                self.rhs_x[row_id.*] = 0;
+                self.rhs_y[row_id.*] = 0;
             },
-            .junction => {
-                self.lhs_values[non_zero_entry_idx.*] = 1; // 26104
-                self.lhs_values[non_zero_entry_idx.* + 1] = 1; // 26105
-                self.lhs_values[non_zero_entry_idx.* + 2] = 1; // 26220
-                self.lhs_values[non_zero_entry_idx.* + 3] = -8; // 26221
-                self.lhs_values[non_zero_entry_idx.* + 4] = 1; // 31305
-                self.lhs_values[non_zero_entry_idx.* + 5] = 1; // 31326
-                self.lhs_values[non_zero_entry_idx.* + 6] = 1; // 43119
-                self.lhs_values[non_zero_entry_idx.* + 7] = 1; // 43120
-                self.lhs_values[non_zero_entry_idx.* + 8] = 1; // 43121
-                non_zero_entry_idx.* += 9;
+            .laplacian_smoothed => {
+                // TODO: remove this hardcoding!
+                self.lhs_values[non_zero_entry_id.*] = 1; // 26104
+                self.lhs_values[non_zero_entry_id.* + 1] = 1; // 26105
+                self.lhs_values[non_zero_entry_id.* + 2] = 1; // 26220
+                self.lhs_values[non_zero_entry_id.* + 3] = -8; // 26221
+                self.lhs_values[non_zero_entry_id.* + 4] = 1; // 31305
+                self.lhs_values[non_zero_entry_id.* + 5] = 1; // 31326
+                self.lhs_values[non_zero_entry_id.* + 6] = 1; // 43119
+                self.lhs_values[non_zero_entry_id.* + 7] = 1; // 43120
+                self.lhs_values[non_zero_entry_id.* + 8] = 1; // 43121
+                non_zero_entry_id.* += 9;
 
-                self.rhs_x[row_idx.*] = 0;
-                self.rhs_y[row_idx.*] = 0;
+                self.rhs_x[row_id.*] = 0;
+                self.rhs_y[row_id.*] = 0;
             },
         }
 
-        row_idx.* += 1;
-        boundary_point_idx.* += 1;
-        point_idx.* += 1;
+        row_id.* += 1;
+        boundary_point_id.* += 1;
+        point_id.* += 1;
     }
 
-    fn initBoundaryValues(self: @This()) void {
+    fn initBoundaryData(self: @This()) void {
         var non_zero_entry_idx: usize = 0;
         var row_idx: usize = 0;
         var boundary_point_idx: usize = 0;
@@ -601,12 +648,12 @@ const RowCompressedMatrixSystem2d = struct {
 
             // edge j_min
             for (0..block.points.size[1]) |_| {
-                self.fillBlockBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+                self.initBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
             }
 
             for (1..block.points.size[0] - 1) |_| {
                 // edge i_min
-                self.fillBlockBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+                self.initBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
 
                 // middle
                 for (1..block.points.size[1] - 1) |_| {
@@ -616,12 +663,12 @@ const RowCompressedMatrixSystem2d = struct {
                 }
 
                 // edge i_max
-                self.fillBlockBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+                self.initBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
             }
 
             // edge j_max
             for (0..block.points.size[1]) |_| {
-                self.fillBlockBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+                self.initBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
             }
         }
 
@@ -629,7 +676,6 @@ const RowCompressedMatrixSystem2d = struct {
             if (connection.periodicity) |periodicity| {
                 var it = RangeFillMatrixIterator.init(connection, self.mesh);
 
-                // TODO: remove this hard coding for the first point
                 _ = it.next();
 
                 for (0..it.count) |_| {
@@ -779,7 +825,6 @@ const RowCompressedMatrixSystem2d = struct {
                 },
             };
 
-            // TODO: remove this hard coding for the first point
             _ = it.next();
 
             if (connection.periodicity) |periodicity| {
@@ -868,124 +913,190 @@ const RowCompressedMatrixSystem2d = struct {
 };
 
 const BlockBoundaryPointKind = enum {
-    fix, // not smoothed
-
-    // interface points are either smoothed like interior points or connected to a smoothed point
-    smooth,
-    connect,
-
-    junction, // smoothed using Laplacian smoothing
+    fixed,
+    smoothed,
+    connected, // perhaps save the global id of the point that it is connected to?
+    laplacian_smoothed, // id to access the neighbor info
 };
-
-// // TODO: remove above kind enum and rename this type.
-// const Tags = enum {
-//     fixed,
-//
-//     connection_end,
-//
-//     smoothed,
-//
-//     connected,
-//
-//     periodic,
-//
-//     laplacian,
-// };
 
 /// contains for each block boundary point all connected points in a flat array. The number of connections allows
 /// to categorize each boundary point w.r.t. how to smooth it.
-const BlockBoundaryPointConnections = struct {
-    // NOTE: we use a c_int here only to match what is needed by the matrix lib; usize would be the natural choice.
-    // TODO: rename to connected points.
-    data: boundary.PointData(std.BoundedArray(c_int, 4)),
+const BlockBoundaryPoints = struct {
+    kind: boundary.PointData(BlockBoundaryPointKind),
+    index_converter: boundary.PointDataBufferIndexConverter,
+    laplacian_points: std.ArrayList(LaplacianPoint),
 
-    // // TODO: we need to somehow tag the different points
-    // tags: boundary.PointData(Tags),
+    const LaplacianPoint = struct {
+        global_ids: std.BoundedArray(usize, 5),
+    };
 
-    fn init(allocator: std.mem.Allocator, mesh_data: *const discrete.Mesh, index_converter: IndexConverter) !BlockBoundaryPointConnections {
-        var connected_points = BlockBoundaryPointConnections{
-            .data = try .init(allocator, mesh_data),
-            // .tags = try .init(allocator, mesh_data),
+    fn init(allocator: std.mem.Allocator, index_converter: IndexConverter, mesh_data: *const discrete.Mesh) !BlockBoundaryPoints {
+        var boundary_points = BlockBoundaryPoints{
+            .kind = try .init(allocator, mesh_data),
+            .index_converter = try .init(allocator, mesh_data),
+            .laplacian_points = try .initCapacity(allocator, mesh_data.connections.items.len),
         };
-        errdefer connected_points.deinit();
+        errdefer boundary_points.deinit();
 
-        for (connected_points.data.buffer[0..]) |*boundary_point| boundary_point.* = try .init(0);
+        // collect connection endpoint ids into a flat array (start_00, start_01, end_00, end_01, start_10, start_11, end_10, end_11, ...)
+        var endpoint_ids = try allocator.alloc(usize, mesh_data.connections.items.len * 4);
+        errdefer allocator.free(endpoint_ids);
+        defer allocator.free(endpoint_ids);
 
+        for (mesh_data.connections.items, 0..) |connection, connection_id| {
+            const local_ids = .{ connection.ranges[0].endpoints(mesh_data), connection.ranges[1].endpoints(mesh_data) };
+            const range_start = connection_id * 4;
+            endpoint_ids[range_start] = index_converter.globalIndex(.{ .block = connection.ranges[0].block, .local_idx = .{ .value = local_ids[0][0] } }).value;
+            endpoint_ids[range_start + 1] = index_converter.globalIndex(.{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1][0] } }).value;
+            endpoint_ids[range_start + 2] = index_converter.globalIndex(.{ .block = connection.ranges[0].block, .local_idx = .{ .value = local_ids[0][1] } }).value;
+            endpoint_ids[range_start + 3] = index_converter.globalIndex(.{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1][1] } }).value;
+        }
+
+        // std.debug.print("endpoint_ids: {any}\n", .{endpoint_ids});
+
+        // linear search for identical ids: if there are identical ids, these are junction points!
+        for (0..endpoint_ids.len - 1) |endpoint_id| {
+            const endpoint = endpoint_ids[endpoint_id];
+            for (endpoint_id + 1..endpoint_ids.len) |endpoint_id_to_check| {
+                const endpoint_other = endpoint_ids[endpoint_id_to_check];
+                if (endpoint == endpoint_other) {
+                    const points = .{ @divTrunc(endpoint_id, 2), @divTrunc(endpoint_id_to_check, 2) };
+                    std.debug.assert(points[0] != points[1]);
+
+                    // see, if we need to merge it with an already existing laplacian point.
+                    var exisitng_point_found = false;
+                    for (boundary_points.laplacian_points.items) |*laplacian| {
+                        for (laplacian.global_ids.slice()) |global_id| {
+                            if (global_id == endpoint) {
+                                exisitng_point_found = true;
+                                try appendIfUnique(&laplacian.global_ids, endpoint_other);
+                            } else if (global_id == endpoint_other) {
+                                exisitng_point_found = true;
+                                try appendIfUnique(&laplacian.global_ids, endpoint);
+                            }
+                        }
+                    }
+
+                    if (!exisitng_point_found) {
+                        var global_ids = try std.BoundedArray(usize, 5).init(0);
+                        try global_ids.appendSlice(&.{
+                            endpoint_ids[points[0] * 2],
+                            endpoint_ids[points[0] * 2 + 1],
+                        });
+
+                        std.debug.assert(global_ids.get(0) != global_ids.get(1));
+
+                        try appendIfUnique(&global_ids, endpoint_ids[points[1] * 2]);
+                        try appendIfUnique(&global_ids, endpoint_ids[points[1] * 2 + 1]);
+
+                        try boundary_points.laplacian_points.append(.{ .global_ids = global_ids });
+                    }
+                }
+            }
+        }
+
+        // in place sort the laplacian points
+        for (boundary_points.laplacian_points.items) |*laplacian_point| {
+            std.mem.sort(usize, laplacian_point.global_ids.slice(), {}, comptime std.sort.asc(usize));
+        }
+
+        // sort laplacian points in order of the lowest id
+        std.mem.sort(LaplacianPoint, boundary_points.laplacian_points.items, {}, struct {
+            fn inner(_: void, a: LaplacianPoint, b: LaplacianPoint) bool {
+                return a.global_ids.get(0) < b.global_ids.get(0);
+            }
+        }.inner);
+
+        // set kind (how to smooth the point)
+        @memset(boundary_points.kind.buffer, .fixed);
+
+        // add laplacian points
+        for (boundary_points.laplacian_points.items) |laplacian_point| {
+            {
+                // set lowest point to laplacian smoothed
+                const global_id = laplacian_point.global_ids.get(0);
+                const local_id = index_converter.localIndex(.{ .value = global_id });
+                const local_id_2d = IndexConverter.index(local_id, mesh_data);
+                const buffer_id = try boundary_points.index_converter.bufferIndex(local_id_2d);
+                boundary_points.kind.buffer[buffer_id] = .laplacian_smoothed;
+            }
+
+            // all other point are connected to the laplacian smoothed point
+            for (laplacian_point.global_ids.slice()[1..]) |global_id| {
+                const local_id = index_converter.localIndex(.{ .value = global_id });
+                const local_id_2d = IndexConverter.index(local_id, mesh_data);
+                const buffer_id = try boundary_points.index_converter.bufferIndex(local_id_2d);
+                boundary_points.kind.buffer[buffer_id] = .connected;
+            }
+        }
+
+        // set other connections
         for (mesh_data.connections.items) |connection| {
-            var it = connection.iterate(mesh_data);
-            while (it.next()) |connected_points_local_indices| {
-                // TODO: is there a nicer way to doing this?
+            var connected_points = connection.iterate(mesh_data);
 
-                // local to global point indices
-                const global_idx_0 = index_converter.globalIndex(connection.ranges[0].block, .{ .value = connected_points_local_indices[0] });
-                const global_idx_1 = index_converter.globalIndex(connection.ranges[1].block, .{ .value = connected_points_local_indices[1] });
+            // NOTE: endpoints are either laplacian smoothed or fixed.
 
-                const local_idx_0 = IndexConverter.index(.{ .block = connection.ranges[0].block, .local_idx = .{ .value = connected_points_local_indices[0] } }, mesh_data);
-                const local_idx_1 = IndexConverter.index(.{ .block = connection.ranges[1].block, .local_idx = .{ .value = connected_points_local_indices[1] } }, mesh_data);
+            // check 1st endpoint
+            {
+                const local_ids = connected_points.next().?;
+                const buffer_ids = try computeBufferIds(.{
+                    .{ .block = connection.ranges[0].block, .local_idx = .{ .value = local_ids[0] } },
+                    .{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1] } },
+                }, boundary_points.index_converter);
 
-                const buffer_idx_0 = try connected_points.data.bufferIndex(local_idx_0, mesh_data);
-                const buffer_idx_1 = try connected_points.data.bufferIndex(local_idx_1, mesh_data);
+                // 1st point is already set
+                std.debug.assert(boundary_points.kind.buffer[buffer_ids[1]] == .fixed or boundary_points.kind.buffer[buffer_ids[1]] == .connected);
+                boundary_points.kind.buffer[buffer_ids[1]] = .connected;
+            }
 
-                try connected_points.data.buffer[buffer_idx_0].append(@intCast(global_idx_1.value));
-                try connected_points.data.buffer[buffer_idx_1].append(@intCast(global_idx_0.value));
+            // middle of the connection is smoothed (1st) and connected (2nd to 1st)
+            for (0..connected_points.data[0].count) |_| {
+                const local_ids = connected_points.next().?;
+                const buffer_ids = try computeBufferIds(.{
+                    .{ .block = connection.ranges[0].block, .local_idx = .{ .value = local_ids[0] } },
+                    .{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1] } },
+                }, boundary_points.index_converter);
+                boundary_points.kind.buffer[buffer_ids[0]] = .smoothed;
+                boundary_points.kind.buffer[buffer_ids[1]] = .connected;
+            }
+
+            // check 2nd endpoint
+            {
+                const local_ids = connected_points.next().?;
+                const buffer_ids = try computeBufferIds(.{
+                    .{ .block = connection.ranges[0].block, .local_idx = .{ .value = local_ids[0] } },
+                    .{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1] } },
+                }, boundary_points.index_converter);
+
+                // 1st point is already set
+                std.debug.assert(boundary_points.kind.buffer[buffer_ids[1]] == .fixed or boundary_points.kind.buffer[buffer_ids[1]] == .connected);
+                boundary_points.kind.buffer[buffer_ids[1]] = .connected;
             }
         }
 
-        // TODO: collect all connecting points
-        // TODO: remove duplicats.
+        // TODO: remove these asserts...
+        std.debug.assert(boundary_points.kind.buffer[try boundary_points.index_converter.bufferIndex(.{ .block = 4, .point = .{ 0, 20 } })] == .fixed);
+        std.debug.assert(boundary_points.kind.buffer[try boundary_points.index_converter.bufferIndex(.{ .block = 4, .point = .{ 194, 20 } })] == .fixed);
+        std.debug.assert(boundary_points.kind.buffer[try boundary_points.index_converter.bufferIndex(.{ .block = 2, .point = .{ 53, 0 } })] == .fixed);
+        std.debug.assert(boundary_points.kind.buffer[try boundary_points.index_converter.bufferIndex(.{ .block = 2, .point = .{ 0, 115 } })] == .fixed);
+        std.debug.assert(boundary_points.kind.buffer[try boundary_points.index_converter.bufferIndex(.{ .block = 5, .point = .{ 0, 23 } })] == .fixed);
+        std.debug.assert(boundary_points.kind.buffer[try boundary_points.index_converter.bufferIndex(.{ .block = 5, .point = .{ 194, 23 } })] == .fixed);
 
-        // TODO: either check that all boundary points are defined (would work with a tagged union) or handle end points of connections seperately (if
-        // these are not junction points, set the 1st to fixed and connect the 2nd).
-
-        // TODO: remove this hard coding of the end points of the 1st connection.
-        {
-            // try connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 4, .point = .{ 0, 0 } }, mesh_data)].append(26221);
-
-            // connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 4, .point = .{ 0, 0 } }, size)].clear();
-            connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 4, .point = .{ 0, 20 } }, mesh_data)].clear();
-            // connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 4, .point = .{ 115, 0 } }, size)].clear();
-            // connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 2, .point = .{ 53, 115 } }, mesh_data)].clear();
-            connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 2, .point = .{ 53, 0 } }, mesh_data)].clear();
-            connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 2, .point = .{ 0, 115 } }, mesh_data)].clear();
-
-            // TODO: adjust points for periodic connection!
-            connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 5, .point = .{ 0, 23 } }, mesh_data)].clear();
-            connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 5, .point = .{ 194, 23 } }, mesh_data)].clear();
-            connected_points.data.buffer[try connected_points.data.bufferIndex(.{ .block = 4, .point = .{ 194, 20 } }, mesh_data)].clear();
-        }
-
-        // sort junction point data in ascending order
-        for (connected_points.data.buffer, 0..) |*point_data, idx| {
-            if (point_data.len > 1) {
-                // add yourself to have a consistent ordering for all points
-                const global_idx = connected_points.data.pointIndex(idx, mesh_data);
-                try point_data.append(@intCast(global_idx));
-
-                std.mem.sort(c_int, point_data.slice(), {}, std.sort.asc(c_int));
-            }
-        }
-
-        return connected_points;
+        return boundary_points;
     }
 
-    fn deinit(self: BlockBoundaryPointConnections) void {
-        self.data.deinit();
-        // self.tags.deinit();
+    fn appendIfUnique(global_ids: *std.BoundedArray(usize, 5), id: usize) !void {
+        for (global_ids.slice()) |existing_id| {
+            if (existing_id == id) return;
+        }
+
+        try global_ids.append(id);
     }
 
-    /// returns the kind (i.e. how to treat the point w.r.t. smoothing) for the given boundary point index.
-    fn getKind(self: BlockBoundaryPointConnections, bounday_point_index: usize, global_point_index: usize) BlockBoundaryPointKind {
-        const point_data = self.data.buffer[bounday_point_index];
-
-        return switch (point_data.len) {
-            0 => .fix,
-            // TODO: remove this test out of here: return a struct that has a func to test this.
-            1 => if (point_data.get(0) > global_point_index) .smooth else .connect, // smooth lower index point and connect higher index point
-            else => {
-                for (point_data.slice()[1..]) |p| std.debug.assert(point_data.get(0) < p);
-                return if (point_data.get(0) == global_point_index) .junction else .connect; // treat first point as junction and the others as connected to the first point
-            },
-        };
+    fn deinit(self: BlockBoundaryPoints) void {
+        self.kind.deinit();
+        self.index_converter.deinit();
+        self.laplacian_points.deinit();
     }
 };
 
@@ -1094,8 +1205,8 @@ const IndexConverter = struct {
         self.allocator.free(self.global_point_index_range_start);
     }
 
-    fn globalIndex(self: IndexConverter, block: usize, local_idx: LocalIndex) GlobalIndex {
-        return .{ .value = self.global_point_index_range_start[block].value + local_idx.value };
+    fn globalIndex(self: IndexConverter, block_local_idx: BlockAndLocalIndex) GlobalIndex {
+        return .{ .value = self.global_point_index_range_start[block_local_idx.block].value + block_local_idx.local_idx.value };
     }
 
     fn localIndex(self: IndexConverter, global_idx: GlobalIndex) BlockAndLocalIndex {
@@ -1115,3 +1226,11 @@ const IndexConverter = struct {
         return .{ .block = block_and_local_idx.block, .point = point_idx };
     }
 };
+
+fn computeBufferIds(local_ids: [2]BlockAndLocalIndex, index_converter: boundary.PointDataBufferIndexConverter) ![2]usize {
+    const local2d = .{
+        IndexConverter.index(local_ids[0], index_converter.mesh),
+        IndexConverter.index(local_ids[1], index_converter.mesh),
+    };
+    return .{ try index_converter.bufferIndex(local2d[0]), try index_converter.bufferIndex(local2d[1]) };
+}

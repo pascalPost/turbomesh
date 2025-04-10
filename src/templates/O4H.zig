@@ -304,7 +304,7 @@ const O4H = struct {
         const up = try discrete.Block2d.init(allocator, up_i_min, up_i_max, up_j_min, up_j_max);
 
         try mesh.addBlock("up", up);
-        const up_id = mesh.blocks.items.len - 1;
+        // const up_id = mesh.blocks.items.len - 1;
 
         //
         // Block UPSTREAM (6)
@@ -399,10 +399,10 @@ const O4H = struct {
             //     .{ .block = up_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.up_j },
             //     .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j + in_j_min.points.len - 1, .end = upstream_j_max.points.len - 1 },
             // }),
-            boundary.Connection.init(.{
-                .{ .block = down_id, .side = boundary.Side.i_max, .start = 0, .end = down_i_min.points.len - 1 },
-                .{ .block = up_id, .side = boundary.Side.i_max, .start = down_i_min.points.len - 1, .end = 0 },
-            }, .{ .data = .{ 0, self.pitch } }),
+            // boundary.Connection.init(.{
+            //     .{ .block = down_id, .side = boundary.Side.i_max, .start = 0, .end = down_i_min.points.len - 1 },
+            //     .{ .block = up_id, .side = boundary.Side.i_max, .start = down_i_min.points.len - 1, .end = 0 },
+            // }, .{ .data = .{ 0, self.pitch } }),
         });
 
         // Boundary conditions
