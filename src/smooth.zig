@@ -324,14 +324,11 @@ const RowCompressedMatrixSystem2d = struct {
         boundary_point_id: *usize,
         boundary_points: BlockBoundaryPoints,
         row_idx: *c_int, // equivalent to the global point index
+        laplacian_count: *usize,
     ) !void {
-        // for all points on the boundary we need to check how this point is to be added to the system matrix:
-        // - fixed point: only a single entry with the current coordinates on the RHS
-        // - smoothed: 9 entries for the full stencil
-        // - laplacian: TBD (probably also 9 entries) TODO: fill this info.
-
         switch (boundary_points.kind.buffer[boundary_point_id.*]) {
             .fixed => {
+                // single entry with the current coordinates on the RHS
                 try non_zero_entries.append(row_idx.*); // A[i, j]
             },
             .smoothed => {
@@ -345,19 +342,9 @@ const RowCompressedMatrixSystem2d = struct {
                 _ = try non_zero_entries.addManyAsSlice(2);
             },
             .laplacian_smoothed => {
-                // TODO: remove hard coding. Check that for this point the data is set correctly.
-                std.debug.assert(row_idx.* == 26221);
-                _ = try non_zero_entries.appendSlice(&[_]c_int{
-                    26104,
-                    26105,
-                    26220,
-                    26221,
-                    31305,
-                    31326,
-                    43119,
-                    43120,
-                    43121,
-                });
+                const stencil_ids = boundary_points.laplacian_points.items[laplacian_count.*].stencil_ids.slice();
+                try non_zero_entries.appendSlice(stencil_ids);
+                laplacian_count.* += 1;
             },
         }
         boundary_point_id.* += 1;
@@ -373,6 +360,7 @@ const RowCompressedMatrixSystem2d = struct {
     ) !void {
         var boundary_point_idx: usize = 0;
         var row_idx: c_int = 0;
+        var laplacian_count: usize = 0; // needed for accessing the right laplacian point info
         for (self.mesh.blocks.items) |block| {
             const col_size: c_int = @intCast(block.points.size[1]);
 
@@ -388,14 +376,14 @@ const RowCompressedMatrixSystem2d = struct {
 
             // edge j_min
             for (0..block.points.size[1]) |_| {
-                try initNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, self.boundary_points, &row_idx);
+                try initNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, self.boundary_points, &row_idx, &laplacian_count);
             }
 
             // middle
             for (1..block.points.size[0] - 1) |_| {
 
                 // edge i_min
-                try initNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, self.boundary_points, &row_idx);
+                try initNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, self.boundary_points, &row_idx, &laplacian_count);
 
                 // internal points with full 9 point stencil
                 for (1..block.points.size[1] - 1) |_| {
@@ -413,12 +401,12 @@ const RowCompressedMatrixSystem2d = struct {
                 }
 
                 // edge i_max
-                try initNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, self.boundary_points, &row_idx);
+                try initNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, self.boundary_points, &row_idx, &laplacian_count);
             }
 
             // edge j_max
             for (0..block.points.size[1]) |_| {
-                try initNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, self.boundary_points, &row_idx);
+                try initNonZeroMatrixEntriesForBoundaryPoint(non_zero_entries, row_count, &boundary_point_idx, self.boundary_points, &row_idx, &laplacian_count);
             }
         }
     }
@@ -527,7 +515,7 @@ const RowCompressedMatrixSystem2d = struct {
         non_zero_entries: *std.ArrayList(c_int),
         index_converter: IndexConverter,
     ) !void {
-        const local_id_2d = IndexConverter.index(.{ .block = connection.ranges[0].block, .local_idx = local_ids[0] }, self.mesh);
+        const local_id_2d = index_converter.index2d(.{ .block = connection.ranges[0].block, .local_idx = local_ids[0] });
         const buffer_id = try self.boundary_points.index_converter.bufferIndex(local_id_2d);
 
         switch (self.boundary_points.kind.buffer[buffer_id]) {
@@ -586,6 +574,7 @@ const RowCompressedMatrixSystem2d = struct {
         row_id: *usize,
         point_id: *usize,
         non_zero_entry_id: *usize,
+        laplacian_count: *usize,
     ) void {
         // TODO: remove setting the RHS in this loop. It only needs to be set once before looping.
 
@@ -616,20 +605,28 @@ const RowCompressedMatrixSystem2d = struct {
                 self.rhs_y[row_id.*] = 0;
             },
             .laplacian_smoothed => {
-                // TODO: remove this hardcoding!
-                self.lhs_values[non_zero_entry_id.*] = 1; // 26104
-                self.lhs_values[non_zero_entry_id.* + 1] = 1; // 26105
-                self.lhs_values[non_zero_entry_id.* + 2] = 1; // 26220
-                self.lhs_values[non_zero_entry_id.* + 3] = -8; // 26221
-                self.lhs_values[non_zero_entry_id.* + 4] = 1; // 31305
-                self.lhs_values[non_zero_entry_id.* + 5] = 1; // 31326
-                self.lhs_values[non_zero_entry_id.* + 6] = 1; // 43119
-                self.lhs_values[non_zero_entry_id.* + 7] = 1; // 43120
-                self.lhs_values[non_zero_entry_id.* + 8] = 1; // 43121
-                non_zero_entry_id.* += 9;
+                const laplacian_point = self.boundary_points.laplacian_points.items[laplacian_count.*];
+
+                const laplacian_point_id = laplacian_point.global_ids.get(0);
+
+                var point_position_in_stencil: usize = 0;
+                for (laplacian_point.stencil_ids.slice()) |global_id| {
+                    if (global_id == laplacian_point_id) break;
+                    point_position_in_stencil += 1;
+                }
+
+                // account for all stencil entries (the point itself is adjusted next)
+                for (0..laplacian_point.stencil_ids.len) |i| self.lhs_values[non_zero_entry_id.* + i] = 1;
+
+                // account for the point itself
+                self.lhs_values[non_zero_entry_id.* + point_position_in_stencil] = -@as(f64, @floatFromInt(laplacian_point.stencil_ids.len)) + 1;
+
+                non_zero_entry_id.* += laplacian_point.stencil_ids.len;
 
                 self.rhs_x[row_id.*] = 0;
                 self.rhs_y[row_id.*] = 0;
+
+                laplacian_count.* += 1;
             },
         }
 
@@ -642,20 +639,22 @@ const RowCompressedMatrixSystem2d = struct {
         var non_zero_entry_idx: usize = 0;
         var row_idx: usize = 0;
         var boundary_point_idx: usize = 0;
+        var laplacian_count: usize = 0;
 
         for (self.mesh.blocks.items) |block| {
             var point_idx: usize = 0;
 
             // edge j_min
             for (0..block.points.size[1]) |_| {
-                self.initBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+                self.initBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx, &laplacian_count);
             }
 
             for (1..block.points.size[0] - 1) |_| {
                 // edge i_min
-                self.initBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+                self.initBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx, &laplacian_count);
 
                 // middle
+                // TODO: remove this loop and just add the right count in one step!!!!
                 for (1..block.points.size[1] - 1) |_| {
                     non_zero_entry_idx += 9;
                     point_idx += 1;
@@ -663,12 +662,12 @@ const RowCompressedMatrixSystem2d = struct {
                 }
 
                 // edge i_max
-                self.initBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+                self.initBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx, &laplacian_count);
             }
 
             // edge j_max
             for (0..block.points.size[1]) |_| {
-                self.initBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx);
+                self.initBoundaryPointData(block, &boundary_point_idx, &row_idx, &point_idx, &non_zero_entry_idx, &laplacian_count);
             }
         }
 
@@ -927,7 +926,11 @@ const BlockBoundaryPoints = struct {
     laplacian_points: std.ArrayList(LaplacianPoint),
 
     const LaplacianPoint = struct {
-        global_ids: std.BoundedArray(usize, 5),
+        /// global ids of the overlapping points; the first entry is the global id that is used for the smoothing.
+        global_ids: std.BoundedArray(usize, 4),
+
+        /// stencil ids that are used in the system matrix; this includes the point itself.
+        stencil_ids: std.BoundedArray(c_int, 5),
     };
 
     fn init(allocator: std.mem.Allocator, index_converter: IndexConverter, mesh_data: *const discrete.Mesh) !BlockBoundaryPoints {
@@ -978,7 +981,7 @@ const BlockBoundaryPoints = struct {
                     }
 
                     if (!exisitng_point_found) {
-                        var global_ids = try std.BoundedArray(usize, 5).init(0);
+                        var global_ids = try std.BoundedArray(usize, 4).init(0);
                         try global_ids.appendSlice(&.{
                             endpoint_ids[points[0] * 2],
                             endpoint_ids[points[0] * 2 + 1],
@@ -989,7 +992,8 @@ const BlockBoundaryPoints = struct {
                         try appendIfUnique(&global_ids, endpoint_ids[points[1] * 2]);
                         try appendIfUnique(&global_ids, endpoint_ids[points[1] * 2 + 1]);
 
-                        try boundary_points.laplacian_points.append(.{ .global_ids = global_ids });
+                        //NOTE: we search the neighbors next.
+                        try boundary_points.laplacian_points.append(.{ .global_ids = global_ids, .stencil_ids = try .init(0) });
                     }
                 }
             }
@@ -1007,6 +1011,64 @@ const BlockBoundaryPoints = struct {
             }
         }.inner);
 
+        // set the stencil ids
+        for (boundary_points.laplacian_points.items) |*laplacian_point| {
+            try laplacian_point.stencil_ids.append(@intCast(laplacian_point.global_ids.get(0))); // add laplacian point to stencil
+
+            // add neighboring points
+            for (laplacian_point.global_ids.slice()) |point_global_id| {
+                const local_id = index_converter.localIndex(.{ .value = point_global_id });
+                const local_2d = index_converter.index2d(local_id);
+
+                // check if it is a corner or an internal point
+                const size = mesh_data.blocks.items[local_2d.block].points.size;
+
+                const internal_points: [2]?types.Index2d = blk: {
+                    if (local_2d.point[0] == 0) {
+                        // j_min
+                        if (local_2d.point[1] == 0) {
+                            break :blk .{ .{ 1, 1 }, null };
+                        } else if (local_2d.point[1] == size[1] - 1) {
+                            break :blk .{ .{ 1, size[1] - 2 }, null };
+                        } else {
+                            break :blk .{ .{ 1, local_2d.point[1] - 1 }, .{ 1, local_2d.point[1] + 1 } };
+                        }
+                    } else if (local_2d.point[0] == size[0] - 1) {
+                        // j_max
+                        if (local_2d.point[1] == 0) {
+                            break :blk .{ .{ size[0] - 2, 1 }, null };
+                        } else if (local_2d.point[1] == size[1] - 1) {
+                            break :blk .{ .{ size[0] - 2, size[1] - 2 }, null };
+                        } else {
+                            break :blk .{ .{ size[0] - 2, local_2d.point[1] - 1 }, .{ size[0] - 2, local_2d.point[1] + 1 } };
+                        }
+                    } else {
+                        std.debug.assert(local_2d.point[1] == 0 or local_2d.point[1] == size[1] - 1);
+                        if (local_2d.point[1] == 0) {
+                            break :blk .{ .{ local_2d.point[0] - 1, 1 }, .{ local_2d.point[0] + 1, 1 } };
+                        } else if (local_2d.point[1] == size[1] - 1) {
+                            break :blk .{ .{ local_2d.point[0] - 1, local_2d.point[1] - 1 }, .{ local_2d.point[0] + 1, local_2d.point[1] - 1 } };
+                        } else {
+                            unreachable; // it is not possible to land here!
+                        }
+                    }
+                };
+
+                for (internal_points) |point| {
+                    if (point) |p| {
+                        const global_id = index_converter.globalIndex(index_converter.index(.{ .block = local_id.block, .point = p }));
+                        try laplacian_point.stencil_ids.append(@intCast(global_id.value));
+                    }
+                }
+            }
+
+            // sort the ids
+            std.mem.sort(c_int, laplacian_point.stencil_ids.slice(), {}, comptime std.sort.asc(c_int));
+        }
+
+        std.debug.print("neighbor ids: {any}\n", .{boundary_points.laplacian_points.items[0].stencil_ids.slice()});
+        std.debug.assert(std.mem.eql(c_int, boundary_points.laplacian_points.items[0].stencil_ids.slice(), &.{ 26104, 26221, 31326, 43119, 43121 }));
+
         // set kind (how to smooth the point)
         @memset(boundary_points.kind.buffer, .fixed);
 
@@ -1016,7 +1078,7 @@ const BlockBoundaryPoints = struct {
                 // set lowest point to laplacian smoothed
                 const global_id = laplacian_point.global_ids.get(0);
                 const local_id = index_converter.localIndex(.{ .value = global_id });
-                const local_id_2d = IndexConverter.index(local_id, mesh_data);
+                const local_id_2d = index_converter.index2d(local_id);
                 const buffer_id = try boundary_points.index_converter.bufferIndex(local_id_2d);
                 boundary_points.kind.buffer[buffer_id] = .laplacian_smoothed;
             }
@@ -1024,7 +1086,7 @@ const BlockBoundaryPoints = struct {
             // all other point are connected to the laplacian smoothed point
             for (laplacian_point.global_ids.slice()[1..]) |global_id| {
                 const local_id = index_converter.localIndex(.{ .value = global_id });
-                const local_id_2d = IndexConverter.index(local_id, mesh_data);
+                const local_id_2d = index_converter.index2d(local_id);
                 const buffer_id = try boundary_points.index_converter.bufferIndex(local_id_2d);
                 boundary_points.kind.buffer[buffer_id] = .connected;
             }
@@ -1042,7 +1104,7 @@ const BlockBoundaryPoints = struct {
                 const buffer_ids = try computeBufferIds(.{
                     .{ .block = connection.ranges[0].block, .local_idx = .{ .value = local_ids[0] } },
                     .{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1] } },
-                }, boundary_points.index_converter);
+                }, index_converter, boundary_points.index_converter);
 
                 // 1st point is already set
                 std.debug.assert(boundary_points.kind.buffer[buffer_ids[1]] == .fixed or boundary_points.kind.buffer[buffer_ids[1]] == .connected);
@@ -1055,7 +1117,7 @@ const BlockBoundaryPoints = struct {
                 const buffer_ids = try computeBufferIds(.{
                     .{ .block = connection.ranges[0].block, .local_idx = .{ .value = local_ids[0] } },
                     .{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1] } },
-                }, boundary_points.index_converter);
+                }, index_converter, boundary_points.index_converter);
                 boundary_points.kind.buffer[buffer_ids[0]] = .smoothed;
                 boundary_points.kind.buffer[buffer_ids[1]] = .connected;
             }
@@ -1066,7 +1128,7 @@ const BlockBoundaryPoints = struct {
                 const buffer_ids = try computeBufferIds(.{
                     .{ .block = connection.ranges[0].block, .local_idx = .{ .value = local_ids[0] } },
                     .{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1] } },
-                }, boundary_points.index_converter);
+                }, index_converter, boundary_points.index_converter);
 
                 // 1st point is already set
                 std.debug.assert(boundary_points.kind.buffer[buffer_ids[1]] == .fixed or boundary_points.kind.buffer[buffer_ids[1]] == .connected);
@@ -1085,7 +1147,7 @@ const BlockBoundaryPoints = struct {
         return boundary_points;
     }
 
-    fn appendIfUnique(global_ids: *std.BoundedArray(usize, 5), id: usize) !void {
+    fn appendIfUnique(global_ids: *std.BoundedArray(usize, 4), id: usize) !void {
         for (global_ids.slice()) |existing_id| {
             if (existing_id == id) return;
         }
@@ -1185,6 +1247,7 @@ const BlockAndLocalIndex = struct { block: usize, local_idx: LocalIndex };
 const IndexConverter = struct {
     allocator: std.mem.Allocator,
     global_point_index_range_start: []GlobalIndex,
+    mesh: *const discrete.Mesh,
 
     fn init(mesh_data: *const discrete.Mesh, allocator: std.mem.Allocator) !IndexConverter {
         var global_point_index_range_start = try allocator.alloc(GlobalIndex, mesh_data.blocks.items.len);
@@ -1198,6 +1261,7 @@ const IndexConverter = struct {
         return .{
             .allocator = allocator,
             .global_point_index_range_start = global_point_index_range_start,
+            .mesh = mesh_data,
         };
     }
 
@@ -1216,8 +1280,8 @@ const IndexConverter = struct {
         return .{ .block = block_idx, .local_idx = .{ .value = local_idx } };
     }
 
-    fn index(block_and_local_idx: BlockAndLocalIndex, mesh_data: *const discrete.Mesh) types.MeshIndex2d {
-        const block = mesh_data.blocks.items[block_and_local_idx.block];
+    fn index2d(self: IndexConverter, block_and_local_idx: BlockAndLocalIndex) types.MeshIndex2d {
+        const block = self.mesh.blocks.items[block_and_local_idx.block];
         const point_idx = blk: {
             const point_i = @divTrunc(block_and_local_idx.local_idx.value, block.points.size[1]);
             const point_j = block_and_local_idx.local_idx.value - point_i * block.points.size[1];
@@ -1225,12 +1289,14 @@ const IndexConverter = struct {
         };
         return .{ .block = block_and_local_idx.block, .point = point_idx };
     }
+
+    fn index(self: IndexConverter, point: types.MeshIndex2d) BlockAndLocalIndex {
+        const size = self.mesh.blocks.items[point.block].points.size;
+        return .{ .block = point.block, .local_idx = .{ .value = point.point[0] * size[1] + point.point[1] } };
+    }
 };
 
-fn computeBufferIds(local_ids: [2]BlockAndLocalIndex, index_converter: boundary.PointDataBufferIndexConverter) ![2]usize {
-    const local2d = .{
-        IndexConverter.index(local_ids[0], index_converter.mesh),
-        IndexConverter.index(local_ids[1], index_converter.mesh),
-    };
-    return .{ try index_converter.bufferIndex(local2d[0]), try index_converter.bufferIndex(local2d[1]) };
+fn computeBufferIds(local_ids: [2]BlockAndLocalIndex, point_index_converter: IndexConverter, boundary_index_converter: boundary.PointDataBufferIndexConverter) ![2]usize {
+    const local2d = .{ point_index_converter.index2d(local_ids[0]), point_index_converter.index2d(local_ids[1]) };
+    return .{ try boundary_index_converter.bufferIndex(local2d[0]), try boundary_index_converter.bufferIndex(local2d[1]) };
 }
