@@ -411,6 +411,106 @@ const RowCompressedMatrixSystem2d = struct {
         }
     }
 
+    fn computeConnectionStencilPositions(connection: boundary.Connection, it: RangeFillMatrixIterator) [9]usize {
+        // NOTE: this is needed to add the point indices in ascending order depending on the direction of the connection (see the non zero matrix entries definition).
+
+        // handle connections to within a block
+        if (connection.ranges[0].block == connection.ranges[1].block) {
+            if (connection.ranges[0].side == .i_min and connection.ranges[1].side == .i_max) {
+                if (it.in_connection_direction_shift[0] > 0) {
+
+                    // x----x----x  i_max
+                    //
+                    // x    x    x
+                    // 2    5    8
+                    //
+                    // ~~~~~~~~~~~~
+                    //
+                    //
+                    // x    x    x
+                    // 1    4    7
+                    //
+                    // x----x----x -> connection i_min
+                    // 0    3    6
+
+                    std.debug.assert(it.in_connection_direction_shift[1] > 0);
+                    return .{
+                        1, 4, 7, // internal points on i_min side
+                        0, 3, 6, // points on connection
+                        2, 5, 8, // internal points on i_max side
+                    };
+                } else {
+
+                    // transpose of the points above as the connection runs in the opposite direction
+
+                    std.debug.assert(it.in_connection_direction_shift[1] < 0);
+                    return .{
+                        7, 4, 1, // internal points on i_min side
+                        6, 3, 0, // points on connection
+                        8, 5, 2, // internal points on i_max side
+                    };
+                }
+            } else {
+                unreachable;
+            }
+        }
+
+        std.debug.assert(connection.ranges[0].block < connection.ranges[1].block);
+
+        const direction_modifier: [2]c_int = .{
+            if (it.in_connection_direction_shift[0] > 0) 1.0 else -1.0,
+            if (it.in_connection_direction_shift[1] > 0) 1.0 else -1.0,
+        };
+
+        // NOTE: this is needed to have the right ordering of the points taken from the 0th block of the connection (entries 0 - 5):
+        // the ordering is first the points inside block 0 ([i-1,j-1],[i,j-1],[i+1,j-1]) and then the points on the connection
+        // ([i-1,j],[i,j],[i+1,j]).
+
+        var positions: [9]usize = undefined;
+
+        switch (connection.ranges[0].side) {
+            .i_min => {
+                positions[0] = @intCast(3 - 2 * direction_modifier[0]);
+                positions[1] = 3;
+                positions[2] = @intCast(3 + 2 * direction_modifier[0]);
+                positions[3] = @intCast(2 - 2 * direction_modifier[0]);
+                positions[4] = 2;
+                positions[5] = @intCast(2 + 2 * direction_modifier[0]);
+            },
+            .i_max => {
+                positions[0] = @intCast(2 - 2 * direction_modifier[0]);
+                positions[1] = 2;
+                positions[2] = @intCast(2 + 2 * direction_modifier[0]);
+                positions[3] = @intCast(3 - 2 * direction_modifier[0]);
+                positions[4] = 3;
+                positions[5] = @intCast(3 + 2 * direction_modifier[0]);
+            },
+            .j_min => {
+                positions[0] = @intCast(4 - direction_modifier[0]);
+                positions[1] = 4;
+                positions[2] = @intCast(4 + direction_modifier[0]);
+                positions[3] = @intCast(1 - direction_modifier[0]);
+                positions[4] = 1;
+                positions[5] = @intCast(1 + direction_modifier[0]);
+            },
+            .j_max => {
+                positions[0] = @intCast(1 - direction_modifier[0]);
+                positions[1] = 1;
+                positions[2] = @intCast(1 + direction_modifier[0]);
+                positions[3] = @intCast(4 - direction_modifier[0]);
+                positions[4] = 4;
+                positions[5] = @intCast(4 + direction_modifier[0]);
+            },
+        }
+
+        // positions in block 1
+        positions[6] = @intCast(7 - direction_modifier[1]);
+        positions[7] = 7;
+        positions[8] = @intCast(7 + direction_modifier[1]);
+
+        return positions;
+    }
+
     fn initNonZeroMatrixEntriesConnectionBased(
         self: @This(),
         non_zero_entries: *std.ArrayList(c_int),
@@ -421,7 +521,7 @@ const RowCompressedMatrixSystem2d = struct {
             // otherwise we run into an invalid matrix error. We could handle this here dynamically in the future:
             // - move index 0 to a variable lower_idx_block
             // - move index 1 to a variable higher_idx_block
-            std.debug.assert(connection.ranges[0].block < connection.ranges[1].block);
+            std.debug.assert(connection.ranges[0].block <= connection.ranges[1].block);
 
             // we need at least the two extreme points handled in the current implementation;
             // it should be simple to add handling of the edge cases.
@@ -431,14 +531,7 @@ const RowCompressedMatrixSystem2d = struct {
             // as required by the compressed row format
             var it = RangeFillMatrixIterator.init(connection, self.mesh);
 
-            // NOTE: this is needed to add the point indices in ascending order depending on the direction of the connection.
-            const direction_modifier: [2]c_int = .{
-                if (it.in_connection_direction_shift[0] > 0) 1.0 else -1.0,
-                if (it.in_connection_direction_shift[1] > 0) 1.0 else -1.0,
-            };
-
-            // NOTE: this is needed to have the right ordering of the points taken from the 0th block of the connection.
-            const shift: [2]c_int = if (it.first_internal_point_shift[0] > 0) .{ 0, it.first_internal_point_shift[0] } else .{ it.first_internal_point_shift[0], 0 };
+            const point_stencil_idx = computeConnectionStencilPositions(connection, it);
 
             try self.initNonZeroMatrixForConnectionEndpoint(it.next().?, connection, non_zero_entries, index_converter);
 
@@ -464,39 +557,27 @@ const RowCompressedMatrixSystem2d = struct {
 
                     // NOTE: here we set the data based on the connections; the allocation happend in the previous function based on a point loop.
 
-                    // TODO: do this w/o switch; e.g., via the indices set once for a connection.
-                    switch (connection.ranges[0].side) {
-                        .i_min, .i_max => {
-                            non_zero_entries.items[row_non_zero_entries_start_idx] = connected_points_global_idx[0] + shift[0] - it.in_connection_direction_shift[0] * direction_modifier[0];
-                            non_zero_entries.items[row_non_zero_entries_start_idx + 2] = connected_points_global_idx[0] + shift[0];
-                            non_zero_entries.items[row_non_zero_entries_start_idx + 4] = connected_points_global_idx[0] + shift[0] + it.in_connection_direction_shift[0] * direction_modifier[0];
+                    // points inside block 0
+                    non_zero_entries.items[row_non_zero_entries_start_idx + point_stencil_idx[0]] = connected_points_global_idx[0] - it.in_connection_direction_shift[0] + it.first_internal_point_shift[0]; // i-1,j-1
+                    non_zero_entries.items[row_non_zero_entries_start_idx + point_stencil_idx[1]] = connected_points_global_idx[0] + it.first_internal_point_shift[0]; // i,j-1
+                    non_zero_entries.items[row_non_zero_entries_start_idx + point_stencil_idx[2]] = connected_points_global_idx[0] + it.in_connection_direction_shift[0] + it.first_internal_point_shift[0]; //i+1,j-1
 
-                            non_zero_entries.items[row_non_zero_entries_start_idx + 1] = connected_points_global_idx[0] + shift[1] - it.in_connection_direction_shift[0] * direction_modifier[0];
-                            non_zero_entries.items[row_non_zero_entries_start_idx + 3] = connected_points_global_idx[0] + shift[1];
-                            non_zero_entries.items[row_non_zero_entries_start_idx + 5] = connected_points_global_idx[0] + shift[1] + it.in_connection_direction_shift[0] * direction_modifier[0];
-                        },
-                        .j_min, .j_max => {
-                            non_zero_entries.items[row_non_zero_entries_start_idx] = connected_points_global_idx[0] + shift[0] - it.in_connection_direction_shift[0] * direction_modifier[0];
-                            non_zero_entries.items[row_non_zero_entries_start_idx + 1] = connected_points_global_idx[0] + shift[0];
-                            non_zero_entries.items[row_non_zero_entries_start_idx + 2] = connected_points_global_idx[0] + shift[0] + it.in_connection_direction_shift[0] * direction_modifier[0];
+                    // points on boundary connection (taken from block 0)
+                    non_zero_entries.items[row_non_zero_entries_start_idx + point_stencil_idx[3]] = connected_points_global_idx[0] - it.in_connection_direction_shift[0]; // i-1,j
+                    non_zero_entries.items[row_non_zero_entries_start_idx + point_stencil_idx[4]] = connected_points_global_idx[0]; // i,j
+                    non_zero_entries.items[row_non_zero_entries_start_idx + point_stencil_idx[5]] = connected_points_global_idx[0] + it.in_connection_direction_shift[0]; // i+1,j
 
-                            non_zero_entries.items[row_non_zero_entries_start_idx + 3] = connected_points_global_idx[0] + shift[1] - it.in_connection_direction_shift[0] * direction_modifier[0];
-                            non_zero_entries.items[row_non_zero_entries_start_idx + 4] = connected_points_global_idx[0] + shift[1];
-                            non_zero_entries.items[row_non_zero_entries_start_idx + 5] = connected_points_global_idx[0] + shift[1] + it.in_connection_direction_shift[0] * direction_modifier[0];
-                        },
-                    }
-
-                    // NOTE: the entries into the 2nd block always come last since the block index is higher and thus the global indices are higher.
-                    non_zero_entries.items[row_non_zero_entries_start_idx + 6] = connected_points_global_idx[1] + it.first_internal_point_shift[1] - it.in_connection_direction_shift[1] * direction_modifier[1];
-                    non_zero_entries.items[row_non_zero_entries_start_idx + 7] = connected_points_global_idx[1] + it.first_internal_point_shift[1];
-                    non_zero_entries.items[row_non_zero_entries_start_idx + 8] = connected_points_global_idx[1] + it.first_internal_point_shift[1] + it.in_connection_direction_shift[1] * direction_modifier[1];
+                    // points inside block 1
+                    non_zero_entries.items[row_non_zero_entries_start_idx + point_stencil_idx[6]] = connected_points_global_idx[1] - it.in_connection_direction_shift[1] + it.first_internal_point_shift[1]; // i-1,j+1
+                    non_zero_entries.items[row_non_zero_entries_start_idx + point_stencil_idx[7]] = connected_points_global_idx[1] + it.first_internal_point_shift[1]; // i,j+1
+                    non_zero_entries.items[row_non_zero_entries_start_idx + point_stencil_idx[8]] = connected_points_global_idx[1] + it.in_connection_direction_shift[1] + it.first_internal_point_shift[1]; // i+1,j+1
 
                     // check that we have all entries ascending as required by the row compressed format.
                     std.debug.assert(blk: {
                         for (0..8) |i| {
                             if (non_zero_entries.items[row_non_zero_entries_start_idx + i] >= non_zero_entries.items[row_non_zero_entries_start_idx + i + 1]) {
                                 std.debug.print("wrong ordering of connection stencil data for point {d}: {any}\n", .{ connected_points_global_idx[0], non_zero_entries.items[row_non_zero_entries_start_idx .. row_non_zero_entries_start_idx + 9] });
-                                break :blk true;
+                                break :blk false;
                             }
                         }
                         break :blk true;
@@ -553,7 +634,6 @@ const RowCompressedMatrixSystem2d = struct {
         // init laplacian points
 
         for (self.boundary_points.laplacian_points.items) |laplacian_point| {
-            // TODO: fill in stencil info for 1st point
             const smoothed_id = laplacian_point.global_ids.get(0);
 
             // set all other points to connected to 1st
@@ -671,14 +751,29 @@ const RowCompressedMatrixSystem2d = struct {
             }
         }
 
+        // account for periodicity
         for (self.mesh.connections.items) |connection| {
             if (connection.periodicity) |periodicity| {
                 var it = RangeFillMatrixIterator.init(connection, self.mesh);
 
-                _ = it.next();
+                // TODO: check the endpoint types!!
+                // _ = it.next();
 
                 for (0..it.count) |_| {
                     const connected_points = it.next().?;
+                    const global_idx_1 = self.row_idx_range_start_for_each_block[connection.ranges[1].block] + connected_points[1].value;
+
+                    // adjust RHS for periodicity for the connected point
+                    self.rhs_x[global_idx_1] = -periodicity.data[0];
+                    self.rhs_y[global_idx_1] = -periodicity.data[1];
+                }
+
+                // TODO: fix the RangeFillMatrixIterator to also account for the 2nd endpoint!
+                // Perhaps also create an internal iterator version and something that just gives the endpoints.
+
+                // account for 2nd endpoint
+                {
+                    const connected_points = it.position;
                     const global_idx_1 = self.row_idx_range_start_for_each_block[connection.ranges[1].block] + connected_points[1].value;
 
                     // adjust RHS for periodicity for the connected point
@@ -780,49 +875,7 @@ const RowCompressedMatrixSystem2d = struct {
             // A(matrix_idx_0)         A(matrix_idx)     A(matrix_idx_1)
             // A(matrix_idx_0 + inc_0) A(matrix_idx + 1) A(matrix_idx_1 + inc_1)
 
-            // NOTE: this is needed to add the point indices in ascending order depending on the direction of the connection (see the non zero matrix entries definition).
-            const direction_modifier: [2]isize = .{
-                if (it.in_connection_direction_shift[0] > 0) 1.0 else -1.0,
-                if (it.in_connection_direction_shift[1] > 0) 1.0 else -1.0,
-            };
-
-            // NOTE: this is needed to have the right ordering of the points taken from the 0th block of the connection (entries 0 - 5):
-            // the ordering is first the points inside block 0 ([i-1,j-1],[i,j-1],[i+1,j-2]) and then the points on the connection
-            // ([i-1,j],[i,j],[i+1,j]).
-            const point_stencil_idx: [6]usize = switch (connection.ranges[0].side) {
-                .i_min => .{
-                    @intCast(3 - 2 * direction_modifier[0]),
-                    3,
-                    @intCast(3 + 2 * direction_modifier[0]),
-                    @intCast(2 - 2 * direction_modifier[0]),
-                    2,
-                    @intCast(2 + 2 * direction_modifier[0]),
-                },
-                .i_max => .{
-                    @intCast(2 - 2 * direction_modifier[0]),
-                    2,
-                    @intCast(2 + 2 * direction_modifier[0]),
-                    @intCast(3 - 2 * direction_modifier[0]),
-                    3,
-                    @intCast(3 + 2 * direction_modifier[0]),
-                },
-                .j_min => .{
-                    @intCast(4 - direction_modifier[0]),
-                    4,
-                    @intCast(4 + direction_modifier[0]),
-                    @intCast(1 - direction_modifier[0]),
-                    1,
-                    @intCast(1 + direction_modifier[0]),
-                },
-                .j_max => .{
-                    @intCast(1 - direction_modifier[0]),
-                    1,
-                    @intCast(1 + direction_modifier[0]),
-                    @intCast(4 - direction_modifier[0]),
-                    4,
-                    @intCast(4 + direction_modifier[0]),
-                },
-            };
+            const point_stencil_idx = computeConnectionStencilPositions(connection, it);
 
             _ = it.next();
 
@@ -853,9 +906,9 @@ const RowCompressedMatrixSystem2d = struct {
                     self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[5]] = stencil.get(.ip1_j);
 
                     // points inside block 1
-                    self.lhs_values[row_non_zero_entries_start_idx + @as(usize, @intCast(7 - direction_modifier[1]))] = stencil.get(.im1_jp1);
-                    self.lhs_values[row_non_zero_entries_start_idx + 7] = stencil.get(.i_jp1);
-                    self.lhs_values[row_non_zero_entries_start_idx + @as(usize, @intCast(7 + direction_modifier[1]))] = stencil.get(.ip1_jp1);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[6]] = stencil.get(.im1_jp1);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[7]] = stencil.get(.i_jp1);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[8]] = stencil.get(.ip1_jp1);
 
                     // adjust RHS for periodicity
                     self.rhs_x[@intCast(global_idx_0)] = -periodicity.data[0] * (stencil.get(.im1_jp1) + stencil.get(.i_jp1) + stencil.get(.ip1_jp1));
@@ -888,9 +941,9 @@ const RowCompressedMatrixSystem2d = struct {
                     self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[5]] = stencil.get(.ip1_j);
 
                     // points inside block 1
-                    self.lhs_values[row_non_zero_entries_start_idx + @as(usize, @intCast(7 - direction_modifier[1]))] = stencil.get(.im1_jp1);
-                    self.lhs_values[row_non_zero_entries_start_idx + 7] = stencil.get(.i_jp1);
-                    self.lhs_values[row_non_zero_entries_start_idx + @as(usize, @intCast(7 + direction_modifier[1]))] = stencil.get(.ip1_jp1);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[6]] = stencil.get(.im1_jp1);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[7]] = stencil.get(.i_jp1);
+                    self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[8]] = stencil.get(.ip1_jp1);
 
                     // NOTE: RHS is already set in the point based loop.
                 }
@@ -925,12 +978,14 @@ const BlockBoundaryPoints = struct {
     index_converter: boundary.PointDataBufferIndexConverter,
     laplacian_points: std.ArrayList(LaplacianPoint),
 
+    // TODO: consider enhancing the periodicity handling of laplacian points by e.g. moving AoS to SoA
+
     const LaplacianPoint = struct {
         /// global ids of the overlapping points; the first entry is the global id that is used for the smoothing.
         global_ids: std.BoundedArray(usize, 4),
 
         /// stencil ids that are used in the system matrix; this includes the point itself.
-        stencil_ids: std.BoundedArray(c_int, 5),
+        stencil_ids: std.BoundedArray(c_int, 6),
     };
 
     fn init(allocator: std.mem.Allocator, index_converter: IndexConverter, mesh_data: *const discrete.Mesh) !BlockBoundaryPoints {
@@ -943,7 +998,6 @@ const BlockBoundaryPoints = struct {
 
         // collect connection endpoint ids into a flat array (start_00, start_01, end_00, end_01, start_10, start_11, end_10, end_11, ...)
         var endpoint_ids = try allocator.alloc(usize, mesh_data.connections.items.len * 4);
-        errdefer allocator.free(endpoint_ids);
         defer allocator.free(endpoint_ids);
 
         for (mesh_data.connections.items, 0..) |connection, connection_id| {
@@ -988,6 +1042,22 @@ const BlockBoundaryPoints = struct {
                         });
 
                         std.debug.assert(global_ids.get(0) != global_ids.get(1));
+
+                        std.debug.assert(blk: {
+                            const local_ids = .{
+                                index_converter.localIndex(.{ .value = global_ids.get(0) }),
+                                index_converter.localIndex(.{ .value = global_ids.get(1) }),
+                            };
+
+                            const local_ids_2d = .{ index_converter.index2d(local_ids[0]), index_converter.index2d(local_ids[1]) };
+
+                            const coords = .{
+                                mesh_data.blocks.items[local_ids[0].block].points.getIndex(local_ids_2d[0].point),
+                                mesh_data.blocks.items[local_ids[1].block].points.getIndex(local_ids_2d[1].point),
+                            };
+
+                            break :blk types.eqlApprox(coords[0], coords[1], 1e-12);
+                        });
 
                         try appendIfUnique(&global_ids, endpoint_ids[points[1] * 2]);
                         try appendIfUnique(&global_ids, endpoint_ids[points[1] * 2 + 1]);
@@ -1066,8 +1136,9 @@ const BlockBoundaryPoints = struct {
             std.mem.sort(c_int, laplacian_point.stencil_ids.slice(), {}, comptime std.sort.asc(c_int));
         }
 
-        std.debug.print("neighbor ids: {any}\n", .{boundary_points.laplacian_points.items[0].stencil_ids.slice()});
-        std.debug.assert(std.mem.eql(c_int, boundary_points.laplacian_points.items[0].stencil_ids.slice(), &.{ 26104, 26221, 31326, 43119, 43121 }));
+        for (boundary_points.laplacian_points.items) |lp| {
+            std.debug.print("lp: {any} stencil: {any}\n", .{ lp.global_ids.slice(), lp.stencil_ids.slice() });
+        }
 
         // set kind (how to smooth the point)
         @memset(boundary_points.kind.buffer, .fixed);
@@ -1106,9 +1177,10 @@ const BlockBoundaryPoints = struct {
                     .{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1] } },
                 }, index_converter, boundary_points.index_converter);
 
-                // 1st point is already set
-                std.debug.assert(boundary_points.kind.buffer[buffer_ids[1]] == .fixed or boundary_points.kind.buffer[buffer_ids[1]] == .connected);
-                boundary_points.kind.buffer[buffer_ids[1]] = .connected;
+                // set 2nd point to connect if the 1st point is fixed (laplacian points are already set!)
+                if (boundary_points.kind.buffer[buffer_ids[0]] == .fixed) {
+                    boundary_points.kind.buffer[buffer_ids[1]] = .connected;
+                }
             }
 
             // middle of the connection is smoothed (1st) and connected (2nd to 1st)
@@ -1130,19 +1202,12 @@ const BlockBoundaryPoints = struct {
                     .{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1] } },
                 }, index_converter, boundary_points.index_converter);
 
-                // 1st point is already set
-                std.debug.assert(boundary_points.kind.buffer[buffer_ids[1]] == .fixed or boundary_points.kind.buffer[buffer_ids[1]] == .connected);
-                boundary_points.kind.buffer[buffer_ids[1]] = .connected;
+                // set 2nd point to connect if the 1st point is fixed (laplacian points are already set!)
+                if (boundary_points.kind.buffer[buffer_ids[0]] == .fixed) {
+                    boundary_points.kind.buffer[buffer_ids[1]] = .connected;
+                }
             }
         }
-
-        // TODO: remove these asserts...
-        std.debug.assert(boundary_points.kind.buffer[try boundary_points.index_converter.bufferIndex(.{ .block = 4, .point = .{ 0, 20 } })] == .fixed);
-        std.debug.assert(boundary_points.kind.buffer[try boundary_points.index_converter.bufferIndex(.{ .block = 4, .point = .{ 194, 20 } })] == .fixed);
-        std.debug.assert(boundary_points.kind.buffer[try boundary_points.index_converter.bufferIndex(.{ .block = 2, .point = .{ 53, 0 } })] == .fixed);
-        std.debug.assert(boundary_points.kind.buffer[try boundary_points.index_converter.bufferIndex(.{ .block = 2, .point = .{ 0, 115 } })] == .fixed);
-        std.debug.assert(boundary_points.kind.buffer[try boundary_points.index_converter.bufferIndex(.{ .block = 5, .point = .{ 0, 23 } })] == .fixed);
-        std.debug.assert(boundary_points.kind.buffer[try boundary_points.index_converter.bufferIndex(.{ .block = 5, .point = .{ 194, 23 } })] == .fixed);
 
         return boundary_points;
     }

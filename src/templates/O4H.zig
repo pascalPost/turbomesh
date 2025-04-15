@@ -133,6 +133,7 @@ const O4H = struct {
         const ss = try discrete.Block2d.init(allocator, ss_i_min, ss_i_max, ss_j_min, ss_j_max);
 
         try mesh.addBlock("ss", ss);
+        const ss_id = mesh.blocks.items.len - 1;
 
         // Block PS (1)
         //
@@ -150,6 +151,7 @@ const O4H = struct {
         const ps = try discrete.Block2d.init(allocator, ps_i_min, ps_i_max, ps_j_min, ps_j_max);
 
         try mesh.addBlock("ps", ps);
+        const ps_id = mesh.blocks.items.len - 1;
 
         // Block IN (2)
         //
@@ -230,7 +232,7 @@ const O4H = struct {
         const out = try discrete.Block2d.init(allocator, out_i_min, out_i_max, out_j_min, out_j_max);
 
         try mesh.addBlock("out", out);
-        // const out_id = mesh.blocks.items.len - 1;
+        const out_id = mesh.blocks.items.len - 1;
 
         //
         // Block DOWN (4)
@@ -293,6 +295,8 @@ const O4H = struct {
         const up_x_00 = out_x_11;
         const up_x_10 = in_x_10;
 
+        // TODO: remove all the deinits w/ better design to increase efficiency!
+
         const up_i_max = try discrete.Edge.init(allocator, up_i_min.points.len, .{ .line = .{ .start = up_x_01, .end = up_x_11 } }, .{ .uniform = .{} });
         defer up_i_max.deinit();
 
@@ -304,7 +308,7 @@ const O4H = struct {
         const up = try discrete.Block2d.init(allocator, up_i_min, up_i_max, up_j_min, up_j_max);
 
         try mesh.addBlock("up", up);
-        // const up_id = mesh.blocks.items.len - 1;
+        const up_id = mesh.blocks.items.len - 1;
 
         //
         // Block UPSTREAM (6)
@@ -378,9 +382,9 @@ const O4H = struct {
         const downstream = try discrete.Block2d.init(allocator, downstream_i_min, downstream_i_max, downstream_j_min, downstream_j_max);
 
         try mesh.addBlock("downstream", downstream);
+        const downstream_id = mesh.blocks.items.len - 1;
 
         // Connections
-        // TODO: consider removing the Side definition... Check if this eases the code.
 
         try mesh.connections.appendSlice(&.{
             boundary.Connection.init(.{
@@ -395,18 +399,92 @@ const O4H = struct {
                 .{ .block = in_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_i },
                 .{ .block = down_id, .side = boundary.Side.i_min, .start = self.num_cells.in_i, .end = 0 },
             }, null),
-            // boundary.Connection.init(.{
-            //     .{ .block = up_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.up_j },
-            //     .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j + in_j_min.points.len - 1, .end = upstream_j_max.points.len - 1 },
-            // }),
-            // boundary.Connection.init(.{
-            //     .{ .block = down_id, .side = boundary.Side.i_max, .start = 0, .end = down_i_min.points.len - 1 },
-            //     .{ .block = up_id, .side = boundary.Side.i_max, .start = down_i_min.points.len - 1, .end = 0 },
-            // }, .{ .data = .{ 0, self.pitch } }),
+
+            boundary.Connection.init(.{
+                .{ .block = up_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.up_j },
+                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j + in_j_min.points.len - 1, .end = upstream_j_max.points.len - 1 },
+            }, null),
+            boundary.Connection.init(.{
+                .{ .block = in_id, .side = boundary.Side.i_min, .start = 0, .end = self.num_cells.in_i },
+                .{ .block = up_id, .side = boundary.Side.i_min, .start = up_i_min.points.len - self.num_cells.in_i - 1, .end = up_i_min.points.len - 1 },
+            }, null),
+
+            boundary.Connection.init(.{
+                .{ .block = down_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j, .end = 0 },
+                .{ .block = downstream_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.down_j },
+            }, null),
+            boundary.Connection.init(.{
+                .{ .block = out_id, .side = boundary.Side.j_max, .start = 0, .end = out_j_max.points.len - 1 },
+                .{ .block = downstream_id, .side = boundary.Side.j_min, .start = self.num_cells.down_j, .end = self.num_cells.down_j + out_j_max.points.len - 1 },
+            }, null),
+            boundary.Connection.init(.{
+                .{ .block = out_id, .side = boundary.Side.i_min, .start = 0, .end = self.num_cells.out_i },
+                .{ .block = down_id, .side = boundary.Side.i_min, .start = down_i_min.points.len - 1 - self.num_cells.out_i, .end = down_i_min.points.len - 1 },
+            }, null),
+
+            boundary.Connection.init(.{
+                .{ .block = out_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.out_i },
+                .{ .block = up_id, .side = boundary.Side.i_min, .start = self.num_cells.out_i, .end = 0 },
+            }, null),
+            boundary.Connection.init(.{
+                .{ .block = up_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.up_j },
+                .{ .block = downstream_id, .side = boundary.Side.j_min, .start = downstream_j_min.points.len - 1 - self.num_cells.up_j, .end = downstream_j_min.points.len - 1 },
+            }, null),
+
+            boundary.Connection.init(.{
+                .{ .block = ss_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.o_grid },
+                .{ .block = ps_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.o_grid },
+            }, null),
+            boundary.Connection.init(.{
+                .{ .block = ss_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.o_grid },
+                .{ .block = ps_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.o_grid },
+            }, null),
+
+            boundary.Connection.init(.{
+                .{ .block = ss_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_up_j },
+                .{ .block = in_id, .side = boundary.Side.j_min, .start = self.num_cells.in_up_j, .end = 0 },
+            }, null),
+            boundary.Connection.init(.{
+                .{ .block = ss_id, .side = boundary.Side.i_max, .start = self.num_cells.in_up_j, .end = self.num_cells.in_up_j + self.num_cells.middle_i },
+                .{ .block = up_id, .side = boundary.Side.i_min, .start = up_i_min.points.len - self.num_cells.in_i - 1, .end = self.num_cells.out_i },
+            }, null),
+            boundary.Connection.init(.{
+                .{ .block = ss_id, .side = boundary.Side.i_max, .start = self.num_cells.in_up_j + self.num_cells.middle_i, .end = ss_i_max.points.len - 1 },
+                .{ .block = out_id, .side = boundary.Side.j_min, .start = out_j_min.points.len - 1, .end = self.num_cells.out_down_j },
+            }, null),
+
+            boundary.Connection.init(.{
+                .{ .block = ps_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_down_j },
+                .{ .block = in_id, .side = boundary.Side.j_min, .start = self.num_cells.in_up_j, .end = in_j_min.points.len - 1 },
+            }, null),
+            boundary.Connection.init(.{
+                .{ .block = ps_id, .side = boundary.Side.i_max, .start = self.num_cells.in_down_j, .end = self.num_cells.in_down_j + self.num_cells.middle_i },
+                .{ .block = down_id, .side = boundary.Side.i_min, .start = self.num_cells.in_i, .end = down_i_min.points.len - 1 - self.num_cells.out_i },
+            }, null),
+            boundary.Connection.init(.{
+                .{ .block = ps_id, .side = boundary.Side.i_max, .start = self.num_cells.in_down_j + self.num_cells.middle_i, .end = ps_i_max.points.len - 1 },
+                .{ .block = out_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.out_down_j },
+            }, null),
+
+            // TODO: include the laplacian smoothing points
+            boundary.Connection.init(.{
+                .{ .block = upstream_id, .side = boundary.Side.i_min, .start = 0, .end = self.num_cells.upstream_i - 1 },
+                .{ .block = upstream_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.upstream_i - 1 },
+            }, .{ .data = .{ 0, self.pitch } }),
+            boundary.Connection.init(.{
+                .{ .block = down_id, .side = boundary.Side.i_max, .start = 1, .end = down_i_min.points.len - 2 },
+                .{ .block = up_id, .side = boundary.Side.i_max, .start = down_i_min.points.len - 2, .end = 1 },
+            }, .{ .data = .{ 0, self.pitch } }),
+            boundary.Connection.init(.{
+                .{ .block = downstream_id, .side = boundary.Side.i_min, .start = 1, .end = self.num_cells.downstream_i },
+                .{ .block = downstream_id, .side = boundary.Side.i_max, .start = 1, .end = self.num_cells.downstream_i },
+            }, .{ .data = .{ 0, self.pitch } }),
         });
 
         // Boundary conditions
         // TODO: add boundary conditions
+
+        // TODO: consider removing the Side definition... Check if this eases the code.
 
         return mesh;
     }
