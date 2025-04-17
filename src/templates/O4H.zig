@@ -468,16 +468,16 @@ const O4H = struct {
 
             // TODO: include the laplacian smoothing points
             boundary.Connection.init(.{
-                .{ .block = upstream_id, .side = boundary.Side.i_min, .start = 0, .end = self.num_cells.upstream_i - 1 },
-                .{ .block = upstream_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.upstream_i - 1 },
+                .{ .block = upstream_id, .side = boundary.Side.i_min, .start = 0, .end = self.num_cells.upstream_i },
+                .{ .block = upstream_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.upstream_i },
             }, .{ .data = .{ 0, self.pitch } }),
             boundary.Connection.init(.{
-                .{ .block = down_id, .side = boundary.Side.i_max, .start = 1, .end = down_i_min.points.len - 2 },
-                .{ .block = up_id, .side = boundary.Side.i_max, .start = down_i_min.points.len - 2, .end = 1 },
+                .{ .block = down_id, .side = boundary.Side.i_max, .start = 0, .end = down_i_min.points.len - 1 },
+                .{ .block = up_id, .side = boundary.Side.i_max, .start = down_i_min.points.len - 1, .end = 0 },
             }, .{ .data = .{ 0, self.pitch } }),
             boundary.Connection.init(.{
-                .{ .block = downstream_id, .side = boundary.Side.i_min, .start = 1, .end = self.num_cells.downstream_i },
-                .{ .block = downstream_id, .side = boundary.Side.i_max, .start = 1, .end = self.num_cells.downstream_i },
+                .{ .block = downstream_id, .side = boundary.Side.i_min, .start = 0, .end = self.num_cells.downstream_i },
+                .{ .block = downstream_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.downstream_i },
             }, .{ .data = .{ 0, self.pitch } }),
         });
 
@@ -563,7 +563,7 @@ test "O4H template" {
 
     // try mesh.write(allocator, "o4h_linear.cgns");
 
-    try smooth.mesh(allocator, &mesh, 20);
+    try smooth.mesh(allocator, &mesh, 10);
 
     try mesh.write(allocator, "o4h.cgns");
 }

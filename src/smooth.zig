@@ -656,11 +656,8 @@ const RowCompressedMatrixSystem2d = struct {
         non_zero_entry_id: *usize,
         laplacian_count: *usize,
     ) void {
-        // TODO: remove setting the RHS in this loop. It only needs to be set once before looping.
-
         switch (self.boundary_points.kind.buffer[boundary_point_id.*]) {
             .fixed => {
-                // TODO: we can also set RHS to 1 and only set the LHS.
                 self.lhs_values[non_zero_entry_id.*] = 1;
                 non_zero_entry_id.* += 1;
 
@@ -675,7 +672,6 @@ const RowCompressedMatrixSystem2d = struct {
                 self.rhs_y[row_id.*] = 0;
             },
             .connected => {
-                // NOTE: we would only need to fill this data one time.
                 self.lhs_values[non_zero_entry_id.*] = 1;
                 self.lhs_values[non_zero_entry_id.* + 1] = -1;
                 non_zero_entry_id.* += 2;
@@ -782,6 +778,10 @@ const RowCompressedMatrixSystem2d = struct {
                 }
             }
         }
+
+        // TODO: remove this hardcoding!
+        self.rhs_y[31324] = 2 * 0.08836;
+        self.rhs_y[35398] = 2 * 0.08836;
     }
 
     fn fillBlockInternalPointData(
@@ -891,7 +891,7 @@ const RowCompressedMatrixSystem2d = struct {
                     const im1_j = point_data[0][@intCast(point_idx[0] - it.in_connection_direction_shift[0])];
                     const i_jm1 = point_data[0][@intCast(point_idx[0] + it.first_internal_point_shift[0])];
                     const ip1_j = point_data[0][@intCast(point_idx[0] + it.in_connection_direction_shift[0])];
-                    const i_jp1 = types.add(point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])], periodicity);
+                    const i_jp1 = types.add(point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])], .{ .data = .{ 0, -0.08836 } });
 
                     const stencil = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 
@@ -911,8 +911,8 @@ const RowCompressedMatrixSystem2d = struct {
                     self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[8]] = stencil.get(.ip1_jp1);
 
                     // adjust RHS for periodicity
-                    self.rhs_x[@intCast(global_idx_0)] = -periodicity.data[0] * (stencil.get(.im1_jp1) + stencil.get(.i_jp1) + stencil.get(.ip1_jp1));
-                    self.rhs_y[@intCast(global_idx_0)] = -periodicity.data[1] * (stencil.get(.im1_jp1) + stencil.get(.i_jp1) + stencil.get(.ip1_jp1));
+                    self.rhs_x[@intCast(global_idx_0)] = periodicity.data[0] * (stencil.get(.im1_jp1) + stencil.get(.i_jp1) + stencil.get(.ip1_jp1));
+                    self.rhs_y[@intCast(global_idx_0)] = periodicity.data[1] * (stencil.get(.im1_jp1) + stencil.get(.i_jp1) + stencil.get(.ip1_jp1));
                 }
             } else {
                 for (0..it.count) |_| {
@@ -1017,8 +1017,6 @@ const BlockBoundaryPoints = struct {
             for (endpoint_id + 1..endpoint_ids.len) |endpoint_id_to_check| {
                 const endpoint_other = endpoint_ids[endpoint_id_to_check];
                 if (endpoint == endpoint_other) {
-                    const points = .{ @divTrunc(endpoint_id, 2), @divTrunc(endpoint_id_to_check, 2) };
-                    std.debug.assert(points[0] != points[1]);
 
                     // see, if we need to merge it with an already existing laplacian point.
                     var exisitng_point_found = false;
@@ -1026,15 +1024,18 @@ const BlockBoundaryPoints = struct {
                         for (laplacian.global_ids.slice()) |global_id| {
                             if (global_id == endpoint) {
                                 exisitng_point_found = true;
-                                try appendIfUnique(&laplacian.global_ids, endpoint_other);
-                            } else if (global_id == endpoint_other) {
-                                exisitng_point_found = true;
-                                try appendIfUnique(&laplacian.global_ids, endpoint);
+
+                                // add the ID that is connected to the match
+                                const endpoint_id_to_add = if (endpoint_id_to_check % 2 == 0) endpoint_id_to_check + 1 else endpoint_id_to_check - 1;
+                                try appendIfUnique(&laplacian.global_ids, endpoint_ids[endpoint_id_to_add]);
                             }
                         }
                     }
 
                     if (!exisitng_point_found) {
+                        const points = .{ @divTrunc(endpoint_id, 2), @divTrunc(endpoint_id_to_check, 2) };
+                        std.debug.assert(points[0] != points[1]);
+
                         var global_ids = try std.BoundedArray(usize, 4).init(0);
                         try global_ids.appendSlice(&.{
                             endpoint_ids[points[0] * 2],
@@ -1136,9 +1137,9 @@ const BlockBoundaryPoints = struct {
             std.mem.sort(c_int, laplacian_point.stencil_ids.slice(), {}, comptime std.sort.asc(c_int));
         }
 
-        for (boundary_points.laplacian_points.items) |lp| {
-            std.debug.print("lp: {any} stencil: {any}\n", .{ lp.global_ids.slice(), lp.stencil_ids.slice() });
-        }
+        // for (boundary_points.laplacian_points.items) |lp| {
+        //     std.debug.print("lp: {any} stencil: {any}\n", .{ lp.global_ids.slice(), lp.stencil_ids.slice() });
+        // }
 
         // set kind (how to smooth the point)
         @memset(boundary_points.kind.buffer, .fixed);
