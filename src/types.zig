@@ -16,6 +16,11 @@ pub const Vec2d = struct {
     pub fn init(v0: Float, v1: Float) Vec2d {
         return .{ .data = .{ v0, v1 } };
     }
+
+    pub fn add(self: *Vec2d, v: Vec2d) void {
+        self.data[0] += v.data[0];
+        self.data[1] += v.data[1];
+    }
 };
 
 pub fn castConst(data: []const Vec2d) []const [2]Float {

@@ -634,13 +634,13 @@ const RowCompressedMatrixSystem2d = struct {
         // init laplacian points
 
         for (self.boundary_points.laplacian_points.items) |laplacian_point| {
-            const smoothed_id = laplacian_point.global_ids.get(0);
+            const smoothed_id = laplacian_point.globalId();
 
             // set all other points to connected to 1st
-            for (laplacian_point.global_ids.slice()[1..]) |global_id| {
-                const non_zero_entries_range_start = self.nonZeroEntriesRangeStart(@intCast(global_id));
+            for (laplacian_point.overlapping_points.slice()[1..]) |overlapping_point| {
+                const non_zero_entries_range_start = self.nonZeroEntriesRangeStart(@intCast(overlapping_point.global_id));
                 non_zero_entries.items[non_zero_entries_range_start] = @intCast(smoothed_id);
-                non_zero_entries.items[non_zero_entries_range_start + 1] = @intCast(global_id);
+                non_zero_entries.items[non_zero_entries_range_start + 1] = @intCast(overlapping_point.global_id);
             }
         }
 
@@ -683,7 +683,7 @@ const RowCompressedMatrixSystem2d = struct {
             .laplacian_smoothed => {
                 const laplacian_point = self.boundary_points.laplacian_points.items[laplacian_count.*];
 
-                const laplacian_point_id = laplacian_point.global_ids.get(0);
+                const laplacian_point_id = laplacian_point.globalId();
 
                 var point_position_in_stencil: usize = 0;
                 for (laplacian_point.stencil_ids.slice()) |global_id| {
@@ -752,8 +752,7 @@ const RowCompressedMatrixSystem2d = struct {
             if (connection.periodicity) |periodicity| {
                 var it = RangeFillMatrixIterator.init(connection, self.mesh);
 
-                // TODO: check the endpoint types!!
-                // _ = it.next();
+                // TODO: change this to a while loop!
 
                 for (0..it.count) |_| {
                     const connected_points = it.next().?;
@@ -779,9 +778,10 @@ const RowCompressedMatrixSystem2d = struct {
             }
         }
 
-        // TODO: remove this hardcoding!
-        self.rhs_y[31324] = 2 * 0.08836;
-        self.rhs_y[35398] = 2 * 0.08836;
+        for (self.boundary_points.laplacian_points.items) |laplacian_point| {
+            self.rhs_x[laplacian_point.globalId()] = laplacian_point.rhs.data[0];
+            self.rhs_y[laplacian_point.globalId()] = laplacian_point.rhs.data[1];
+        }
     }
 
     fn fillBlockInternalPointData(
@@ -981,165 +981,27 @@ const BlockBoundaryPoints = struct {
     // TODO: consider enhancing the periodicity handling of laplacian points by e.g. moving AoS to SoA
 
     const LaplacianPoint = struct {
-        /// global ids of the overlapping points; the first entry is the global id that is used for the smoothing.
-        global_ids: std.BoundedArray(usize, 4),
+        /// collection of the overlapping points; the first point is the global id of the point.
+        overlapping_points: std.BoundedArray(OverlappingPoint, 4),
 
         /// stencil ids that are used in the system matrix; this includes the point itself.
         stencil_ids: std.BoundedArray(c_int, 6),
+
+        /// RHS that potentially accounts for periodicity (count of periodic points * periodicity); defaults to 0;
+        rhs: types.Vec2d,
+
+        fn globalId(self: LaplacianPoint) usize {
+            return @intCast(self.overlapping_points.get(0).global_id);
+        }
     };
 
     fn init(allocator: std.mem.Allocator, index_converter: IndexConverter, mesh_data: *const discrete.Mesh) !BlockBoundaryPoints {
         var boundary_points = BlockBoundaryPoints{
             .kind = try .init(allocator, mesh_data),
             .index_converter = try .init(allocator, mesh_data),
-            .laplacian_points = try .initCapacity(allocator, mesh_data.connections.items.len),
+            .laplacian_points = try initLaplacianPoints(allocator, index_converter, mesh_data),
         };
         errdefer boundary_points.deinit();
-
-        // collect connection endpoint ids into a flat array (start_00, start_01, end_00, end_01, start_10, start_11, end_10, end_11, ...)
-        var endpoint_ids = try allocator.alloc(usize, mesh_data.connections.items.len * 4);
-        defer allocator.free(endpoint_ids);
-
-        for (mesh_data.connections.items, 0..) |connection, connection_id| {
-            const local_ids = .{ connection.ranges[0].endpoints(mesh_data), connection.ranges[1].endpoints(mesh_data) };
-            const range_start = connection_id * 4;
-            endpoint_ids[range_start] = index_converter.globalIndex(.{ .block = connection.ranges[0].block, .local_idx = .{ .value = local_ids[0][0] } }).value;
-            endpoint_ids[range_start + 1] = index_converter.globalIndex(.{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1][0] } }).value;
-            endpoint_ids[range_start + 2] = index_converter.globalIndex(.{ .block = connection.ranges[0].block, .local_idx = .{ .value = local_ids[0][1] } }).value;
-            endpoint_ids[range_start + 3] = index_converter.globalIndex(.{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1][1] } }).value;
-        }
-
-        // std.debug.print("endpoint_ids: {any}\n", .{endpoint_ids});
-
-        // linear search for identical ids: if there are identical ids, these are junction points!
-        for (0..endpoint_ids.len - 1) |endpoint_id| {
-            const endpoint = endpoint_ids[endpoint_id];
-            for (endpoint_id + 1..endpoint_ids.len) |endpoint_id_to_check| {
-                const endpoint_other = endpoint_ids[endpoint_id_to_check];
-                if (endpoint == endpoint_other) {
-
-                    // see, if we need to merge it with an already existing laplacian point.
-                    var exisitng_point_found = false;
-                    for (boundary_points.laplacian_points.items) |*laplacian| {
-                        for (laplacian.global_ids.slice()) |global_id| {
-                            if (global_id == endpoint) {
-                                exisitng_point_found = true;
-
-                                // add the ID that is connected to the match
-                                const endpoint_id_to_add = if (endpoint_id_to_check % 2 == 0) endpoint_id_to_check + 1 else endpoint_id_to_check - 1;
-                                try appendIfUnique(&laplacian.global_ids, endpoint_ids[endpoint_id_to_add]);
-                            }
-                        }
-                    }
-
-                    if (!exisitng_point_found) {
-                        const points = .{ @divTrunc(endpoint_id, 2), @divTrunc(endpoint_id_to_check, 2) };
-                        std.debug.assert(points[0] != points[1]);
-
-                        var global_ids = try std.BoundedArray(usize, 4).init(0);
-                        try global_ids.appendSlice(&.{
-                            endpoint_ids[points[0] * 2],
-                            endpoint_ids[points[0] * 2 + 1],
-                        });
-
-                        std.debug.assert(global_ids.get(0) != global_ids.get(1));
-
-                        std.debug.assert(blk: {
-                            const local_ids = .{
-                                index_converter.localIndex(.{ .value = global_ids.get(0) }),
-                                index_converter.localIndex(.{ .value = global_ids.get(1) }),
-                            };
-
-                            const local_ids_2d = .{ index_converter.index2d(local_ids[0]), index_converter.index2d(local_ids[1]) };
-
-                            const coords = .{
-                                mesh_data.blocks.items[local_ids[0].block].points.getIndex(local_ids_2d[0].point),
-                                mesh_data.blocks.items[local_ids[1].block].points.getIndex(local_ids_2d[1].point),
-                            };
-
-                            break :blk types.eqlApprox(coords[0], coords[1], 1e-12);
-                        });
-
-                        try appendIfUnique(&global_ids, endpoint_ids[points[1] * 2]);
-                        try appendIfUnique(&global_ids, endpoint_ids[points[1] * 2 + 1]);
-
-                        //NOTE: we search the neighbors next.
-                        try boundary_points.laplacian_points.append(.{ .global_ids = global_ids, .stencil_ids = try .init(0) });
-                    }
-                }
-            }
-        }
-
-        // in place sort the laplacian points
-        for (boundary_points.laplacian_points.items) |*laplacian_point| {
-            std.mem.sort(usize, laplacian_point.global_ids.slice(), {}, comptime std.sort.asc(usize));
-        }
-
-        // sort laplacian points in order of the lowest id
-        std.mem.sort(LaplacianPoint, boundary_points.laplacian_points.items, {}, struct {
-            fn inner(_: void, a: LaplacianPoint, b: LaplacianPoint) bool {
-                return a.global_ids.get(0) < b.global_ids.get(0);
-            }
-        }.inner);
-
-        // set the stencil ids
-        for (boundary_points.laplacian_points.items) |*laplacian_point| {
-            try laplacian_point.stencil_ids.append(@intCast(laplacian_point.global_ids.get(0))); // add laplacian point to stencil
-
-            // add neighboring points
-            for (laplacian_point.global_ids.slice()) |point_global_id| {
-                const local_id = index_converter.localIndex(.{ .value = point_global_id });
-                const local_2d = index_converter.index2d(local_id);
-
-                // check if it is a corner or an internal point
-                const size = mesh_data.blocks.items[local_2d.block].points.size;
-
-                const internal_points: [2]?types.Index2d = blk: {
-                    if (local_2d.point[0] == 0) {
-                        // j_min
-                        if (local_2d.point[1] == 0) {
-                            break :blk .{ .{ 1, 1 }, null };
-                        } else if (local_2d.point[1] == size[1] - 1) {
-                            break :blk .{ .{ 1, size[1] - 2 }, null };
-                        } else {
-                            break :blk .{ .{ 1, local_2d.point[1] - 1 }, .{ 1, local_2d.point[1] + 1 } };
-                        }
-                    } else if (local_2d.point[0] == size[0] - 1) {
-                        // j_max
-                        if (local_2d.point[1] == 0) {
-                            break :blk .{ .{ size[0] - 2, 1 }, null };
-                        } else if (local_2d.point[1] == size[1] - 1) {
-                            break :blk .{ .{ size[0] - 2, size[1] - 2 }, null };
-                        } else {
-                            break :blk .{ .{ size[0] - 2, local_2d.point[1] - 1 }, .{ size[0] - 2, local_2d.point[1] + 1 } };
-                        }
-                    } else {
-                        std.debug.assert(local_2d.point[1] == 0 or local_2d.point[1] == size[1] - 1);
-                        if (local_2d.point[1] == 0) {
-                            break :blk .{ .{ local_2d.point[0] - 1, 1 }, .{ local_2d.point[0] + 1, 1 } };
-                        } else if (local_2d.point[1] == size[1] - 1) {
-                            break :blk .{ .{ local_2d.point[0] - 1, local_2d.point[1] - 1 }, .{ local_2d.point[0] + 1, local_2d.point[1] - 1 } };
-                        } else {
-                            unreachable; // it is not possible to land here!
-                        }
-                    }
-                };
-
-                for (internal_points) |point| {
-                    if (point) |p| {
-                        const global_id = index_converter.globalIndex(index_converter.index(.{ .block = local_id.block, .point = p }));
-                        try laplacian_point.stencil_ids.append(@intCast(global_id.value));
-                    }
-                }
-            }
-
-            // sort the ids
-            std.mem.sort(c_int, laplacian_point.stencil_ids.slice(), {}, comptime std.sort.asc(c_int));
-        }
-
-        // for (boundary_points.laplacian_points.items) |lp| {
-        //     std.debug.print("lp: {any} stencil: {any}\n", .{ lp.global_ids.slice(), lp.stencil_ids.slice() });
-        // }
 
         // set kind (how to smooth the point)
         @memset(boundary_points.kind.buffer, .fixed);
@@ -1148,7 +1010,7 @@ const BlockBoundaryPoints = struct {
         for (boundary_points.laplacian_points.items) |laplacian_point| {
             {
                 // set lowest point to laplacian smoothed
-                const global_id = laplacian_point.global_ids.get(0);
+                const global_id = laplacian_point.overlapping_points.get(0).global_id;
                 const local_id = index_converter.localIndex(.{ .value = global_id });
                 const local_id_2d = index_converter.index2d(local_id);
                 const buffer_id = try boundary_points.index_converter.bufferIndex(local_id_2d);
@@ -1156,8 +1018,8 @@ const BlockBoundaryPoints = struct {
             }
 
             // all other point are connected to the laplacian smoothed point
-            for (laplacian_point.global_ids.slice()[1..]) |global_id| {
-                const local_id = index_converter.localIndex(.{ .value = global_id });
+            for (laplacian_point.overlapping_points.slice()[1..]) |overlapping_point| {
+                const local_id = index_converter.localIndex(.{ .value = overlapping_point.global_id });
                 const local_id_2d = index_converter.index2d(local_id);
                 const buffer_id = try boundary_points.index_converter.bufferIndex(local_id_2d);
                 boundary_points.kind.buffer[buffer_id] = .connected;
@@ -1213,12 +1075,199 @@ const BlockBoundaryPoints = struct {
         return boundary_points;
     }
 
-    fn appendIfUnique(global_ids: *std.BoundedArray(usize, 4), id: usize) !void {
-        for (global_ids.slice()) |existing_id| {
-            if (existing_id == id) return;
+    const OverlappingPoint = struct {
+        global_id: usize,
+        periodicity: types.Vec2d,
+    };
+
+    /// returns the necessary laplacian smoothed point data.
+    fn initLaplacianPoints(
+        allocator: std.mem.Allocator,
+        index_converter: IndexConverter,
+        mesh_data: *const discrete.Mesh,
+    ) !std.ArrayList(LaplacianPoint) {
+        // collect connection endpoint ids into a flat array (start_00, start_01, end_00, end_01, start_10, start_11, end_10, end_11, ...)
+        var endpoint_ids = try allocator.alloc(usize, mesh_data.connections.items.len * 4);
+        defer allocator.free(endpoint_ids);
+
+        for (mesh_data.connections.items, 0..) |connection, connection_id| {
+            const local_ids = .{ connection.ranges[0].endpoints(mesh_data), connection.ranges[1].endpoints(mesh_data) };
+            const range_start = connection_id * 4;
+            endpoint_ids[range_start] = index_converter.globalIndex(.{ .block = connection.ranges[0].block, .local_idx = .{ .value = local_ids[0][0] } }).value;
+            endpoint_ids[range_start + 1] = index_converter.globalIndex(.{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1][0] } }).value;
+            endpoint_ids[range_start + 2] = index_converter.globalIndex(.{ .block = connection.ranges[0].block, .local_idx = .{ .value = local_ids[0][1] } }).value;
+            endpoint_ids[range_start + 3] = index_converter.globalIndex(.{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1][1] } }).value;
         }
 
-        try global_ids.append(id);
+        // std.debug.print("endpoint_ids: {any}\n", .{endpoint_ids});
+
+        var laplacian_points = try std.ArrayList(LaplacianPoint).initCapacity(allocator, mesh_data.connections.items.len * 2);
+        errdefer laplacian_points.deinit();
+
+        // linear search for identical ids: if there are identical ids, these are junction points!
+        for (0..endpoint_ids.len - 1) |endpoint_id| {
+            const endpoint = endpoint_ids[endpoint_id];
+            for (endpoint_id + 1..endpoint_ids.len) |endpoint_id_to_check| {
+                const endpoint_other = endpoint_ids[endpoint_id_to_check];
+                if (endpoint == endpoint_other) {
+
+                    // see, if we need to merge it with an already existing laplacian point.
+                    var exisitng_point_found = false;
+                    for (laplacian_points.items) |*laplacian_point| {
+                        for (laplacian_point.overlapping_points.slice()) |point| {
+                            if (point.global_id == endpoint) {
+                                exisitng_point_found = true;
+
+                                // add the ID that is connected to the match
+                                const endpoint_id_to_add = if (endpoint_id_to_check % 2 == 0) endpoint_id_to_check + 1 else endpoint_id_to_check - 1;
+
+                                // get the periodicity
+                                const connection_id = @divTrunc(endpoint_id_to_add, 4);
+                                const periodicity = if (mesh_data.connections.items[connection_id].periodicity) |periodicity| periodicity else types.Vec2d.init(0, 0);
+
+                                try appendIfUnique(&laplacian_point.overlapping_points, endpoint_ids[endpoint_id_to_add], periodicity);
+                            }
+                        }
+                    }
+
+                    if (!exisitng_point_found) {
+                        const points = .{ @divTrunc(endpoint_id, 2), @divTrunc(endpoint_id_to_check, 2) };
+                        std.debug.assert(points[0] != points[1]);
+
+                        var laplacia_point = try std.BoundedArray(OverlappingPoint, 4).init(0);
+
+                        // add first point
+                        {
+                            const connection_id = points[0] / 2;
+                            const periodicity = if (mesh_data.connections.items[connection_id].periodicity) |periodicity| periodicity else types.Vec2d.init(0, 0);
+                            try laplacia_point.appendSlice(&.{
+                                .{ .global_id = endpoint_ids[points[0] * 2], .periodicity = .init(0, 0) },
+                                .{ .global_id = endpoint_ids[points[0] * 2 + 1], .periodicity = periodicity },
+                            });
+
+                            std.debug.assert(laplacia_point.get(0).global_id != laplacia_point.get(1).global_id);
+
+                            std.debug.assert(blk: {
+                                const local_ids = .{
+                                    index_converter.localIndex(.{ .value = laplacia_point.get(0).global_id }),
+                                    index_converter.localIndex(.{ .value = laplacia_point.get(1).global_id }),
+                                };
+
+                                const local_ids_2d = .{ index_converter.index2d(local_ids[0]), index_converter.index2d(local_ids[1]) };
+
+                                const coords = .{
+                                    mesh_data.blocks.items[local_ids[0].block].points.getIndex(local_ids_2d[0].point),
+                                    mesh_data.blocks.items[local_ids[1].block].points.getIndex(local_ids_2d[1].point),
+                                };
+
+                                break :blk types.eqlApprox(coords[0], coords[1], 1e-12);
+                            });
+                        }
+
+                        // add 2nd point
+                        {
+                            const connection_id = points[1] / 2;
+                            const periodicity = if (mesh_data.connections.items[connection_id].periodicity) |periodicity| periodicity else types.Vec2d.init(0, 0);
+                            try appendIfUnique(&laplacia_point, endpoint_ids[points[1] * 2], periodicity);
+                            try appendIfUnique(&laplacia_point, endpoint_ids[points[1] * 2 + 1], periodicity);
+                        }
+
+                        try laplacian_points.append(.{ .overlapping_points = laplacia_point, .stencil_ids = try .init(0), .rhs = .init(0, 0) });
+                    }
+                }
+            }
+        }
+
+        // in place sort the laplacian points
+        for (laplacian_points.items) |*laplacian_point| {
+            std.mem.sort(OverlappingPoint, laplacian_point.overlapping_points.slice(), {}, comptime struct {
+                pub fn inner(_: void, a: OverlappingPoint, b: OverlappingPoint) bool {
+                    return a.global_id < b.global_id;
+                }
+            }.inner);
+        }
+
+        // sort laplacian points in order of the lowest id
+        std.mem.sort(LaplacianPoint, laplacian_points.items, {}, struct {
+            fn inner(_: void, a: LaplacianPoint, b: LaplacianPoint) bool {
+                return a.overlapping_points.get(0).global_id < b.overlapping_points.get(0).global_id;
+            }
+        }.inner);
+
+        // set the stencil ids
+        for (laplacian_points.items) |*laplacian_point| {
+            try laplacian_point.stencil_ids.append(@intCast(laplacian_point.globalId())); // add laplacian point to stencil
+
+            // add neighboring points
+            for (laplacian_point.overlapping_points.slice()) |overlapping_point| {
+                const local_id = index_converter.localIndex(.{ .value = overlapping_point.global_id });
+                const local_2d = index_converter.index2d(local_id);
+
+                // check if it is a corner or an internal point
+                const size = mesh_data.blocks.items[local_2d.block].points.size;
+
+                const internal_points: [2]?types.Index2d = blk: {
+                    if (local_2d.point[0] == 0) {
+                        // j_min
+                        if (local_2d.point[1] == 0) {
+                            break :blk .{ .{ 1, 1 }, null };
+                        } else if (local_2d.point[1] == size[1] - 1) {
+                            break :blk .{ .{ 1, size[1] - 2 }, null };
+                        } else {
+                            break :blk .{ .{ 1, local_2d.point[1] - 1 }, .{ 1, local_2d.point[1] + 1 } };
+                        }
+                    } else if (local_2d.point[0] == size[0] - 1) {
+                        // j_max
+                        if (local_2d.point[1] == 0) {
+                            break :blk .{ .{ size[0] - 2, 1 }, null };
+                        } else if (local_2d.point[1] == size[1] - 1) {
+                            break :blk .{ .{ size[0] - 2, size[1] - 2 }, null };
+                        } else {
+                            break :blk .{ .{ size[0] - 2, local_2d.point[1] - 1 }, .{ size[0] - 2, local_2d.point[1] + 1 } };
+                        }
+                    } else {
+                        std.debug.assert(local_2d.point[1] == 0 or local_2d.point[1] == size[1] - 1);
+                        if (local_2d.point[1] == 0) {
+                            break :blk .{ .{ local_2d.point[0] - 1, 1 }, .{ local_2d.point[0] + 1, 1 } };
+                        } else if (local_2d.point[1] == size[1] - 1) {
+                            break :blk .{ .{ local_2d.point[0] - 1, local_2d.point[1] - 1 }, .{ local_2d.point[0] + 1, local_2d.point[1] - 1 } };
+                        } else {
+                            unreachable; // it is not possible to land here!
+                        }
+                    }
+                };
+
+                for (internal_points) |point| {
+                    if (point) |p| {
+                        const global_id = index_converter.globalIndex(index_converter.index(.{ .block = local_id.block, .point = p }));
+                        try laplacian_point.stencil_ids.append(@intCast(global_id.value));
+                        laplacian_point.rhs.add(overlapping_point.periodicity);
+                    }
+                }
+            }
+
+            // sort the ids
+            std.mem.sort(c_int, laplacian_point.stencil_ids.slice(), {}, comptime std.sort.asc(c_int));
+        }
+
+        for (laplacian_points.items) |laplacian_point| {
+            std.debug.print("lp: ", .{});
+            for (laplacian_point.overlapping_points.slice()) |overlapping_point| {
+                std.debug.print("({}, {} {}) ", .{ overlapping_point.global_id, overlapping_point.periodicity.data[0], overlapping_point.periodicity.data[1] });
+            }
+            std.debug.print("\nstencil: {any}\n", .{laplacian_point.stencil_ids.slice()});
+            std.debug.print("rhs: {any}\n\n", .{laplacian_point.rhs.data});
+        }
+
+        return laplacian_points;
+    }
+
+    fn appendIfUnique(overlapping_points: *std.BoundedArray(OverlappingPoint, 4), id: usize, periodicity: types.Vec2d) !void {
+        for (overlapping_points.slice()) |overlapping_point| {
+            if (overlapping_point.global_id == id) return;
+        }
+
+        try overlapping_points.append(.{ .global_id = id, .periodicity = periodicity });
     }
 
     fn deinit(self: BlockBoundaryPoints) void {
