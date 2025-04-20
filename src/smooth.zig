@@ -168,10 +168,14 @@ fn connectionDataCheck(mesh_data: *const discrete.Mesh) void {
             var point_idx: usize = 0;
             while (true) {
                 const p_0 = it_0.next() orelse {
-                    std.debug.assert(it_1.next() == null);
+                    if (it_1.next() != null) {
+                        std.debug.panic("connection {} point {}", .{ connection_idx, point_idx });
+                    }
                     break;
                 };
-                const p_1 = it_1.next().?;
+                const p_1 = it_1.next() orelse {
+                    std.debug.panic("connection {} point {}", .{ connection_idx, point_idx });
+                };
 
                 const x_0 = types.add(mesh_data.blocks.items[range_0.block].points.data[p_0], periodicity);
                 const x_1 = mesh_data.blocks.items[range_1.block].points.data[p_1];
