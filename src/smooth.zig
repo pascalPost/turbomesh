@@ -189,7 +189,9 @@ fn connectionDataCheck(mesh_data: *const discrete.Mesh) void {
                     std.debug.assert(it_1.next() == null);
                     break;
                 };
-                const p_1 = it_1.next().?;
+                const p_1 = it_1.next() orelse {
+                    std.debug.panic("non matching connection data for connection {}.", .{connection_idx});
+                };
 
                 const x_0 = mesh_data.blocks.items[range_0.block].points.data[p_0];
                 const x_1 = mesh_data.blocks.items[range_1.block].points.data[p_1];
@@ -1250,14 +1252,14 @@ const BlockBoundaryPoints = struct {
             std.mem.sort(c_int, laplacian_point.stencil_ids.slice(), {}, comptime std.sort.asc(c_int));
         }
 
-        for (laplacian_points.items) |laplacian_point| {
-            std.debug.print("lp: ", .{});
-            for (laplacian_point.overlapping_points.slice()) |overlapping_point| {
-                std.debug.print("({}, {} {}) ", .{ overlapping_point.global_id, overlapping_point.periodicity.data[0], overlapping_point.periodicity.data[1] });
-            }
-            std.debug.print("\nstencil: {any}\n", .{laplacian_point.stencil_ids.slice()});
-            std.debug.print("rhs: {any}\n\n", .{laplacian_point.rhs.data});
-        }
+        // for (laplacian_points.items) |laplacian_point| {
+        //     std.debug.print("lp: ", .{});
+        //     for (laplacian_point.overlapping_points.slice()) |overlapping_point| {
+        //         std.debug.print("({}, {} {}) ", .{ overlapping_point.global_id, overlapping_point.periodicity.data[0], overlapping_point.periodicity.data[1] });
+        //     }
+        //     std.debug.print("\nstencil: {any}\n", .{laplacian_point.stencil_ids.slice()});
+        //     std.debug.print("rhs: {any}\n\n", .{laplacian_point.rhs.data});
+        // }
 
         return laplacian_points;
     }

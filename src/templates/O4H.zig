@@ -18,19 +18,19 @@ const abs = types.abs;
 /// O4H multi block template:
 ///
 ///  _______________________________________________________________________________________________
-/// |               |                                                            j^|                |
-/// |               |                           up (5)                         i<- |                |
-/// |               |______________________________________________________________|                |
-/// |               |    i<-|   /               ss (0)                 \           |                |
-/// |               |       vj /  ____________________________________  \          |                |
+/// |               |                                                              |                |
+/// |               |                           up (5)                             |                |
+/// |               |__________________________________________________            |                |
+/// |               |    i<-|   /               ss (0)                 \  i^ ->j   |                |
+/// |               |       vj /  ____________________________________  \__________|                |
 /// |               |         /  /                                    \  \         |                |
 /// |  upstream (6) | IN (2) |--|* leading edge        trailing edge *|--| out (3) | downstream (7) |
-/// |               |         \  \____________________________________/  / ^j      |                |
-/// |               |          \                ps (1)                  /  ->i     |                |
-/// |               |___________\______________________________________/___________|                |
-/// | ^j            |  ->i                                                         | ^j             |
-/// | |             |  |                       down (4)                            | |              |
-/// | ->i           |  vj                                                          | ->i            |
+/// |               |_________\  \____________________________________/  / ^j      |                |
+/// |               |      j<- \                ps (1)                  /  ->i     |                |
+/// |               |        vi \______________________________________/___________|                |
+/// | ^j            |                                                              | ^j             |
+/// | |             |                         down (4)                             | |              |
+/// | ->i           |                                                              | ->i            |
 /// |_______________________________________________________________________________________________
 const O4H = struct {
     ps_csv_path: []const u8,
@@ -47,7 +47,11 @@ const O4H = struct {
         out_down_j: types.Index,
         out_i: types.Index,
         down_j: types.Index,
-        up_j: types.Index,
+        bulge: types.Index,
+
+        // TODO: merge in_i and out_i
+
+        // TODO: remove unnecessary parameters!
 
         // TODO: can be made optional if computed automatically based on the average size
         upstream_i: types.Index,
@@ -61,9 +65,9 @@ const O4H = struct {
         // TODO: add geometry and discrete entities to manager
 
         const num_cells_ss =
-            self.num_cells.in_up_j + self.num_cells.middle_i + self.num_cells.out_up_j;
+            self.num_cells.in_up_j + self.num_cells.middle_i + self.num_cells.bulge + self.num_cells.out_up_j;
         const num_cells_ps =
-            self.num_cells.in_down_j + self.num_cells.middle_i + self.num_cells.out_down_j;
+            self.num_cells.in_down_j + self.num_cells.middle_i + self.num_cells.bulge + self.num_cells.out_down_j;
 
         const profile = try blade.Profile.init(allocator, self.ps_csv_path, self.ss_csv_path);
         defer profile.deinit();
@@ -204,12 +208,12 @@ const O4H = struct {
 
         const out_j_min = try discrete.Edge.combine(allocator, &.{ .{
             .edge = &ps_i_max,
-            .start = self.num_cells.in_down_j + self.num_cells.middle_i,
+            .start = self.num_cells.in_down_j + self.num_cells.bulge + self.num_cells.middle_i,
             .end = ps_i_max.points.len - 1,
         }, .{
             .edge = &ss_i_max,
             .start = ss_i_max.points.len - 1,
-            .end = self.num_cells.in_up_j + self.num_cells.middle_i,
+            .end = self.num_cells.in_up_j + self.num_cells.bulge + self.num_cells.middle_i,
         } });
         defer out_j_min.deinit();
         std.debug.assert(out_j_min.points.len == self.num_cells.out_down_j + self.num_cells.out_up_j + 1);
@@ -238,32 +242,38 @@ const O4H = struct {
         // Block DOWN (4)
         //
 
-        const down_i_min = try discrete.Edge.combine(allocator, &.{ .{
-            .edge = &in_i_max,
-            .start = self.num_cells.in_i,
-            .end = 0,
-        }, .{
-            .edge = &ps_i_max,
-            .start = self.num_cells.in_down_j,
-            .end = self.num_cells.in_down_j + self.num_cells.middle_i,
-        }, .{
-            .edge = &out_i_min,
-            .start = 0,
-            .end = self.num_cells.out_i,
-        } });
+        const down_j_min = in_i_max;
+        const down_i_min = try discrete.Edge.combine(allocator, &.{
+            .{
+                .edge = &ps_i_max,
+                .start = self.num_cells.in_down_j,
+                .end = self.num_cells.in_down_j + self.num_cells.bulge + self.num_cells.middle_i,
+            },
+            .{
+                .edge = &out_i_min,
+                .start = 0,
+                .end = self.num_cells.out_i,
+            },
+        });
         defer down_i_min.deinit();
 
-        const down_x_01 = sub(leading_edge, Vec2d.init(0.0, 0.5 * self.pitch));
+        const down_x_i_max_middle = sub(leading_edge, Vec2d.init(0.0, 0.5 * self.pitch));
         const down_x_11 = sub(trailing_edge, Vec2d.init(0.0, 0.5 * self.pitch));
-        const down_x_00 = in_x_11;
+        const down_x_01 = in_x_11;
         const down_x_10 = out_x_10;
 
-        const down_i_max = try discrete.Edge.init(allocator, down_i_min.points.len, .{ .line = .{ .start = down_x_01, .end = down_x_11 } }, .{ .uniform = .{} });
+        const down_i_max_0 = try discrete.Edge.init(allocator, self.num_cells.bulge + 1, .{ .line = .{ .start = down_x_01, .end = down_x_i_max_middle } }, .{ .uniform = .{} });
+        defer down_i_max_0.deinit();
+        const down_i_max_1 = try discrete.Edge.init(allocator, down_i_min.points.len - self.num_cells.bulge, .{ .line = .{ .start = down_x_i_max_middle, .end = down_x_11 } }, .{ .uniform = .{} });
+        defer down_i_max_1.deinit();
+
+        const down_i_max = try discrete.Edge.combine(allocator, &.{
+            .{ .edge = &down_i_max_0, .start = 0, .end = self.num_cells.bulge },
+            .{ .edge = &down_i_max_1, .start = 0, .end = down_i_max_1.points.len - 1 },
+        });
         defer down_i_max.deinit();
 
-        const down_j_min = try discrete.Edge.init(allocator, self.num_cells.down_j + 1, .{ .line = .{ .start = down_x_00, .end = down_x_01 } }, .{ .uniform = .{} });
-        defer down_j_min.deinit();
-        const down_j_max = try discrete.Edge.init(allocator, self.num_cells.down_j + 1, .{ .line = .{ .start = down_x_10, .end = down_x_11 } }, .{ .uniform = .{} });
+        const down_j_max = try discrete.Edge.init(allocator, down_j_min.points.len, .{ .line = .{ .start = down_x_10, .end = down_x_11 } }, .{ .uniform = .{} });
         defer down_j_max.deinit();
 
         const down = try discrete.Block2d.init(allocator, down_i_min, down_i_max, down_j_min, down_j_max);
@@ -275,34 +285,51 @@ const O4H = struct {
         // Block UP (5)
         //
 
-        const up_i_min = try discrete.Edge.combine(allocator, &.{ .{
-            .edge = &out_i_max,
-            .start = self.num_cells.out_i,
-            .end = 0,
-        }, .{
-            .edge = &ss_i_max,
-            .start = self.num_cells.in_up_j + self.num_cells.middle_i,
-            .end = self.num_cells.in_up_j,
-        }, .{
-            .edge = &in_i_min,
-            .start = 0,
-            .end = self.num_cells.in_i,
-        } });
+        //
+        // TODO: remove all the deinits w/ better design to increase efficiency!
+        //
+
+        const up_j_min = out_i_max;
+        const up_i_min = try discrete.Edge.combine(allocator, &.{
+            .{
+                .edge = &ss_i_max,
+                .start = self.num_cells.in_up_j + self.num_cells.middle_i + self.num_cells.bulge,
+                .end = self.num_cells.in_up_j,
+            },
+            .{
+                .edge = &in_i_min,
+                .start = 0,
+                .end = self.num_cells.in_i,
+            },
+        });
         defer up_i_min.deinit();
 
         const up_x_11 = add(leading_edge, Vec2d.init(0.0, 0.5 * self.pitch));
-        const up_x_01 = add(trailing_edge, Vec2d.init(0.0, 0.5 * self.pitch));
-        const up_x_00 = out_x_11;
+        const up_x_i_max_middle = add(trailing_edge, Vec2d.init(0.0, 0.5 * self.pitch));
+        const up_x_01 = out_x_11;
         const up_x_10 = in_x_10;
 
-        // TODO: remove all the deinits w/ better design to increase efficiency!
+        const up_i_max_0 = try discrete.Edge.init(allocator, self.num_cells.bulge + 1, .{ .line = .{ .start = up_x_01, .end = up_x_i_max_middle } }, .{ .uniform = .{} });
+        defer up_i_max_0.deinit();
+        const up_i_max_1 = try discrete.Edge
+            .init(allocator, up_i_min.points.len - self.num_cells.bulge, .{ .line = .{ .start = up_x_i_max_middle, .end = up_x_11 } }, .{ .uniform = .{} });
+        defer up_i_max_1.deinit();
 
-        const up_i_max = try discrete.Edge.init(allocator, up_i_min.points.len, .{ .line = .{ .start = up_x_01, .end = up_x_11 } }, .{ .uniform = .{} });
+        const up_i_max = try discrete.Edge.combine(allocator, &.{
+            .{
+                .edge = &up_i_max_0,
+                .start = 0,
+                .end = self.num_cells.bulge,
+            },
+            .{
+                .edge = &up_i_max_1,
+                .start = 0,
+                .end = up_i_max_1.points.len - 1,
+            },
+        });
         defer up_i_max.deinit();
 
-        const up_j_min = try discrete.Edge.init(allocator, self.num_cells.up_j + 1, .{ .line = .{ .start = up_x_00, .end = up_x_01 } }, .{ .uniform = .{} });
-        defer up_j_min.deinit();
-        const up_j_max = try discrete.Edge.init(allocator, self.num_cells.up_j + 1, .{ .line = .{ .start = up_x_10, .end = up_x_11 } }, .{ .uniform = .{} });
+        const up_j_max = try discrete.Edge.init(allocator, self.num_cells.out_i + 1, .{ .line = .{ .start = up_x_10, .end = up_x_11 } }, .{ .uniform = .{} });
         defer up_j_max.deinit();
 
         const up = try discrete.Block2d.init(allocator, up_i_min, up_i_max, up_j_min, up_j_max);
@@ -315,8 +342,8 @@ const O4H = struct {
         //
 
         const upstream_j_max = try discrete.Edge.combine(allocator, &.{ .{
-            .edge = &down_j_min,
-            .start = down_j_min.points.len - 1,
+            .edge = &down_i_max,
+            .start = self.num_cells.bulge,
             .end = 0,
         }, .{
             .edge = &in_j_max,
@@ -360,9 +387,9 @@ const O4H = struct {
             .start = 0,
             .end = out_j_max.points.len - 1,
         }, .{
-            .edge = &up_j_min,
+            .edge = &up_i_max_0,
             .start = 0,
-            .end = up_j_min.points.len - 1,
+            .end = up_i_max_0.points.len - 1,
         } });
         defer downstream_j_min.deinit();
 
@@ -388,21 +415,21 @@ const O4H = struct {
 
         try mesh.connections.appendSlice(&.{
             boundary.Connection.init(.{
-                .{ .block = down_id, .side = boundary.Side.j_min, .start = self.num_cells.down_j, .end = 0 },
-                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.down_j },
+                .{ .block = down_id, .side = boundary.Side.i_max, .start = self.num_cells.bulge, .end = 0 },
+                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.bulge },
             }, null),
             boundary.Connection.init(.{
                 .{ .block = in_id, .side = boundary.Side.j_max, .start = in_j_min.points.len - 1, .end = 0 },
-                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j, .end = self.num_cells.down_j + in_j_min.points.len - 1 },
+                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.bulge, .end = self.num_cells.bulge + in_j_min.points.len - 1 },
             }, null),
             boundary.Connection.init(.{
                 .{ .block = in_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_i },
-                .{ .block = down_id, .side = boundary.Side.i_min, .start = self.num_cells.in_i, .end = 0 },
+                .{ .block = down_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.in_i },
             }, null),
 
             boundary.Connection.init(.{
-                .{ .block = up_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.up_j },
-                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j + in_j_min.points.len - 1, .end = upstream_j_max.points.len - 1 },
+                .{ .block = up_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.out_i },
+                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.bulge + in_j_min.points.len - 1, .end = upstream_j_max.points.len - 1 },
             }, null),
             boundary.Connection.init(.{
                 .{ .block = in_id, .side = boundary.Side.i_min, .start = 0, .end = self.num_cells.in_i },
@@ -410,12 +437,12 @@ const O4H = struct {
             }, null),
 
             boundary.Connection.init(.{
-                .{ .block = down_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j, .end = 0 },
-                .{ .block = downstream_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.down_j },
+                .{ .block = down_id, .side = boundary.Side.j_max, .start = self.num_cells.in_i, .end = 0 },
+                .{ .block = downstream_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.in_i },
             }, null),
             boundary.Connection.init(.{
                 .{ .block = out_id, .side = boundary.Side.j_max, .start = 0, .end = out_j_max.points.len - 1 },
-                .{ .block = downstream_id, .side = boundary.Side.j_min, .start = self.num_cells.down_j, .end = self.num_cells.down_j + out_j_max.points.len - 1 },
+                .{ .block = downstream_id, .side = boundary.Side.j_min, .start = self.num_cells.in_i, .end = self.num_cells.in_i + out_j_max.points.len - 1 },
             }, null),
             boundary.Connection.init(.{
                 .{ .block = out_id, .side = boundary.Side.i_min, .start = 0, .end = self.num_cells.out_i },
@@ -424,11 +451,11 @@ const O4H = struct {
 
             boundary.Connection.init(.{
                 .{ .block = out_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.out_i },
-                .{ .block = up_id, .side = boundary.Side.i_min, .start = self.num_cells.out_i, .end = 0 },
+                .{ .block = up_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.out_i },
             }, null),
             boundary.Connection.init(.{
-                .{ .block = up_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.up_j },
-                .{ .block = downstream_id, .side = boundary.Side.j_min, .start = downstream_j_min.points.len - 1 - self.num_cells.up_j, .end = downstream_j_min.points.len - 1 },
+                .{ .block = up_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.bulge },
+                .{ .block = downstream_id, .side = boundary.Side.j_min, .start = downstream_j_min.points.len - 1 - self.num_cells.bulge, .end = downstream_j_min.points.len - 1 },
             }, null),
 
             boundary.Connection.init(.{
@@ -445,11 +472,11 @@ const O4H = struct {
                 .{ .block = in_id, .side = boundary.Side.j_min, .start = self.num_cells.in_up_j, .end = 0 },
             }, null),
             boundary.Connection.init(.{
-                .{ .block = ss_id, .side = boundary.Side.i_max, .start = self.num_cells.in_up_j, .end = self.num_cells.in_up_j + self.num_cells.middle_i },
-                .{ .block = up_id, .side = boundary.Side.i_min, .start = up_i_min.points.len - self.num_cells.in_i - 1, .end = self.num_cells.out_i },
+                .{ .block = ss_id, .side = boundary.Side.i_max, .start = self.num_cells.in_up_j, .end = self.num_cells.in_up_j + self.num_cells.middle_i + self.num_cells.bulge },
+                .{ .block = up_id, .side = boundary.Side.i_min, .start = up_i_min.points.len - 1 - self.num_cells.in_i, .end = 0 },
             }, null),
             boundary.Connection.init(.{
-                .{ .block = ss_id, .side = boundary.Side.i_max, .start = self.num_cells.in_up_j + self.num_cells.middle_i, .end = ss_i_max.points.len - 1 },
+                .{ .block = ss_id, .side = boundary.Side.i_max, .start = self.num_cells.in_up_j + self.num_cells.bulge + self.num_cells.middle_i, .end = ss_i_max.points.len - 1 },
                 .{ .block = out_id, .side = boundary.Side.j_min, .start = out_j_min.points.len - 1, .end = self.num_cells.out_down_j },
             }, null),
 
@@ -458,22 +485,21 @@ const O4H = struct {
                 .{ .block = in_id, .side = boundary.Side.j_min, .start = self.num_cells.in_up_j, .end = in_j_min.points.len - 1 },
             }, null),
             boundary.Connection.init(.{
-                .{ .block = ps_id, .side = boundary.Side.i_max, .start = self.num_cells.in_down_j, .end = self.num_cells.in_down_j + self.num_cells.middle_i },
-                .{ .block = down_id, .side = boundary.Side.i_min, .start = self.num_cells.in_i, .end = down_i_min.points.len - 1 - self.num_cells.out_i },
+                .{ .block = ps_id, .side = boundary.Side.i_max, .start = self.num_cells.in_down_j, .end = self.num_cells.in_down_j + self.num_cells.middle_i + self.num_cells.bulge },
+                .{ .block = down_id, .side = boundary.Side.i_min, .start = 0, .end = self.num_cells.middle_i + self.num_cells.bulge },
             }, null),
             boundary.Connection.init(.{
-                .{ .block = ps_id, .side = boundary.Side.i_max, .start = self.num_cells.in_down_j + self.num_cells.middle_i, .end = ps_i_max.points.len - 1 },
+                .{ .block = ps_id, .side = boundary.Side.i_max, .start = self.num_cells.in_down_j + self.num_cells.bulge + self.num_cells.middle_i, .end = ps_i_max.points.len - 1 },
                 .{ .block = out_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.out_down_j },
             }, null),
 
-            // TODO: include the laplacian smoothing points
             boundary.Connection.init(.{
                 .{ .block = upstream_id, .side = boundary.Side.i_min, .start = 0, .end = self.num_cells.upstream_i },
                 .{ .block = upstream_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.upstream_i },
             }, .{ .data = .{ 0, self.pitch } }),
             boundary.Connection.init(.{
-                .{ .block = down_id, .side = boundary.Side.i_max, .start = 0, .end = down_i_min.points.len - 1 },
-                .{ .block = up_id, .side = boundary.Side.i_max, .start = down_i_min.points.len - 1, .end = 0 },
+                .{ .block = down_id, .side = boundary.Side.i_max, .start = self.num_cells.bulge, .end = self.num_cells.bulge + self.num_cells.middle_i + self.num_cells.in_i },
+                .{ .block = up_id, .side = boundary.Side.i_max, .start = self.num_cells.bulge + self.num_cells.middle_i + self.num_cells.in_i, .end = self.num_cells.bulge },
             }, .{ .data = .{ 0, self.pitch } }),
             boundary.Connection.init(.{
                 .{ .block = downstream_id, .side = boundary.Side.i_min, .start = 0, .end = self.num_cells.downstream_i },
@@ -543,18 +569,18 @@ test "O4H template" {
         .pitch = 0.08836, // m
         .blade_clustering = .{ .roberts = .{ .alpha = 0.5, .beta = 1.03 } },
         .num_cells = .{
-            .o_grid = 33,
-            .in_up_j = 95,
-            .in_down_j = 20,
-            .in_i = 53,
-            .out_up_j = 210,
-            .out_down_j = 20,
-            .out_i = 21,
-            .middle_i = 120,
-            .down_j = 20,
-            .up_j = 23,
+            .o_grid = 20,
+            .in_up_j = 30,
+            .in_down_j = 10,
+            .in_i = 10,
+            .out_up_j = 40,
+            .out_down_j = 10,
+            .out_i = 10,
+            .middle_i = 100,
+            .down_j = 40,
+            .bulge = 40,
             .upstream_i = 20,
-            .downstream_i = 20,
+            .downstream_i = 10,
         },
     };
 
