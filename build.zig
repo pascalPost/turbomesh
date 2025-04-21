@@ -15,6 +15,20 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
+    const gui = b.addExecutable(.{
+        .name = "turbomesh_gui",
+        .root_source_file = b.path("src/gui/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    gui.linkLibC();
+    gui.linkSystemLibrary("X11");
+
+    b.installArtifact(gui);
+
+    const run_gui = b.addRunArtifact(gui);
+    run_gui.step.dependOn(b.getInstallStep());
+
     const exe = b.addExecutable(.{
         .name = "turbomesh_zig",
         .root_source_file = b.path("src/main.zig"),
@@ -58,7 +72,7 @@ pub fn build(b: *std.Build) void {
     // and can be selected like this: `zig build run`
     // This will evaluate the `run` step rather than the default, which is "install".
     const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
+    run_step.dependOn(&run_gui.step);
 
     const tests = b.addTest(.{
         .root_source_file = b.path("src/tests.zig"),
