@@ -122,7 +122,7 @@ const O4H = struct {
             allocator,
             self.num_cells.o_grid + 1,
             .{ .line = geometry.Line.init(ss_i_min.points[0], ss_i_max.points[0]) },
-            .{ .uniform = .{} },
+            .{ .single_hyperbolic_clustering = .{ .delta_s = 0.01 } },
         );
         defer ss_j_min.deinit();
 
@@ -130,7 +130,7 @@ const O4H = struct {
             allocator,
             self.num_cells.o_grid + 1,
             .{ .line = geometry.Line.init(ss_i_min.points[ss_edge.points.len - 1], ss_i_max.points[ss_i_max.points.len - 1]) },
-            .{ .uniform = .{} },
+            .{ .single_hyperbolic_clustering = .{ .delta_s = 0.01 } },
         );
         defer ss_j_max.deinit();
 
@@ -586,9 +586,9 @@ test "O4H template" {
     var mesh = try template.run(allocator);
     defer mesh.deinit();
 
-    // try mesh.write(allocator, "o4h_linear.cgns");
+    try mesh.write(allocator, "o4h_linear.cgns");
 
-    try smooth.mesh(allocator, &mesh, 10);
+    try smooth.mesh(allocator, &mesh, 20);
 
     try mesh.write(allocator, "o4h.cgns");
 }
