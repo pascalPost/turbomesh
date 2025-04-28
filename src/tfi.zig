@@ -11,6 +11,93 @@ const add = types.add;
 const addAll = types.addAll;
 const sub = types.sub;
 const scale = types.scale;
+const negate = types.negate;
+
+pub fn linear2d(
+    data: []Vec2d,
+    edge_i_min: []const Vec2d,
+    edge_i_max: []const Vec2d,
+    edge_j_min: []const Vec2d,
+    edge_j_max: []const Vec2d,
+) !void {
+
+    // TODO: make this either comptime t or allow to do it for n consecutive float
+
+    const size = types.Index2d{ edge_i_min.len, edge_j_min.len };
+    if (edge_i_max.len != size[0] or edge_j_max.len != size[1]) return error.InconsistentSize;
+
+    // NOTE: corner values are taken from the i edges;
+    // consistency with the values on the j edges is not checked.
+    const corner_0_0 = edge_i_min[0];
+    const corner_1_0 = edge_i_min[size[0] - 1];
+    const corner_0_1 = edge_i_max[0];
+    const corner_1_1 = edge_i_max[size[0] - 1];
+
+    for (0..size[0]) |i| {
+        const v_xi_0 = edge_i_min[i];
+        const v_xi_1 = edge_i_max[i];
+
+        const xi: Float = @as(Float, @floatFromInt(i)) / @as(Float, @floatFromInt(size[0] - 1));
+
+        for (0..size[1]) |j| {
+            const v_0_eta = edge_j_min[j];
+            const v_1_eta = edge_j_max[j];
+
+            const eta: Float = @as(Float, @floatFromInt(j)) / @as(Float, @floatFromInt(size[1] - 1));
+
+            const u_ij = add(scale(1.0 - xi, v_0_eta), scale(xi, v_1_eta));
+            const v_ij = add(scale(1.0 - eta, v_xi_0), scale(eta, v_xi_1));
+            const uv_ij = addAll(.{
+                scale(xi * eta, corner_1_1),
+                scale(xi * (1.0 - eta), corner_1_0),
+                scale((1.0 - xi) * eta, corner_0_1),
+                scale((1.0 - xi) * (1.0 - eta), corner_0_0),
+            });
+
+            data[i * size[1] + j] = addAll(.{
+                u_ij,
+                v_ij,
+                negate(uv_ij),
+            }); // (i,j)
+        }
+    }
+}
+
+// /// Applies the linear tfi based on the values set on the edges of the data block
+// /// with the given size. A column major memory layout is assumed.
+// /// The linear TFI is described in chapter 3.5.1 of Thompson et al., Eds.,
+// /// Handbook of grid generation. Boca Raton, Fla: CRC Press, 1999.
+// pub fn linear2dInPlace(data: []types.Vec2d, size: types.Index2d) void {
+//     // NOTE: we assume column major layout.
+//
+//     // corner values
+//     const v_0_0 = data[0]; // (0,0)
+//     const v_0_1 = data[size[1] - 1]; // (0,J-1)
+//     const v_1_0 = data[(size[0] - 1) * size[1]]; // (I-1,0)
+//     const v_1_1 = data[(size[0] - 1) * size[1] + size[1] - 1]; // (I-1,J-1)
+//
+//     const im1: Float = @floatFromInt(size[0] - 1);
+//     const jm1: Float = @floatFromInt(size[1] - 1);
+//
+//     for (0..size[0]) |i| {
+//         const v_xi_0 = data[i * size[1]]; // (i,0)
+//         const v_xi_1 = data[i * size[1] + size[1] - 1]; // (i,J-1)
+//
+//         for (0..size[1]) |j| {
+//             const v_0_eta = data[j]; // (0,j)
+//             const v_1_eta = data[(size[0] - 1) * size[0] + j]; // (I-1,j)
+//
+//             const xi: Float = @as(Float, @floatFromInt(i)) / im1;
+//             const eta: Float = @as(Float, @floatFromInt(j)) / jm1;
+//
+//             const u_ij = (1.0 - xi) * v_0_eta + xi * v_1_eta;
+//             const v_ij = (1.0 - eta) * v_xi_0 + eta * v_xi_1;
+//             const uv_ij = xi * eta * v_1_1 + xi * (1.0 - eta) * v_1_0 + (1.0 - xi) * eta * v_0_1 + (1.0 - xi) * (1.0 - eta) * v_0_0;
+//
+//             data[i * size[1] + j] = u_ij + v_ij - uv_ij; // (i,j)
+//         }
+//     }
+// }
 
 /// linear TFI as described in chapter 3.5.1 of Thompson et al., Eds.,
 /// Handbook of grid generation. Boca Raton, Fla: CRC Press, 1999.
@@ -19,7 +106,17 @@ const scale = types.scale;
 /// physical space x_* and computes the coordinates in the internal of the
 /// given 2D field
 /// as described in chapter 3.6.5 Boundary-Blended Control Functions
-pub fn linearBoundaryBlendedControlFunction(data: *Mat2d, x_i_min: []const Vec2d, x_i_max: []const Vec2d, x_j_min: []const Vec2d, x_j_max: []const Vec2d, s1: []const Float, s2: []const Float, t1: []const Float, t2: []const Float) void {
+pub fn linear2dBoundaryBlendedControlFunction(
+    data: *Mat2d,
+    x_i_min: []const Vec2d,
+    x_i_max: []const Vec2d,
+    x_j_min: []const Vec2d,
+    x_j_max: []const Vec2d,
+    s1: []const Float,
+    s2: []const Float,
+    t1: []const Float,
+    t2: []const Float,
+) void {
     // TODO add better error handling!
 
     const n = x_i_min.len;

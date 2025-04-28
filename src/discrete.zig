@@ -141,7 +141,7 @@ pub const Block2d = struct {
         std.debug.assert(j_min.points.len == j_max.points.len);
 
         var points = try types.Mat2d.init(allocator, .{ i_min.points.len, j_min.points.len });
-        tfi.linearBoundaryBlendedControlFunction(
+        tfi.linear2dBoundaryBlendedControlFunction(
             &points,
             i_min.points,
             i_max.points,

@@ -3,6 +3,7 @@ const discrete = @import("discrete.zig");
 const types = @import("types.zig");
 const boundary = @import("boundary.zig");
 pub const solver = @import("solver.zig");
+const tfi = @import("tfi.zig");
 
 // This module provides a block-structured elliptic grid generation algorithm.
 // It takes a set of boundary points and iteratively adjusts interior points to create
@@ -151,10 +152,10 @@ const StencilData = struct {
         return .{
             .data = .{
                 -2.0 * p - 2.0 * r, // get(.i_j)
-                p + 0.5 * s, //ip1_j
-                p - 0.5 * s, //im1_j
-                r + 0.5 * t, //i_jp1
-                r - 0.5 * t, //i_jm1
+                p * (1 + 0.5 * s), //ip1_j
+                p * (1 - 0.5 * s), //im1_j
+                r * (1 + 0.5 * t), //i_jp1
+                r * (1 - 0.5 * t), //i_jm1
                 -0.5 * q, //ip1_jp1
                 0.5 * q, //ip1_jm1
                 0.5 * q, //im1_jp1
@@ -253,6 +254,8 @@ pub const RowCompressedMatrixSystem2d = struct {
 
     boundary_points: BlockBoundaryPoints,
 
+    control_function: []types.Vec2d,
+
     fn init(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh) !RowCompressedMatrixSystem2d {
         connectionDataCheck(mesh_data);
 
@@ -315,10 +318,15 @@ pub const RowCompressedMatrixSystem2d = struct {
             .y_new = y_new,
             .row_idx_range_start_for_each_block = row_idx_range_start_for_each_block,
             .boundary_points = try .init(allocator, index_converter, mesh_data),
+            .control_function = try allocator.alloc(types.Vec2d, dof),
         };
+
+        @memset(system.control_function[0..], .{ .data = .{ 0, 0 } });
 
         try system.initNonZeroMatrixEntries(dof, non_zero_entries_capacity, index_converter);
         system.initBoundaryData();
+
+        try system.initControlFunctionThomasAndMiddlecoff();
 
         return system;
     }
@@ -328,6 +336,141 @@ pub const RowCompressedMatrixSystem2d = struct {
         self.allocator.free(self.buffer_float);
         self.allocator.free(self.row_idx_range_start_for_each_block);
         self.boundary_points.deinit();
+        self.allocator.free(self.control_function);
+    }
+
+    fn initControlFunctionThomasAndMiddlecoff(self: *RowCompressedMatrixSystem2d) !void {
+
+        // TODO: we assume the first 2 blocks to be the O blocks
+        // TODO: for now, we just compute on the j edges
+
+        // TODO: introduce global buffer to reduce number of allocations.
+        const buf_size = types.Index2d{
+            @max(self.mesh.blocks.items[0].points.size[0], self.mesh.blocks.items[1].points.size[0]),
+            @max(self.mesh.blocks.items[0].points.size[1], self.mesh.blocks.items[1].points.size[1]),
+        };
+        var edge_buf = try self.allocator.alloc(types.Vec2d, 2 * buf_size[0] + 2 * buf_size[1]);
+        defer self.allocator.free(edge_buf);
+
+        var block_range_start: usize = 0;
+        for (self.mesh.blocks.items[0..2]) |block| {
+            const size = block.points.size;
+
+            @memset(edge_buf[0 .. 2 * size[0] + 2 * size[1]], .{ .data = .{ 0, 0 } });
+
+            const edge_i_min = edge_buf[0..size[0]];
+            const edge_i_max = edge_buf[size[0] .. 2 * size[0]];
+            const edge_j_min = edge_buf[2 * size[0] .. 2 * size[0] + size[1]];
+            const edge_j_max = edge_buf[2 * size[0] + size[1] .. 2 * size[0] + 2 * size[1]];
+
+            // edge i_min
+            {
+                var local_id: usize = size[1];
+                for (1..block.points.size[0] - 1) |edge_id| {
+                    const im1_j = block.points.data[local_id - size[1]];
+                    const i_j = block.points.data[local_id];
+                    const ip1_j = block.points.data[local_id + size[1]];
+
+                    std.debug.assert(local_id - size[1] == block.points.index(.{ edge_id - 1, 0 }));
+                    std.debug.assert(local_id == block.points.index(.{ edge_id, 0 }));
+                    std.debug.assert(local_id + size[1] == block.points.index(.{ edge_id + 1, 0 }));
+
+                    // central differences
+                    const x_xi = types.scale(0.5, types.sub(ip1_j, im1_j));
+                    const x_xi2 = types.sub(types.add(ip1_j, im1_j), types.scale(2.0, i_j));
+
+                    // eq. 11
+                    const phi = -(x_xi.data[0] * x_xi2.data[0] + x_xi.data[1] * x_xi2.data[1]) / (x_xi.data[0] * x_xi.data[0] + x_xi.data[1] * x_xi.data[1]);
+                    const psi = 0.0;
+
+                    edge_i_min[edge_id] = .init(phi, psi);
+
+                    local_id += size[1];
+                }
+            }
+
+            // edge i_max
+            {
+                var local_id: usize = 2 * size[1] - 1;
+                for (1..block.points.size[0] - 1) |edge_id| {
+                    const im1_j = block.points.data[local_id - size[1]];
+                    const i_j = block.points.data[local_id];
+                    const ip1_j = block.points.data[local_id + size[1]];
+
+                    std.debug.assert(local_id - size[1] == block.points.index(.{ edge_id - 1, size[1] - 1 }));
+                    std.debug.assert(local_id == block.points.index(.{ edge_id, size[1] - 1 }));
+                    std.debug.assert(local_id + size[1] == block.points.index(.{ edge_id + 1, size[1] - 1 }));
+
+                    // central differences
+                    const x_xi = types.scale(0.5, types.sub(ip1_j, im1_j));
+                    const x_xi2 = types.sub(types.add(ip1_j, im1_j), types.scale(2.0, i_j));
+
+                    // eq. 11
+                    const phi = -(x_xi.data[0] * x_xi2.data[0] + x_xi.data[1] * x_xi2.data[1]) / (x_xi.data[0] * x_xi.data[0] + x_xi.data[1] * x_xi.data[1]);
+                    const psi = 0.0;
+
+                    edge_i_max[edge_id] = .init(phi, psi);
+
+                    local_id += size[1];
+                }
+            }
+
+            // edge j_min
+            {
+                var local_id: usize = 1;
+                for (1..block.points.size[1] - 1) |edge_id| {
+                    const i_jm1 = block.points.data[local_id - 1];
+                    const i_j = block.points.data[local_id];
+                    const i_jp1 = block.points.data[local_id + 1];
+
+                    std.debug.assert(local_id - 1 == block.points.index(.{ 0, edge_id - 1 }));
+                    std.debug.assert(local_id == block.points.index(.{ 0, edge_id }));
+                    std.debug.assert(local_id + 1 == block.points.index(.{ 0, edge_id + 1 }));
+
+                    // central differences
+                    const x_eta = types.scale(0.5, types.sub(i_jp1, i_jm1));
+                    const x_eta2 = types.sub(types.add(i_jp1, i_jm1), types.scale(2.0, i_j));
+
+                    // eq. 11
+                    const phi = 0.0;
+                    const psi = -(x_eta.data[0] * x_eta2.data[0] + x_eta.data[1] * x_eta2.data[1]) / (x_eta.data[0] * x_eta.data[0] + x_eta.data[1] * x_eta.data[1]);
+
+                    edge_j_min[edge_id] = .init(phi, psi);
+
+                    local_id += 1;
+                }
+            }
+
+            // edge j_max
+            {
+                var local_id = (block.points.size[0] - 1) * block.points.size[1] + 1;
+                for (1..block.points.size[1] - 1) |edge_id| {
+                    const i_jm1 = block.points.data[local_id - 1];
+                    const i_j = block.points.data[local_id];
+                    const i_jp1 = block.points.data[local_id + 1];
+
+                    std.debug.assert(local_id - 1 == block.points.index(.{ size[0] - 1, edge_id - 1 }));
+                    std.debug.assert(local_id == block.points.index(.{ size[0] - 1, edge_id }));
+                    std.debug.assert(local_id + 1 == block.points.index(.{ size[0] - 1, edge_id + 1 }));
+
+                    // central differences
+                    const x_eta = types.scale(0.5, types.sub(i_jp1, i_jm1));
+                    const x_eta2 = types.sub(types.add(i_jp1, i_jm1), types.scale(2.0, i_j));
+
+                    // eq. 11
+                    const phi = 0.0;
+                    const psi = -(x_eta.data[0] * x_eta2.data[0] + x_eta.data[1] * x_eta2.data[1]) / (x_eta.data[0] * x_eta.data[0] + x_eta.data[1] * x_eta.data[1]);
+
+                    edge_j_max[edge_id] = .init(phi, psi);
+
+                    local_id += 1;
+                }
+            }
+
+            const num_points = block.points.size[0] * block.points.size[1];
+            try tfi.linear2d(self.control_function[block_range_start .. block_range_start + num_points], edge_i_min, edge_i_max, edge_j_min, edge_j_max);
+            block_range_start += num_points;
+        }
     }
 
     /// returns the non zero entries range for the given row (the row index range start for each block can be retrieved from an array in the struct)
@@ -801,11 +944,7 @@ pub const RowCompressedMatrixSystem2d = struct {
         }
     }
 
-    fn fillBlockInternalPointData(
-        self: @This(),
-        s: f64,
-        t: f64,
-    ) void {
+    fn fillBlockInternalPointData(self: RowCompressedMatrixSystem2d) void {
         var row_idx: usize = 0;
 
         for (self.mesh.blocks.items) |block| {
@@ -813,6 +952,7 @@ pub const RowCompressedMatrixSystem2d = struct {
 
             // edge j_min
             for (0..block.points.size[1]) |_| {
+                // TODO: enhance performance!
                 point_idx += 1;
                 row_idx += 1;
             }
@@ -830,7 +970,16 @@ pub const RowCompressedMatrixSystem2d = struct {
                     const i_jp1 = block.points.data[point_idx + 1];
                     const ip1_j = block.points.data[point_idx + block.points.size[1]];
 
-                    const stencil = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                    // TODO: how can we effectively handle 0 w/o data access?
+                    const control_function = self.control_function[row_idx];
+                    const stencil = StencilData.init(
+                        im1_j,
+                        ip1_j,
+                        i_jm1,
+                        i_jp1,
+                        control_function.data[0],
+                        control_function.data[1],
+                    );
 
                     var non_zero_entry_idx = self.nonZeroEntriesRangeStart(@intCast(row_idx));
 
@@ -859,16 +1008,13 @@ pub const RowCompressedMatrixSystem2d = struct {
 
             // edge j_max
             for (0..block.points.size[1]) |_| {
+                // TODO: enhance performance!
                 row_idx += 1;
             }
         }
     }
 
-    fn fillBlockConnectionData(
-        self: RowCompressedMatrixSystem2d,
-        s: f64,
-        t: f64,
-    ) void {
+    fn fillBlockConnectionData(self: RowCompressedMatrixSystem2d) void {
         for (self.mesh.connections.items) |connection| {
             const point_data = [2][]types.Vec2d{
                 self.mesh.blocks.items[connection.ranges[0].block].points.data,
@@ -908,9 +1054,17 @@ pub const RowCompressedMatrixSystem2d = struct {
                     const im1_j = point_data[0][@intCast(point_idx[0] - it.in_connection_direction_shift[0])];
                     const i_jm1 = point_data[0][@intCast(point_idx[0] + it.first_internal_point_shift[0])];
                     const ip1_j = point_data[0][@intCast(point_idx[0] + it.in_connection_direction_shift[0])];
-                    const i_jp1 = types.add(point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])], types.neg(periodicity));
+                    const i_jp1 = types.add(point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])], .{ .data = .{ 0, -0.08836 } });
 
-                    const stencil = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                    const control_function = self.control_function[@intCast(global_idx_0)];
+                    const stencil = StencilData.init(
+                        im1_j,
+                        ip1_j,
+                        i_jm1,
+                        i_jp1,
+                        control_function.data[0],
+                        control_function.data[1],
+                    );
 
                     // points inside block 0
                     self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[0]] = stencil.get(.im1_jm1);
@@ -945,7 +1099,15 @@ pub const RowCompressedMatrixSystem2d = struct {
                     const ip1_j = point_data[0][@intCast(point_idx[0] + it.in_connection_direction_shift[0])];
                     const i_jp1 = point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])];
 
-                    const stencil = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
+                    const control_function = self.control_function[@intCast(global_idx_0)];
+                    const stencil = StencilData.init(
+                        im1_j,
+                        ip1_j,
+                        i_jm1,
+                        i_jp1,
+                        control_function.data[0],
+                        control_function.data[1],
+                    );
 
                     // points inside block 0
                     self.lhs_values[row_non_zero_entries_start_idx + point_stencil_idx[0]] = stencil.get(.im1_jm1);
@@ -969,12 +1131,8 @@ pub const RowCompressedMatrixSystem2d = struct {
     }
 
     fn fill(self: *RowCompressedMatrixSystem2d) !void {
-        // laplace conditions (zero intialization)
-        const s = 0.0;
-        const t = 0.0;
-
-        self.fillBlockInternalPointData(s, t);
-        self.fillBlockConnectionData(s, t);
+        self.fillBlockInternalPointData();
+        self.fillBlockConnectionData();
     }
 };
 

@@ -59,6 +59,10 @@ pub fn scale(s: Float, v: Vec2d) Vec2d {
     return .{ .data = .{ s * v.data[0], s * v.data[1] } };
 }
 
+pub fn negate(v: Vec2d) Vec2d {
+    return .{ .data = .{ -v.data[0], -v.data[1] } };
+}
+
 pub fn abs(v: Vec2d) Float {
     return std.math.sqrt(v.data[0] * v.data[0] + v.data[1] * v.data[1]);
 }
