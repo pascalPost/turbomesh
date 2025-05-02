@@ -139,27 +139,27 @@ const StencilData = struct {
         return self.data[@intFromEnum(i)];
     }
 
-    fn init(im1_j: types.Vec2d, ip1_j: types.Vec2d, i_jm1: types.Vec2d, i_jp1: types.Vec2d, s: f64, t: f64) StencilData {
+    fn init(im1_j: types.Vec2d, ip1_j: types.Vec2d, i_jm1: types.Vec2d, i_jp1: types.Vec2d, P: f64, Q: f64) StencilData {
         const x_xi = 0.5 * (ip1_j.data[0] - im1_j.data[0]);
         const x_eta = 0.5 * (i_jp1.data[0] - i_jm1.data[0]);
         const y_xi = 0.5 * (ip1_j.data[1] - im1_j.data[1]);
         const y_eta = 0.5 * (i_jp1.data[1] - i_jm1.data[1]);
 
-        const p = x_eta * x_eta + y_eta * y_eta;
-        const q = x_xi * x_eta + y_xi * y_eta;
-        const r = x_xi * x_xi + y_xi * y_xi;
+        const g22 = x_eta * x_eta + y_eta * y_eta;
+        const g12 = x_xi * x_eta + y_xi * y_eta;
+        const g11 = x_xi * x_xi + y_xi * y_xi;
 
         return .{
             .data = .{
-                -2.0 * p - 2.0 * r, // get(.i_j)
-                p * (1 + 0.5 * s), //ip1_j
-                p * (1 - 0.5 * s), //im1_j
-                r * (1 + 0.5 * t), //i_jp1
-                r * (1 - 0.5 * t), //i_jm1
-                -0.5 * q, //ip1_jp1
-                0.5 * q, //ip1_jm1
-                0.5 * q, //im1_jp1
-                -0.5 * q, //im1_jm1
+                -2.0 * g22 - 2.0 * g11, // i_j
+                g22 * (1 + 0.5 * P), //ip1_j
+                g22 * (1 - 0.5 * P), //im1_j
+                g11 * (1 + 0.5 * Q), //i_jp1
+                g11 * (1 - 0.5 * Q), //i_jm1
+                -0.5 * g12, //ip1_jp1
+                0.5 * g12, //ip1_jm1
+                0.5 * g12, //im1_jp1
+                -0.5 * g12, //im1_jm1
             },
         };
     }
@@ -254,7 +254,7 @@ pub const RowCompressedMatrixSystem2d = struct {
 
     boundary_points: BlockBoundaryPoints,
 
-    control_function: []types.Vec2d,
+    control_function: ControlFunction,
 
     fn init(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh) !RowCompressedMatrixSystem2d {
         connectionDataCheck(mesh_data);
@@ -318,15 +318,11 @@ pub const RowCompressedMatrixSystem2d = struct {
             .y_new = y_new,
             .row_idx_range_start_for_each_block = row_idx_range_start_for_each_block,
             .boundary_points = try .init(allocator, index_converter, mesh_data),
-            .control_function = try allocator.alloc(types.Vec2d, dof),
+            .control_function = try .init(allocator, dof, mesh_data),
         };
-
-        @memset(system.control_function[0..], .{ .data = .{ 0, 0 } });
 
         try system.initNonZeroMatrixEntries(dof, non_zero_entries_capacity, index_converter);
         system.initBoundaryData();
-
-        try system.initControlFunctionThomasAndMiddlecoff();
 
         return system;
     }
@@ -336,8 +332,84 @@ pub const RowCompressedMatrixSystem2d = struct {
         self.allocator.free(self.buffer_float);
         self.allocator.free(self.row_idx_range_start_for_each_block);
         self.boundary_points.deinit();
-        self.allocator.free(self.control_function);
+        self.control_function.deinit();
     }
+
+    // fn initControlFunctionKhamaysehEtAl(self: *RowCompressedMatrixSystem2d) !void {
+    //     const buf_size = types.Index2d{
+    //         @max(self.mesh.blocks.items[0].points.size[0], self.mesh.blocks.items[1].points.size[0]),
+    //         @max(self.mesh.blocks.items[0].points.size[1], self.mesh.blocks.items[1].points.size[1]),
+    //     };
+    //     var edge_buf = try self.allocator.alloc(types.Vec2d, 2 * buf_size[0] + 2 * buf_size[1]);
+    //     defer self.allocator.free(edge_buf);
+    //
+    //     var block_range_start: usize = 0;
+    //     for (self.mesh.blocks.items[0..2]) |block| {
+    //         const size = block.points.size;
+    //
+    //         @memset(edge_buf[0 .. 2 * size[0] + 2 * size[1]], .{ .data = .{ 0, 0 } });
+    //
+    //         const edge_i_min = edge_buf[0..size[0]];
+    //         const edge_i_max = edge_buf[size[0] .. 2 * size[0]];
+    //         const edge_j_min = edge_buf[2 * size[0] .. 2 * size[0] + size[1]];
+    //         const edge_j_max = edge_buf[2 * size[0] + size[1] .. 2 * size[0] + 2 * size[1]];
+    //
+    //         // NOTE: hard coded for i_min right now!
+    //
+    //         // edge i_min
+    //         {
+    //             var local_id: usize = size[1];
+    //             for (1..block.points.size[0] - 1) |edge_id| {
+    //                 const x_im1_0, const y_im1_0 = block.points.data[local_id - size[1]].data;
+    //                 const x_i_0, const y_i_0 = block.points.data[local_id].data;
+    //                 const x_i_1, const y_i_1 = block.points.data[local_id + 1].data;
+    //                 const x_ip1_0, const y_ip1_0 = block.points.data[local_id + size[1]].data;
+    //
+    //                 // central differences
+    //                 const x_xi = 0.5 * (x_ip1_0 - x_im1_0);
+    //                 const y_xi = 0.5 * (y_ip1_0 - y_im1_0);
+    //                 const x_xi2 = x_ip1_0 - 2.0 * x_i_0 + x_im1_0;
+    //                 const y_xi2 = y_ip1_0 - 2.0 * y_i_0 + y_im1_0;
+    //                 const g11 = x_xi * x_xi + y_xi * y_xi;
+    //
+    //                 // ghost point computation
+    //
+    //                 // one sided approx normal to wall
+    //                 const x_eta_0 = x_i_1 - x_i_0;
+    //                 const y_eta_0 = y_i_1 - y_i_0;
+    //
+    //                 // eq. 6.13
+    //                 const factor = (-y_xi * x_eta_0 + x_xi * y_eta_0) / g11;
+    //                 const x_eta_fixed = factor * -y_xi;
+    //                 const y_eta_fixed = factor * x_xi;
+    //
+    //                 const x_ghost = x_i_0 - x_eta_fixed;
+    //                 const y_ghost = y_i_0 - y_eta_fixed;
+    //                 // TODO: save ghost point positions
+    //
+    //                 const g22 = x_eta_fixed * x_eta_fixed + y_eta_fixed * y_eta_fixed;
+    //
+    //                 const x_eta2 = x_ghost - 2.0 * x_i_0 + x_i_1;
+    //                 const y_eta2 = y_ghost - 2.0 * y_i_0 + y_i_1;
+    //
+    //                 const x_eta = x_i_1 - x_i_0;
+    //                 const y_eta = y_i_1 - y_i_0;
+    //
+    //                 // eq. 6.10
+    //                 const P = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
+    //                 const Q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
+    //
+    //                 edge_i_min[edge_id] = .init(P, Q);
+    //
+    //                 local_id += size[1];
+    //             }
+    //         }
+    //
+    //         const num_points = block.points.size[0] * block.points.size[1];
+    //         try tfi.linear2d(self.control_function[block_range_start .. block_range_start + num_points], edge_i_min, edge_i_max, edge_j_min, edge_j_max);
+    //         block_range_start += num_points;
+    //     }
+    // }
 
     fn initControlFunctionThomasAndMiddlecoff(self: *RowCompressedMatrixSystem2d) !void {
 
@@ -971,7 +1043,7 @@ pub const RowCompressedMatrixSystem2d = struct {
                     const ip1_j = block.points.data[point_idx + block.points.size[1]];
 
                     // TODO: how can we effectively handle 0 w/o data access?
-                    const control_function = self.control_function[row_idx];
+                    const control_function = self.control_function.data[row_idx];
                     const stencil = StencilData.init(
                         im1_j,
                         ip1_j,
@@ -1056,7 +1128,7 @@ pub const RowCompressedMatrixSystem2d = struct {
                     const ip1_j = point_data[0][@intCast(point_idx[0] + it.in_connection_direction_shift[0])];
                     const i_jp1 = types.add(point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])], .{ .data = .{ 0, -0.08836 } });
 
-                    const control_function = self.control_function[@intCast(global_idx_0)];
+                    const control_function = self.control_function.data[@intCast(global_idx_0)];
                     const stencil = StencilData.init(
                         im1_j,
                         ip1_j,
@@ -1099,7 +1171,7 @@ pub const RowCompressedMatrixSystem2d = struct {
                     const ip1_j = point_data[0][@intCast(point_idx[0] + it.in_connection_direction_shift[0])];
                     const i_jp1 = point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])];
 
-                    const control_function = self.control_function[@intCast(global_idx_0)];
+                    const control_function = self.control_function.data[@intCast(global_idx_0)];
                     const stencil = StencilData.init(
                         im1_j,
                         ip1_j,
@@ -1131,6 +1203,7 @@ pub const RowCompressedMatrixSystem2d = struct {
     }
 
     fn fill(self: *RowCompressedMatrixSystem2d) !void {
+        try self.control_function.algorithm.update(self.control_function.data);
         self.fillBlockInternalPointData();
         self.fillBlockConnectionData();
     }
@@ -1587,3 +1660,178 @@ fn computeBufferIds(local_ids: [2]BlockAndLocalIndex, point_index_converter: Ind
     const local2d = .{ point_index_converter.index2d(local_ids[0]), point_index_converter.index2d(local_ids[1]) };
     return .{ try boundary_index_converter.bufferIndex(local2d[0]), try boundary_index_converter.bufferIndex(local2d[1]) };
 }
+
+const ControlFunction = struct {
+    allocator: std.mem.Allocator,
+    data: []types.Vec2d,
+    algorithm: KhamaysehEtAl,
+
+    fn init(allocator: std.mem.Allocator, dof: usize, mesh_data: *const discrete.Mesh) !ControlFunction {
+        // TODO: merge with other allocations.
+        var data = try allocator.alloc(types.Vec2d, dof);
+        @memset(data[0..], .{ .data = .{ 0, 0 } });
+        return .{
+            .allocator = allocator,
+            .data = data,
+            .algorithm = try .init(allocator, mesh_data),
+        };
+    }
+
+    fn deinit(self: ControlFunction) void {
+        self.allocator.free(self.data);
+        self.algorithm.deinit();
+    }
+
+    // const StegerSorenson = struct {
+    //     fn compute() void {
+    //         const r1 = -(
+    //     }
+    // };
+
+    const KhamaysehEtAl = struct {
+        allocator: std.mem.Allocator,
+        mesh: *const discrete.Mesh,
+        ghost_points: []types.Vec2d,
+        g: []types.Float,
+        buffer: []types.Vec2d,
+
+        // TODO: move ghost_points into buffer to save an allocation.
+
+        fn init(allocator: std.mem.Allocator, mesh_data: *const discrete.Mesh) !KhamaysehEtAl {
+            const n_ghost_points = blk: {
+                var count: usize = 0;
+                for (mesh_data.blocks.items[0..2]) |block| {
+                    const size = block.points.size;
+                    count += size[0] - 2;
+                }
+                break :blk count;
+            };
+
+            const buffer_size = types.Index2d{
+                @max(mesh_data.blocks.items[0].points.size[0], mesh_data.blocks.items[1].points.size[0]),
+                @max(mesh_data.blocks.items[0].points.size[1], mesh_data.blocks.items[1].points.size[1]),
+            };
+
+            var self = KhamaysehEtAl{
+                .allocator = allocator,
+                .mesh = mesh_data,
+                .ghost_points = try allocator.alloc(types.Vec2d, n_ghost_points),
+                .g = try allocator.alloc(types.Float, n_ghost_points),
+                .buffer = try allocator.alloc(types.Vec2d, 2 * buffer_size[0] + 2 * buffer_size[1]),
+            };
+
+            self.computeGhostPoints();
+            return self;
+        }
+
+        fn deinit(self: @This()) void {
+            self.allocator.free(self.ghost_points);
+            self.allocator.free(self.g);
+            self.allocator.free(self.buffer);
+        }
+
+        fn computeGhostPoints(self: *@This()) void {
+            var point_id: usize = 0;
+            for (self.mesh.blocks.items[0..2]) |block| {
+                const size = block.points.size;
+
+                // edge i_min
+                {
+                    var local_id: usize = size[1];
+                    for (1..block.points.size[0] - 1) |_| {
+                        const x_im1_0, const y_im1_0 = block.points.data[local_id - size[1]].data;
+                        const x_i_0, const y_i_0 = block.points.data[local_id].data;
+                        const x_i_1, const y_i_1 = block.points.data[local_id + 1].data;
+                        const x_ip1_0, const y_ip1_0 = block.points.data[local_id + size[1]].data;
+
+                        // central differences
+                        const x_xi = 0.5 * (x_ip1_0 - x_im1_0);
+                        const y_xi = 0.5 * (y_ip1_0 - y_im1_0);
+                        const g11 = x_xi * x_xi + y_xi * y_xi;
+
+                        // one sided approx normal to wall
+                        const x_eta_0 = x_i_1 - x_i_0;
+                        const y_eta_0 = y_i_1 - y_i_0;
+
+                        // eq. 6.13
+                        const factor = (-y_xi * x_eta_0 + x_xi * y_eta_0) / g11;
+                        const x_eta_fixed = factor * -y_xi;
+                        const y_eta_fixed = factor * x_xi;
+
+                        const x_ghost = x_i_0 - x_eta_fixed;
+                        const y_ghost = y_i_0 - y_eta_fixed;
+                        self.ghost_points[point_id] = .init(x_ghost, y_ghost);
+
+                        const g22 = x_eta_fixed * x_eta_fixed + y_eta_fixed * y_eta_fixed;
+                        self.g[point_id] = g22;
+
+                        point_id += 1;
+                        local_id += size[1];
+                    }
+                }
+            }
+        }
+
+        fn update(self: @This(), control_function: []types.Vec2d) !void {
+            var point_id: usize = 0;
+            var block_range_start: usize = 0;
+            for (self.mesh.blocks.items[0..2]) |block| {
+                const size = block.points.size;
+
+                @memset(self.buffer, .init(0, 0));
+
+                const edge_i_min = self.buffer[0..size[0]];
+                const edge_i_max = self.buffer[size[0] .. 2 * size[0]];
+                const edge_j_min = self.buffer[2 * size[0] .. 2 * size[0] + size[1]];
+                const edge_j_max = self.buffer[2 * size[0] + size[1] .. 2 * size[0] + 2 * size[1]];
+
+                // NOTE: hard coded for i_min right now!
+
+                // edge i_min
+                {
+                    var local_id: usize = size[1];
+                    for (1..block.points.size[0] - 1) |edge_id| {
+                        const x_im1_0, const y_im1_0 = block.points.data[local_id - size[1]].data;
+                        const x_i_0, const y_i_0 = block.points.data[local_id].data;
+                        const x_i_1, const y_i_1 = block.points.data[local_id + 1].data;
+                        const x_ip1_0, const y_ip1_0 = block.points.data[local_id + size[1]].data;
+
+                        // central differences
+                        const x_xi = 0.5 * (x_ip1_0 - x_im1_0);
+                        const y_xi = 0.5 * (y_ip1_0 - y_im1_0);
+                        const x_xi2 = x_ip1_0 - 2.0 * x_i_0 + x_im1_0;
+                        const y_xi2 = y_ip1_0 - 2.0 * y_i_0 + y_im1_0;
+                        const g11 = x_xi * x_xi + y_xi * y_xi;
+
+                        const x_i_m1, const y_i_m1 = self.ghost_points[point_id].data;
+
+                        // const x_eta_f = 0.5 * (x_i_1 - x_i_m1);
+                        // const y_eta_f = 0.5 * (y_i_1 - y_i_m1);
+
+                        const x_eta = x_i_1 - x_i_0;
+                        const y_eta = y_i_1 - y_i_0;
+                        const x_eta2 = x_i_m1 - 2.0 * x_i_0 + x_i_1;
+                        const y_eta2 = y_i_m1 - 2.0 * y_i_0 + y_i_1;
+
+                        // const g22 = self.g[point_id];
+                        // const g22 = x_eta_f * x_eta_f + y_eta_f * y_eta_f;
+                        const g22 = x_eta * x_eta + y_eta * y_eta;
+
+                        // eq. 6.10
+                        const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
+                        const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
+
+                        edge_i_min[edge_id] = .init(p, q);
+
+                        local_id += size[1];
+                        point_id += 1;
+                    }
+                }
+
+                const num_points = block.points.size[0] * block.points.size[1];
+                try tfi.linear2d(control_function[block_range_start .. block_range_start + num_points], edge_i_min, edge_i_max, edge_j_min, edge_j_max);
+                block_range_start += num_points;
+            }
+        }
+    };
+};
