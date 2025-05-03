@@ -1725,10 +1725,82 @@ const ControlFunction = struct {
             self.allocator.free(self.buffer);
         }
 
-        fn computeGhostPoints(self: *@This()) void {
+        fn computeGhostPoints(self: *@This(), control_function: []types.Vec2d) void {
             var point_id: usize = 0;
             for (self.mesh.blocks.items[0..2]) |block| {
                 const size = block.points.size;
+
+                @memset(self.buffer, .init(0, 0));
+
+                const edge_i_min = self.buffer[0..size[0]];
+                const edge_i_max = self.buffer[size[0] .. 2 * size[0]];
+                const edge_j_min = self.buffer[2 * size[0] .. 2 * size[0] + size[1]];
+                const edge_j_max = self.buffer[2 * size[0] + size[1] .. 2 * size[0] + 2 * size[1]];
+
+                {
+                    // corner 0,0
+                    // TODO: hard code indices to gain performance.
+                    const local_id = 0;
+                    const x_0_0, const y_0_0 = block.points.data[local_id].data;
+                    const x_0_1, const y_0_1 = block.points.data[local_id + 1].data;
+                    const x_0_2, const y_0_2 = block.points.data[local_id + 2].data;
+                    const x_1_0, const y_1_0 = block.points.data[local_id + size[1]].data;
+                    const x_2_0, const y_2_0 = block.points.data[local_id + 2 * size[1]].data;
+
+                    // forward differences
+                    const x_xi = -x_0_0 + x_1_0;
+                    const y_xi = -y_0_0 + y_1_0;
+
+                    const x_xi2 = x_0_0 - 2 * x_1_0 + x_2_0;
+                    const y_xi2 = y_0_0 - 2 * y_1_0 + y_2_0;
+
+                    const x_eta = -x_0_0 + x_0_1;
+                    const y_eta = -y_0_0 + y_0_1;
+
+                    const x_eta2 = x_0_0 - 2 * x_0_1 + x_0_2;
+                    const y_eta2 = y_0_0 - 2 * y_0_1 + y_0_2;
+
+                    const g11 = x_xi * x_xi + y_xi * y_xi;
+                    const g22 = x_eta * x_eta + y_eta * y_eta;
+
+                    // eq. 6.10
+                    const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
+                    const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
+
+                    edge_i_min[0] = .init(p, q);
+                }
+
+                {
+                    // corner n,0
+                    // TODO: hard code indices to gain performance.
+                    const local_id = 0;
+                    const x_n_0, const y_n_0 = block.points.data[local_id].data;
+                    const x_n_1, const y_n_1 = block.points.data[local_id + 1].data;
+                    const x_n_2, const y_n_2 = block.points.data[local_id + 2].data;
+                    const x_nm1_0, const y_1s@<S-F2>!Z<S-F1>points.data[local_id + 2 * size[1]].data;
+
+                    // forward differences
+                    const x_xi = -x_0_0 + x_1_0;
+                    const y_xi = -y_0_0 + y_1_0;
+
+                    const x_xi2 = x_0_0 - 2 * x_1_0 + x_2_0;
+                    const y_xi2 = y_0_0 - 2 * y_1_0 + y_2_0;
+
+                    const x_eta = -x_0_0 + x_0_1;
+                    const y_eta = -y_0_0 + y_0_1;
+
+                    const x_eta2 = x_0_0 - 2 * x_0_1 + x_0_2;
+                    const y_eta2 = y_0_0 - 2 * y_0_1 + y_0_2;
+
+                    const g11 = x_xi * x_xi + y_xi * y_xi;
+                    const g22 = x_eta * x_eta + y_eta * y_eta;
+
+                    // eq. 6.10
+                    const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
+                    const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
+
+                    edge_i_min[0] = .init(p, q);
+                }
 
                 // edge i_min
                 {
