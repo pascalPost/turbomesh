@@ -97,8 +97,8 @@ pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations:
                         const row_idx = row_block_start_idx + point_idx;
                         const delta_x = system.x_new[row_idx] - block.points.data[point_idx].data[0];
                         const delta_y = system.y_new[row_idx] - block.points.data[point_idx].data[1];
-                        block.points.data[point_idx].data[0] += 0.1 * delta_x;
-                        block.points.data[point_idx].data[1] += 0.1 * delta_y;
+                        block.points.data[point_idx].data[0] += 1.0 * delta_x;
+                        block.points.data[point_idx].data[1] += 1.0 * delta_y;
                     }
                 }
                 row_block_start_idx += block.points.size[0] * block.points.size[1];
@@ -1195,7 +1195,7 @@ const RowCompressedMatrixSystem2d = struct {
     }
 
     fn fillAndSolve(self: *RowCompressedMatrixSystem2d) !void {
-        try self.control_function.algorithm.update(self.control_function.data);
+        // try self.control_function.algorithm.update(self.control_function.data);
         self.fillBlockInternalPointData();
         self.fillBlockConnectionData();
 
@@ -1659,7 +1659,8 @@ fn computeBufferIds(local_ids: [2]BlockAndLocalIndex, point_index_converter: Ind
 const ControlFunction = struct {
     allocator: std.mem.Allocator,
     data: []types.Vec2d,
-    algorithm: KhamaysehEtAl,
+    // algorithm: KhamaysehEtAl,
+    algorithm: White,
 
     fn init(allocator: std.mem.Allocator, dof: usize, mesh_data: *const discrete.Mesh) !ControlFunction {
         // TODO: merge with other allocations.
@@ -1668,7 +1669,8 @@ const ControlFunction = struct {
         return .{
             .allocator = allocator,
             .data = data,
-            .algorithm = try .init(allocator, mesh_data),
+            // .algorithm = try .init(allocator, mesh_data, data),
+            .algorithm = .init(mesh_data, data),
         };
     }
 
@@ -1677,11 +1679,319 @@ const ControlFunction = struct {
         self.algorithm.deinit();
     }
 
-    // const StegerSorenson = struct {
-    //     fn compute() void {
-    //         const r1 = -(
-    //     }
-    // };
+    const StegerSorenson = struct {
+        mesh: *const discrete.Mesh,
+
+        fn init(mesh_data: *const discrete.Mesh, control_function: []types.Vec2d) White {
+            var white = White{ .mesh = mesh_data };
+            white.initControlFunction(control_function);
+            return white;
+        }
+
+        fn deinit(self: White) void {
+            _ = self;
+        }
+
+        fn initControlFunction(self: *@This(), control_function: []types.Vec2d) void {
+            var block_range_start: usize = 0;
+            for (self.mesh.blocks.items[0..2]) |block| {
+                const size = block.points.size;
+
+                var local_id: usize = 0;
+
+                {
+                    // corner 0,0
+                    // TODO: hard code indices to gain performance.
+                    const x_0_0, const y_0_0 = block.points.data[local_id].data;
+                    const x_0_1, const y_0_1 = block.points.data[local_id + 1].data;
+                    const x_0_2, const y_0_2 = block.points.data[local_id + 2].data;
+                    const x_1_0, const y_1_0 = block.points.data[local_id + size[1]].data;
+                    const x_2_0, const y_2_0 = block.points.data[local_id + 2 * size[1]].data;
+
+                    // forward differences
+                    const x_xi = -x_0_0 + x_1_0;
+                    const y_xi = -y_0_0 + y_1_0;
+                    const x_xi2 = x_0_0 - 2 * x_1_0 + x_2_0;
+                    const y_xi2 = y_0_0 - 2 * y_1_0 + y_2_0;
+
+                    const x_eta = -x_0_0 + x_0_1;
+                    const y_eta = -y_0_0 + y_0_1;
+                    const x_eta2 = x_0_0 - 2 * x_0_1 + x_0_2;
+                    const y_eta2 = y_0_0 - 2 * y_0_1 + y_0_2;
+
+                    const g11 = x_xi * x_xi + y_xi * y_xi;
+                    const g22 = x_eta * x_eta + y_eta * y_eta;
+
+                    // eq. 6.10
+                    const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
+                    const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
+
+                    // std.debug.print("block {} point {} P {} Q {}\n", .{ block_id, point_id, p, q });
+
+                    control_function[block_range_start + local_id] = .init(p, q);
+                    local_id += 1;
+
+                    for (1..block.points.size[1]) |j| {
+                        const factor: f64 = 1 - @as(f64, @floatFromInt(j)) / (@as(f64, @floatFromInt(size[1])) - 1);
+                        control_function[block_range_start + local_id] = .init(factor * p, factor * q);
+                        local_id += 1;
+                    }
+                }
+
+                // edge i_min
+                {
+                    // var local_id: usize = size[1];
+                    for (1..block.points.size[0] - 1) |_| {
+                        const x_im1_0, const y_im1_0 = block.points.data[local_id - size[1]].data;
+                        const x_i_0, const y_i_0 = block.points.data[local_id].data;
+                        const x_i_1, const y_i_1 = block.points.data[local_id + 1].data;
+                        const x_i_2, const y_i_2 = block.points.data[local_id + 2].data;
+                        const x_ip1_0, const y_ip1_0 = block.points.data[local_id + size[1]].data;
+
+                        // central differences
+                        const x_xi = 0.5 * (x_ip1_0 - x_im1_0);
+                        const y_xi = 0.5 * (y_ip1_0 - y_im1_0);
+                        const x_xi2 = x_ip1_0 - 2.0 * x_i_0 + x_im1_0;
+                        const y_xi2 = y_ip1_0 - 2.0 * y_i_0 + y_im1_0;
+
+                        const g11 = x_xi * x_xi + y_xi * y_xi;
+
+                        // forward differences
+                        const x_eta = -x_i_0 + x_i_1;
+                        const y_eta = -y_i_0 + y_i_1;
+                        const x_eta2 = x_i_0 - 2 * x_i_1 + x_i_2;
+                        const y_eta2 = y_i_0 - 2 * y_i_1 + y_i_2;
+
+                        const g22 = x_eta * x_eta + y_eta * y_eta;
+
+                        // eq. 6.10
+                        const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
+                        const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
+
+                        // std.debug.print("block {} point {} P {} Q {}\n", .{ block_id, point_id, p, q });
+
+                        control_function[block_range_start + local_id] = .init(p, q);
+                        local_id += 1;
+                        // local_id += size[1];
+
+                        for (1..block.points.size[1]) |j| {
+                            const factor: f64 = 1 - @as(f64, @floatFromInt(j)) / (@as(f64, @floatFromInt(size[1])) - 1);
+                            control_function[block_range_start + local_id] = .init(factor * p, factor * q);
+                            local_id += 1;
+                        }
+                    }
+                }
+
+                {
+                    // corner n,0
+                    // TODO: hard code indices to gain performance.
+                    // const local_id = (size[0] - 1) * size[1];
+                    const x_n_0, const y_n_0 = block.points.data[local_id].data;
+                    const x_n_1, const y_n_1 = block.points.data[local_id + 1].data;
+                    const x_n_2, const y_n_2 = block.points.data[local_id + 2].data;
+                    const x_nm1_0, const y_nm1_0 = block.points.data[local_id - size[1]].data;
+                    const x_nm2_0, const y_nm2_0 = block.points.data[local_id - 2 * size[1]].data;
+
+                    // backward differences
+                    const x_xi = x_n_0 - x_nm1_0;
+                    const y_xi = y_n_0 - y_nm1_0;
+
+                    const x_xi2 = x_n_0 - 2 * x_nm1_0 + x_nm2_0;
+                    const y_xi2 = y_n_0 - 2 * y_nm1_0 + y_nm2_0;
+
+                    // forward differences
+                    const x_eta = -x_n_0 + x_n_1;
+                    const y_eta = -y_n_0 + y_n_1;
+
+                    const x_eta2 = x_n_0 - 2 * x_n_1 + x_n_2;
+                    const y_eta2 = y_n_0 - 2 * y_n_1 + y_n_2;
+
+                    const g11 = x_xi * x_xi + y_xi * y_xi;
+                    const g22 = x_eta * x_eta + y_eta * y_eta;
+
+                    // eq. 6.10
+                    const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
+                    const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
+
+                    // std.debug.print("block {} point {} P {} Q {}\n", .{ block_id, point_id, p, q });
+
+                    control_function[block_range_start + local_id] = .init(p, q);
+                    local_id += 1;
+
+                    for (1..block.points.size[1]) |j| {
+                        const factor: f64 = 1 - @as(f64, @floatFromInt(j)) / (@as(f64, @floatFromInt(size[1])) - 1);
+                        control_function[block_range_start + local_id] = .init(factor * p, factor * q);
+                        local_id += 1;
+                    }
+                }
+
+                const num_points = block.points.size[0] * block.points.size[1];
+                block_range_start += num_points;
+            }
+        }
+
+        fn update(self: White, control_function: []types.Vec2d) void {
+            _ = self;
+            _ = control_function;
+        }
+    };
+
+    const White = struct {
+        mesh: *const discrete.Mesh,
+
+        fn init(mesh_data: *const discrete.Mesh, control_function: []types.Vec2d) White {
+            var white = White{ .mesh = mesh_data };
+            white.initControlFunction(control_function);
+            return white;
+        }
+
+        fn deinit(self: White) void {
+            _ = self;
+        }
+
+        fn initControlFunction(self: *@This(), control_function: []types.Vec2d) void {
+            var block_range_start: usize = 0;
+            for (self.mesh.blocks.items[0..2]) |block| {
+                const size = block.points.size;
+
+                var local_id: usize = 0;
+
+                {
+                    // corner 0,0
+                    // TODO: hard code indices to gain performance.
+                    const x_0_0, const y_0_0 = block.points.data[local_id].data;
+                    const x_0_1, const y_0_1 = block.points.data[local_id + 1].data;
+                    const x_0_2, const y_0_2 = block.points.data[local_id + 2].data;
+                    const x_1_0, const y_1_0 = block.points.data[local_id + size[1]].data;
+                    const x_2_0, const y_2_0 = block.points.data[local_id + 2 * size[1]].data;
+
+                    // forward differences
+                    const x_xi = -x_0_0 + x_1_0;
+                    const y_xi = -y_0_0 + y_1_0;
+                    const x_xi2 = x_0_0 - 2 * x_1_0 + x_2_0;
+                    const y_xi2 = y_0_0 - 2 * y_1_0 + y_2_0;
+
+                    const x_eta = -x_0_0 + x_0_1;
+                    const y_eta = -y_0_0 + y_0_1;
+                    const x_eta2 = x_0_0 - 2 * x_0_1 + x_0_2;
+                    const y_eta2 = y_0_0 - 2 * y_0_1 + y_0_2;
+
+                    const g11 = x_xi * x_xi + y_xi * y_xi;
+                    const g22 = x_eta * x_eta + y_eta * y_eta;
+
+                    // eq. 6.10
+                    const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
+                    const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
+
+                    // std.debug.print("block {} point {} P {} Q {}\n", .{ block_id, point_id, p, q });
+
+                    control_function[block_range_start + local_id] = .init(p, q);
+                    local_id += 1;
+
+                    for (1..block.points.size[1]) |j| {
+                        const factor: f64 = 1 - @as(f64, @floatFromInt(j)) / (@as(f64, @floatFromInt(size[1])) - 1);
+                        control_function[block_range_start + local_id] = .init(factor * p, factor * q);
+                        local_id += 1;
+                    }
+                }
+
+                // edge i_min
+                {
+                    // var local_id: usize = size[1];
+                    for (1..block.points.size[0] - 1) |_| {
+                        const x_im1_0, const y_im1_0 = block.points.data[local_id - size[1]].data;
+                        const x_i_0, const y_i_0 = block.points.data[local_id].data;
+                        const x_i_1, const y_i_1 = block.points.data[local_id + 1].data;
+                        const x_i_2, const y_i_2 = block.points.data[local_id + 2].data;
+                        const x_ip1_0, const y_ip1_0 = block.points.data[local_id + size[1]].data;
+
+                        // central differences
+                        const x_xi = 0.5 * (x_ip1_0 - x_im1_0);
+                        const y_xi = 0.5 * (y_ip1_0 - y_im1_0);
+                        const x_xi2 = x_ip1_0 - 2.0 * x_i_0 + x_im1_0;
+                        const y_xi2 = y_ip1_0 - 2.0 * y_i_0 + y_im1_0;
+
+                        const g11 = x_xi * x_xi + y_xi * y_xi;
+
+                        // forward differences
+                        const x_eta = -x_i_0 + x_i_1;
+                        const y_eta = -y_i_0 + y_i_1;
+                        const x_eta2 = x_i_0 - 2 * x_i_1 + x_i_2;
+                        const y_eta2 = y_i_0 - 2 * y_i_1 + y_i_2;
+
+                        const g22 = x_eta * x_eta + y_eta * y_eta;
+
+                        // eq. 6.10
+                        const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
+                        const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
+
+                        // std.debug.print("block {} point {} P {} Q {}\n", .{ block_id, point_id, p, q });
+
+                        control_function[block_range_start + local_id] = .init(p, q);
+                        local_id += 1;
+                        // local_id += size[1];
+
+                        for (1..block.points.size[1]) |j| {
+                            const factor: f64 = 1 - @as(f64, @floatFromInt(j)) / (@as(f64, @floatFromInt(size[1])) - 1);
+                            control_function[block_range_start + local_id] = .init(factor * p, factor * q);
+                            local_id += 1;
+                        }
+                    }
+                }
+
+                {
+                    // corner n,0
+                    // TODO: hard code indices to gain performance.
+                    // const local_id = (size[0] - 1) * size[1];
+                    const x_n_0, const y_n_0 = block.points.data[local_id].data;
+                    const x_n_1, const y_n_1 = block.points.data[local_id + 1].data;
+                    const x_n_2, const y_n_2 = block.points.data[local_id + 2].data;
+                    const x_nm1_0, const y_nm1_0 = block.points.data[local_id - size[1]].data;
+                    const x_nm2_0, const y_nm2_0 = block.points.data[local_id - 2 * size[1]].data;
+
+                    // backward differences
+                    const x_xi = x_n_0 - x_nm1_0;
+                    const y_xi = y_n_0 - y_nm1_0;
+
+                    const x_xi2 = x_n_0 - 2 * x_nm1_0 + x_nm2_0;
+                    const y_xi2 = y_n_0 - 2 * y_nm1_0 + y_nm2_0;
+
+                    // forward differences
+                    const x_eta = -x_n_0 + x_n_1;
+                    const y_eta = -y_n_0 + y_n_1;
+
+                    const x_eta2 = x_n_0 - 2 * x_n_1 + x_n_2;
+                    const y_eta2 = y_n_0 - 2 * y_n_1 + y_n_2;
+
+                    const g11 = x_xi * x_xi + y_xi * y_xi;
+                    const g22 = x_eta * x_eta + y_eta * y_eta;
+
+                    // eq. 6.10
+                    const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
+                    const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
+
+                    // std.debug.print("block {} point {} P {} Q {}\n", .{ block_id, point_id, p, q });
+
+                    control_function[block_range_start + local_id] = .init(p, q);
+                    local_id += 1;
+
+                    for (1..block.points.size[1]) |j| {
+                        const factor: f64 = 1 - @as(f64, @floatFromInt(j)) / (@as(f64, @floatFromInt(size[1])) - 1);
+                        control_function[block_range_start + local_id] = .init(factor * p, factor * q);
+                        local_id += 1;
+                    }
+                }
+
+                const num_points = block.points.size[0] * block.points.size[1];
+                block_range_start += num_points;
+            }
+        }
+
+        fn update(self: White, control_function: []types.Vec2d) void {
+            _ = self;
+            _ = control_function;
+        }
+    };
 
     const KhamaysehEtAl = struct {
         allocator: std.mem.Allocator,
@@ -1692,7 +2002,7 @@ const ControlFunction = struct {
 
         // TODO: move ghost_points into buffer to save an allocation.
 
-        fn init(allocator: std.mem.Allocator, mesh_data: *const discrete.Mesh) !KhamaysehEtAl {
+        fn init(allocator: std.mem.Allocator, mesh_data: *const discrete.Mesh, control_function: []types.Vec2d) !KhamaysehEtAl {
             const n_ghost_points = blk: {
                 var count: usize = 0;
                 for (mesh_data.blocks.items[0..2]) |block| {
@@ -1715,7 +2025,7 @@ const ControlFunction = struct {
                 .buffer = try allocator.alloc(types.Vec2d, 2 * buffer_size[0] + 2 * buffer_size[1]),
             };
 
-            self.computeGhostPoints();
+            self.computeGhostPoints(control_function);
             return self;
         }
 
@@ -1726,16 +2036,17 @@ const ControlFunction = struct {
         }
 
         fn computeGhostPoints(self: *@This(), control_function: []types.Vec2d) void {
+            _ = control_function;
             var point_id: usize = 0;
-            for (self.mesh.blocks.items[0..2]) |block| {
+            for (self.mesh.blocks.items[0..2], 0..2) |block, block_id| {
                 const size = block.points.size;
 
-                @memset(self.buffer, .init(0, 0));
+                // @memset(self.buffer, .init(0, 0));
 
-                const edge_i_min = self.buffer[0..size[0]];
-                const edge_i_max = self.buffer[size[0] .. 2 * size[0]];
-                const edge_j_min = self.buffer[2 * size[0] .. 2 * size[0] + size[1]];
-                const edge_j_max = self.buffer[2 * size[0] + size[1] .. 2 * size[0] + 2 * size[1]];
+                // const edge_i_min = self.buffer[0..size[0]];
+                // const edge_i_max = self.buffer[size[0] .. 2 * size[0]];
+                // const edge_j_min = self.buffer[2 * size[0] .. 2 * size[0] + size[1]];
+                // const edge_j_max = self.buffer[2 * size[0] + size[1] .. 2 * size[0] + 2 * size[1]];
 
                 {
                     // corner 0,0
@@ -1767,39 +2078,9 @@ const ControlFunction = struct {
                     const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
                     const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
 
-                    edge_i_min[0] = .init(p, q);
-                }
+                    std.debug.print("block {} point {} P {} Q {}\n", .{ block_id, point_id, p, q });
 
-                {
-                    // corner n,0
-                    // TODO: hard code indices to gain performance.
-                    const local_id = 0;
-                    const x_n_0, const y_n_0 = block.points.data[local_id].data;
-                    const x_n_1, const y_n_1 = block.points.data[local_id + 1].data;
-                    const x_n_2, const y_n_2 = block.points.data[local_id + 2].data;
-                    const x_nm1_0, const y_1s@<S-F2>!Z<S-F1>points.data[local_id + 2 * size[1]].data;
-
-                    // forward differences
-                    const x_xi = -x_0_0 + x_1_0;
-                    const y_xi = -y_0_0 + y_1_0;
-
-                    const x_xi2 = x_0_0 - 2 * x_1_0 + x_2_0;
-                    const y_xi2 = y_0_0 - 2 * y_1_0 + y_2_0;
-
-                    const x_eta = -x_0_0 + x_0_1;
-                    const y_eta = -y_0_0 + y_0_1;
-
-                    const x_eta2 = x_0_0 - 2 * x_0_1 + x_0_2;
-                    const y_eta2 = y_0_0 - 2 * y_0_1 + y_0_2;
-
-                    const g11 = x_xi * x_xi + y_xi * y_xi;
-                    const g22 = x_eta * x_eta + y_eta * y_eta;
-
-                    // eq. 6.10
-                    const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
-                    const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
-
-                    edge_i_min[0] = .init(p, q);
+                    // edge_i_min[0] = .init(p, q);
                 }
 
                 // edge i_min
@@ -1809,11 +2090,14 @@ const ControlFunction = struct {
                         const x_im1_0, const y_im1_0 = block.points.data[local_id - size[1]].data;
                         const x_i_0, const y_i_0 = block.points.data[local_id].data;
                         const x_i_1, const y_i_1 = block.points.data[local_id + 1].data;
+                        // const x_i_2, const y_i_2 = block.points.data[local_id + 2].data;
                         const x_ip1_0, const y_ip1_0 = block.points.data[local_id + size[1]].data;
 
                         // central differences
                         const x_xi = 0.5 * (x_ip1_0 - x_im1_0);
                         const y_xi = 0.5 * (y_ip1_0 - y_im1_0);
+                        const x_xi2 = x_ip1_0 - 2.0 * x_i_0 + x_im1_0;
+                        const y_xi2 = y_ip1_0 - 2.0 * y_i_0 + y_im1_0;
                         const g11 = x_xi * x_xi + y_xi * y_xi;
 
                         // one sided approx normal to wall
@@ -1822,20 +2106,78 @@ const ControlFunction = struct {
 
                         // eq. 6.13
                         const factor = (-y_xi * x_eta_0 + x_xi * y_eta_0) / g11;
-                        const x_eta_fixed = factor * -y_xi;
-                        const y_eta_fixed = factor * x_xi;
+                        const x_eta_fixed = factor * y_xi;
+                        const y_eta_fixed = factor * -x_xi;
 
-                        const x_ghost = x_i_0 - x_eta_fixed;
-                        const y_ghost = y_i_0 - y_eta_fixed;
-                        self.ghost_points[point_id] = .init(x_ghost, y_ghost);
+                        const x_i_m1 = x_i_0 - x_eta_fixed;
+                        const y_i_m1 = y_i_0 - y_eta_fixed;
+                        // self.ghost_points[point_id] = .init(x_ghost, y_ghost);
 
-                        const g22 = x_eta_fixed * x_eta_fixed + y_eta_fixed * y_eta_fixed;
-                        self.g[point_id] = g22;
+                        // const g22 = x_eta_fixed * x_eta_fixed + y_eta_fixed * y_eta_fixed;
+                        // self.g[point_id] = g22;
+
+                        const x_eta = x_i_1 - x_i_0;
+                        const y_eta = y_i_1 - y_i_0;
+                        const x_eta2 = x_i_m1 - 2.0 * x_i_0 + x_i_1;
+                        const y_eta2 = y_i_m1 - 2.0 * y_i_0 + y_i_1;
+
+                        const g22 = x_eta * x_eta + y_eta * y_eta;
+
+                        // // forward
+                        // const x_eta = -x_i_0 + x_i_1;
+                        // const y_eta = -y_i_0 + y_i_1;
+                        //
+                        // const x_eta2 = x_i_0 - 2 * x_i_1 + x_i_2;
+                        // const y_eta2 = y_i_0 - 2 * y_i_1 + y_i_2;
+                        //
+                        // const g22 = x_eta * x_eta + y_eta * y_eta;
+
+                        // eq. 6.10
+                        const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
+                        const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
+
+                        std.debug.print("block {} point {} P {} Q {}\n", .{ block_id, point_id, p, q });
 
                         point_id += 1;
                         local_id += size[1];
                     }
                 }
+
+                {
+                    // corner n,0
+                    // TODO: hard code indices to gain performance.
+                    const local_id = (size[0] - 1) * size[1];
+                    const x_n_0, const y_n_0 = block.points.data[local_id].data;
+                    const x_n_1, const y_n_1 = block.points.data[local_id + 1].data;
+                    const x_n_2, const y_n_2 = block.points.data[local_id + 2].data;
+                    const x_nm1_0, const y_nm1_0 = block.points.data[local_id - size[1]].data;
+                    const x_nm2_0, const y_nm2_0 = block.points.data[local_id - 2 * size[1]].data;
+
+                    // backward differences
+                    const x_xi = x_n_0 - x_nm1_0;
+                    const y_xi = y_n_0 - y_nm1_0;
+
+                    const x_xi2 = x_n_0 - 2 * x_nm1_0 + x_nm2_0;
+                    const y_xi2 = y_n_0 - 2 * y_nm1_0 + y_nm2_0;
+
+                    // forward differences
+                    const x_eta = -x_n_0 + x_n_1;
+                    const y_eta = -y_n_0 + y_n_1;
+
+                    const x_eta2 = x_n_0 - 2 * x_n_1 + x_n_2;
+                    const y_eta2 = y_n_0 - 2 * y_n_1 + y_n_2;
+
+                    const g11 = x_xi * x_xi + y_xi * y_xi;
+                    const g22 = x_eta * x_eta + y_eta * y_eta;
+
+                    // eq. 6.10
+                    const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
+                    const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
+
+                    std.debug.print("block {} point {} P {} Q {}\n", .{ block_id, point_id, p, q });
+                }
+
+                std.posix.exit(0);
             }
         }
 
