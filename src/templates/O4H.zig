@@ -122,7 +122,7 @@ pub const O4H = struct {
             allocator,
             self.num_cells.o_grid + 1,
             .{ .line = geometry.Line.init(ss_i_min.points[0], ss_i_max.points[0]) },
-            .{ .uniform = .{} },
+            .{ .single_hyperbolic_clustering = .{ .delta_s = 0.01 } },
         );
         defer ss_j_min.deinit();
 
@@ -130,7 +130,7 @@ pub const O4H = struct {
             allocator,
             self.num_cells.o_grid + 1,
             .{ .line = geometry.Line.init(ss_i_min.points[ss_edge.points.len - 1], ss_i_max.points[ss_i_max.points.len - 1]) },
-            .{ .uniform = .{} },
+            .{ .single_hyperbolic_clustering = .{ .delta_s = 0.01 } },
         );
         defer ss_j_max.deinit();
 
