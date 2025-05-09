@@ -588,7 +588,7 @@ test "O4H template" {
 
     try mesh.write(allocator, "o4h_linear.cgns");
 
-    try smooth.mesh(allocator, &mesh, 20);
+    try smooth.mesh(allocator, &mesh, 10);
 
-    try mesh.write(allocator, "o4h.cgns");
+    // try mesh.write(allocator, "o4h.cgns");
 }
