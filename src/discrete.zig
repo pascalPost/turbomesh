@@ -206,7 +206,7 @@ pub const Mesh = struct {
         defer allocator.free(block_points);
         for (self.blocks.items, block_points[0..]) |b, *data| data.* = b.points;
 
-        try cgns.write(filename, self.names.items, block_points, buffer[0..]);
+        try cgns.write(filename, self.names.items, block_points, buffer[0..], null);
     }
 };
 

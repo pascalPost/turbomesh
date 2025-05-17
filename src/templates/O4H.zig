@@ -568,8 +568,8 @@ test "O4H template" {
         .pitch = 0.08836, // m
         .blade_clustering = .{ .roberts = .{ .alpha = 0.5, .beta = 1.03 } },
         .num_cells = .{
-            .o_grid = 20,
-            .in_up_j = 30,
+            .o_grid = 40,
+            .in_up_j = 50,
             .in_down_j = 10,
             .in_i = 10,
             .out_up_j = 40,

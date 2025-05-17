@@ -4,6 +4,7 @@ const types = @import("types.zig");
 const boundary = @import("boundary.zig");
 pub const solver = @import("solver.zig");
 const tfi = @import("tfi.zig");
+const cgns = @import("cgns.zig");
 
 // This module provides a block-structured elliptic grid generation algorithm.
 // It takes a set of boundary points and iteratively adjusts interior points to create
@@ -113,6 +114,9 @@ pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations:
     const time_end = try std.time.Instant.now();
     const time_delta: f32 = @floatFromInt(time_end.since(time_start));
     std.debug.print("elapsed time for smoothing: {d:.2} s\n", .{time_delta / std.time.ns_per_s});
+
+    // TODO: remove asap (e.g. with an option)
+    try system.write("smooth.cgns");
 }
 
 /// The 9 point stencil data for the point (i,j). The values are stored in an array where the index in
@@ -224,7 +228,7 @@ fn connectionDataCheck(mesh_data: *const discrete.Mesh) void {
     // TODO: check that endpoints match! That allows to ease the connection handling!
 }
 
-const RowCompressedMatrixSystem2d = struct {
+pub const RowCompressedMatrixSystem2d = struct {
     mesh: *discrete.Mesh,
     allocator: std.mem.Allocator,
     buffer_int: []c_int,
@@ -333,6 +337,23 @@ const RowCompressedMatrixSystem2d = struct {
         self.allocator.free(self.row_idx_range_start_for_each_block);
         self.boundary_points.deinit();
         self.control_function.deinit();
+    }
+
+    fn write(self: RowCompressedMatrixSystem2d, filename: [:0]const u8) !void {
+        // buffer
+        var size: usize = 0;
+        for (self.mesh.blocks.items) |b| {
+            size = @max(size, b.points.data.len);
+        }
+        var buffer = try self.allocator.alloc(types.Float, size);
+        defer self.allocator.free(buffer);
+
+        // block data
+        var block_points = try self.allocator.alloc(types.Mat2d, self.mesh.blocks.items.len);
+        defer self.allocator.free(block_points);
+        for (self.mesh.blocks.items, block_points[0..]) |b, *data| data.* = b.points;
+
+        try cgns.write(filename, self.mesh.names.items, block_points, buffer[0..], self.control_function.data);
     }
 
     // fn initControlFunctionKhamaysehEtAl(self: *RowCompressedMatrixSystem2d) !void {
@@ -1677,7 +1698,7 @@ const ControlFunction = struct {
         self.algorithm.deinit();
     }
 
-    const StegerSorenson = struct {
+    const White = struct {
         mesh: *const discrete.Mesh,
 
         fn init(mesh_data: *const discrete.Mesh, control_function: []types.Vec2d) White {
@@ -1709,6 +1730,7 @@ const ControlFunction = struct {
                     // forward differences
                     const x_xi = -x_0_0 + x_1_0;
                     const y_xi = -y_0_0 + y_1_0;
+                    // const x_xi = -1.5 * x_0_0 + 2 * x_1_0 - 0.5 * x_
                     const x_xi2 = x_0_0 - 2 * x_1_0 + x_2_0;
                     const y_xi2 = y_0_0 - 2 * y_1_0 + y_2_0;
 
@@ -1880,8 +1902,8 @@ const ControlFunction = struct {
 
                 {
                     const x_0_0, const y_0_0 = block.points.data[local_id].data;
-                    const x_1_0, const y_1_0 = block.points.data[local_id + size[1]].data;
                     const x_0_1, const y_0_1 = block.points.data[local_id + 1].data;
+                    const x_1_0, const y_1_0 = block.points.data[local_id + size[1]].data;
 
                     // forward differences
                     const x_xi = -x_0_0 + x_1_0;
