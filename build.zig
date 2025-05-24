@@ -15,26 +15,24 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const gui = b.addExecutable(.{
-        .name = "turbomesh_gui",
-        .root_source_file = b.path("src/gui/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    gui.linkLibC();
-    gui.linkSystemLibrary("X11");
-
-    b.installArtifact(gui);
-
-    const run_gui = b.addRunArtifact(gui);
-    run_gui.step.dependOn(b.getInstallStep());
-
     const exe = b.addExecutable(.{
         .name = "turbomesh_zig",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
+
+    // Add Wayland and OpenGL dependencies
+
+    // created with the wayland-scanner and xdg.xml installed by wayland-protocol package.
+    // exe.addCSourceFile(.{ .file = b.path("src/gui/wayland/xdg-shell-protocol.c"), .flags = &.{} });
+    // exe.addIncludePath(b.path("src/gui/wayland/"));
+
+    exe.linkSystemLibrary("wayland-client");
+    exe.linkSystemLibrary("wayland-egl");
+    exe.linkSystemLibrary("egl");
+    exe.linkSystemLibrary("gl");
+    exe.linkSystemLibrary("decor-0");
 
     exe.linkSystemLibrary("cgns");
     exe.linkSystemLibrary("umfpack");
@@ -72,7 +70,7 @@ pub fn build(b: *std.Build) void {
     // and can be selected like this: `zig build run`
     // This will evaluate the `run` step rather than the default, which is "install".
     const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_gui.step);
+    run_step.dependOn(&run_cmd.step);
 
     const tests = b.addTest(.{
         .root_source_file = b.path("src/tests.zig"),
