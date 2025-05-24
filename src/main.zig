@@ -6,13 +6,16 @@ const spline = @import("spline.zig");
 const c = @cImport({
     @cInclude("wayland-client.h");
     @cInclude("wayland-egl.h");
-    // @cInclude("xdg-shell-client-protocol.h");
 
     @cDefine("WL_EGL_PLATFORM", "1");
     @cInclude("EGL/egl.h");
     @cInclude("EGL/eglext.h");
     @cUndef("WL_EGL_PLATFORM");
 
+    // NOTE: needed as GNOME does not implement Server Side Decorations...
+    // we use this lib to add Client Side Decorations that try to match
+    // the used system. At least on my system, the decorations are NOT (!!)
+    // matched yet.
     @cInclude("libdecor-0/libdecor.h");
 
     @cInclude("GL/gl.h");
@@ -27,7 +30,6 @@ const Index = types.Index;
 const FAILURE = -1;
 
 var compositor: ?*c.wl_compositor = null;
-// var xdg_wm_base: ?*c.xdg_wm_base = null;
 var running = true;
 var egl_window: ?*c.wl_egl_window = null;
 var egl_display: c.EGLDisplay = null;
@@ -76,9 +78,6 @@ pub fn main() !void {
                 if (std.mem.orderZ(u8, interface, c.wl_compositor_interface.name) == .eq) {
                     compositor = @ptrCast(c.wl_registry_bind(registry_, name, &c.wl_compositor_interface, version));
                 }
-                // else if (std.mem.orderZ(u8, interface, c.xdg_wm_base_interface.name) == .eq) {
-                //     xdg_wm_base = @ptrCast(c.wl_registry_bind(registry_, name, &c.xdg_wm_base_interface, version));
-                // }
             }
         }.handle,
         .global_remove = struct {
@@ -106,60 +105,8 @@ pub fn main() !void {
         return error.UndefinedCompositor;
     }
 
-    // if (xdg_wm_base == null) {
-    //     return error.UndefinedXdgWmBase;
-    // }
-
-    // var xdg_wm_base_listener = c.xdg_wm_base_listener{
-    //     .ping = struct {
-    //         fn handle(
-    //             data: ?*anyopaque,
-    //             xdg_wm_base_: ?*c.xdg_wm_base,
-    //             serial: u32,
-    //         ) callconv(.c) void {
-    //             _ = data;
-    //             c.xdg_wm_base_pong(xdg_wm_base_, serial);
-    //         }
-    //     }.handle,
-    // };
-    //
-    // if (c.xdg_wm_base_add_listener(xdg_wm_base, &xdg_wm_base_listener, null) == FAILURE) {
-    //     return error.FailWmBaseAddListiner;
-    // }
-
     const surface = c.wl_compositor_create_surface(compositor);
     defer c.wl_surface_destroy(surface);
-
-    // const xdg_surface = c.xdg_wm_base_get_xdg_surface(xdg_wm_base, surface);
-    // defer c.xdg_surface_destroy(xdg_surface);
-    //
-    // var xdg_surface_listener = c.xdg_surface_listener{
-    //     .configure = xdgSurfaceConfigureHandler,
-    // };
-    //
-    // if (c.xdg_surface_add_listener(xdg_surface, &xdg_surface_listener, null) == FAILURE) {
-    //     return error.FailXdgSurfaceAddListener;
-    // }
-    //
-    // const xdg_toplevel = c.xdg_surface_get_toplevel(xdg_surface);
-    // defer c.xdg_toplevel_destroy(xdg_toplevel);
-    //
-    // c.xdg_toplevel_set_title(xdg_toplevel, "turbomesh");
-    //
-    // var xdg_toplevel_listener = c.xdg_toplevel_listener{
-    //     .configure = toplevelConfigureHandler,
-    //     .close = toplevelCloseHandler,
-    //     .configure_bounds = toplevelConfigureBoundsHandler,
-    //     .wm_capabilities = toplevelWmCapabilitiesHandler,
-    // };
-    //
-    // if (c.xdg_toplevel_add_listener(xdg_toplevel, &xdg_toplevel_listener, null) == FAILURE) {
-    //     return error.FailedXdgToplevelAddListener;
-    // }
-
-    // if (c.wl_display_roundtrip(display) == FAILURE) {
-    //     return error.RoundtripFailure;
-    // }
 
     egl_display = c.eglGetPlatformDisplay(c.EGL_PLATFORM_WAYLAND_KHR, display, null);
     if (egl_display == c.EGL_NO_DISPLAY) {
@@ -207,9 +154,22 @@ pub fn main() !void {
     if (egl_context == c.EGL_NO_CONTEXT) {
         return error.FailureEglContext;
     }
-    defer if (c.eglDestroyContext(egl_display, egl_config) != c.EGL_TRUE) {
-        std.log.err("error in egl destroy context", .{});
-    };
+    defer {
+        eglMakeCurrent(egl_display, c.EGL_NO_SURFACE, c.EGL_NO_CONTEXT) catch {};
+
+        const res = c.eglDestroyContext(egl_display, egl_context);
+        switch (res) {
+            c.EGL_TRUE => {},
+            c.EGL_FALSE => {
+                std.log.err("destruction of EGL context failed.", .{});
+                eglGetError() catch {};
+            },
+            c.EGL_BAD_DISPLAY => std.log.err("err in eglDestroyContext: given display is not an EGL display connection.", .{}),
+            c.EGL_NOT_INITIALIZED => std.log.err("err in eglDestroyContext: given display has not been intialized.", .{}),
+            c.EGL_BAD_CONTEXT => std.log.err("err in eglDestroyContext: given context is not an EGL rendering context.", .{}),
+            else => std.log.err("unknown return code from eglDestroyContext.", .{}),
+        }
+    }
 
     egl_window = c.wl_egl_window_create(surface, 800, 600);
     defer c.wl_egl_window_destroy(egl_window);
@@ -222,20 +182,7 @@ pub fn main() !void {
         std.log.err("err in eglDestroySurface", .{});
     };
 
-    if (c.eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context) == c.EGL_FALSE) {
-        const err = c.eglGetError();
-        std.log.err("err in eglMakeCurrent (code: {})", .{err});
-        switch (err) {
-            c.EGL_BAD_ACCESS => return error.EglBadAccess,
-            c.EGL_BAD_MATCH => return error.EglBadMatch,
-            c.EGL_BAD_NATIVE_WINDOW => return error.EglBadNativeWindow,
-            c.EGL_BAD_CONTEXT => return error.EglBadContext,
-            c.EGL_BAD_ALLOC => return error.EglBadAlloc,
-            c.EGL_BAD_CURRENT_SURFACE => return error.EglBadCurrentSurface,
-            c.EGL_BAD_SURFACE => return error.EglBadSurface,
-            else => return error.FailedEglMakeCurrent,
-        }
-    }
+    try eglMakeCurrent(egl_display, egl_surface, egl_context);
 
     var libdecor_iface = c.libdecor_interface{
         .@"error" = struct {
@@ -272,9 +219,8 @@ pub fn main() !void {
 
                 var width: c_int = undefined;
                 var height: c_int = undefined;
-
                 if (!c.libdecor_configuration_get_content_size(config, frame, &width, &height)) {
-                    std.log.err("err in libdecor_configuration_get_content_size", .{});
+                    // NOTE: we assume this not to work as the toplevel dimensions should not be configured yet.
 
                     // TODO: remove
                     width = 800;
@@ -356,10 +302,6 @@ pub fn main() !void {
         if (c.wl_display_dispatch(display) == FAILURE) {
             return error.FailedDisplayDispatch;
         }
-
-        // if (c.libdecor_dispatch(libdecor_context, 0) < 0) {
-        //     std.log.err("err in libdecor_dispatch", .{});
-        // }
     }
 
     // // Initialize GUI
@@ -400,68 +342,32 @@ pub fn main() !void {
     // }
 }
 
-// fn xdgSurfaceConfigureHandler(
-//     data: ?*anyopaque,
-//     xdg_surface: ?*c.xdg_surface,
-//     serial: u32,
-// ) callconv(.c) void {
-//     _ = data;
-//
-//     // the compositor confidures the surface; ack. the configure event
-//     c.xdg_surface_ack_configure(xdg_surface, serial);
-//
-//     // if(configured) {
-//     //     // if alredy configured
-//     //     c.wl_surface_commit(surface);
-//     // }
-//
-//     // configured = true;
-// }
+fn eglMakeCurrent(
+    egl_display_: c.EGLDisplay,
+    egl_surface_: c.EGLSurface,
+    egl_context_: c.EGLContext,
+) !void {
+    if (c.eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_) == c.EGL_FALSE) {
+        try eglGetError();
+    }
+}
 
-// fn toplevelConfigureHandler(
-//     data: ?*anyopaque,
-//     xdg_toplevel: ?*c.xdg_toplevel,
-//     width: i32,
-//     height: i32,
-//     states: [*c]c.wl_array,
-// ) callconv(.c) void {
-//     _ = data;
-//     _ = xdg_toplevel;
-//     _ = width;
-//     _ = height;
-//     _ = states;
-// }
-//
-// fn toplevelCloseHandler(
-//     data: ?*anyopaque,
-//     xdg_toplevel: ?*c.xdg_toplevel,
-// ) callconv(.c) void {
-//     _ = data;
-//     _ = xdg_toplevel;
-//     running = false;
-// }
-//
-// fn toplevelConfigureBoundsHandler(
-//     data: ?*anyopaque,
-//     xdg_toplevel: ?*c.xdg_toplevel,
-//     width: i32,
-//     height: i32,
-// ) callconv(.c) void {
-//     _ = data;
-//     _ = xdg_toplevel;
-//     _ = width;
-//     _ = height;
-// }
-//
-// fn toplevelWmCapabilitiesHandler(
-//     data: ?*anyopaque,
-//     xdg_toplevel: ?*c.xdg_toplevel,
-//     capabilities: [*c]c.wl_array,
-// ) callconv(.c) void {
-//     _ = data;
-//     _ = xdg_toplevel;
-//     _ = capabilities;
-// }
+fn eglGetError() !void {
+    const err = c.eglGetError();
+    if (err == c.EGL_SUCCESS) return;
+
+    std.log.err("err in eglMakeCurrent (code: 0x{x})", .{err});
+    switch (err) {
+        c.EGL_BAD_ACCESS => return error.EglBadAccess,
+        c.EGL_BAD_MATCH => return error.EglBadMatch,
+        c.EGL_BAD_NATIVE_WINDOW => return error.EglBadNativeWindow,
+        c.EGL_BAD_CONTEXT => return error.EglBadContext,
+        c.EGL_BAD_ALLOC => return error.EglBadAlloc,
+        c.EGL_BAD_CURRENT_SURFACE => return error.EglBadCurrentSurface,
+        c.EGL_BAD_SURFACE => return error.EglBadSurface,
+        else => return error.FailedEglMakeCurrent,
+    }
+}
 
 test "simple test" {
     var list = std.ArrayList(i32).init(std.testing.allocator);
