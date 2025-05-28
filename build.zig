@@ -31,8 +31,17 @@ pub fn build(b: *std.Build) void {
     exe.linkSystemLibrary("wayland-client");
     exe.linkSystemLibrary("wayland-egl");
     exe.linkSystemLibrary("egl");
-    exe.linkSystemLibrary("gl");
     exe.linkSystemLibrary("decor-0");
+    // exe.linkSystemLibrary("gl");
+
+    // Choose the OpenGL API, version, profile and extensions you want to generate bindings for.
+    const gl_bindings = @import("zigglgen").generateBindingsModule(b, .{
+        .api = .gl,
+        .version = .@"4.5",
+        .profile = .core,
+        .extensions = &.{},
+    });
+    exe.root_module.addImport("gl", gl_bindings);
 
     exe.linkSystemLibrary("cgns");
     exe.linkSystemLibrary("umfpack");

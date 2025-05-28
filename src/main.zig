@@ -3,10 +3,7 @@ const types = @import("types.zig");
 const cgns = @import("cgns.zig");
 const spline = @import("spline.zig");
 const platform = @import("gui/platform.zig");
-
-const c = @cImport({
-    @cInclude("GL/gl.h");
-});
+const gl = platform.gl;
 
 const Mat2d = types.Mat2d;
 const Index2d = types.Index2d;
@@ -27,56 +24,148 @@ pub fn main() !void {
     try platform.init(env, .{ 800, 600 });
     defer platform.deinit();
 
-    c.glClearColor(1, 1, 0.5, 1);
+    const block_points = [_]Mat2d{
+        try Mat2d.init(allocator, .{ 21, 17 }),
+    };
 
+    defer {
+        for (block_points) |block| {
+            block.deinit(allocator);
+        }
+    }
+
+    // Initialize mesh with some test data
+    for (block_points) |block| {
+        const size = block.size;
+
+        var idx: usize = 0;
+        var i: usize = 0;
+        while (i < size[0]) : (i += 1) {
+            var j: usize = 0;
+            while (j < size[1]) : (j += 1) {
+                block.data[idx] = Vec2d.init(@floatFromInt(i), @floatFromInt(j));
+                idx += 1;
+            }
+        }
+    }
+
+    // TODO: add dark mode detection
+    // TODO: add mode selection
+    gl.ClearColor(1, 1, 1, 1); // white bg
+
+    const vertex_shader_source =
+        \\#version 330 core
+        \\layout (location = 0) in vec2 aPos;
+        \\uniform vec2 uOffset;
+        \\
+        \\void main()
+        \\{
+        \\  gl_Position = vec4(aPos + uOffset, 0.0, 1.0);
+        \\}
+    ;
+
+    const fragment_shader_source =
+        \\#version 330 core
+        \\out vec4 FragColor;
+        \\
+        \\void main()
+        \\{
+        \\  FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+        \\}
+    ;
+
+    const vertex_shader = gl.CreateShader(gl.VERTEX_SHADER);
+    gl.ShaderSource(vertex_shader, 1, &.{vertex_shader_source}, null);
+    gl.CompileShader(vertex_shader);
+
+    {
+        var info_log: [512:0]u8 = undefined;
+        var success: c_int = undefined;
+        gl.GetShaderiv(vertex_shader, gl.COMPILE_STATUS, &success);
+        if (success == gl.FALSE) {
+            gl.GetShaderInfoLog(vertex_shader, info_log.len, null, &info_log);
+            std.debug.print("vertex shader compilation error:\n{str}\n", .{info_log});
+        }
+    }
+
+    const fragment_shader = gl.CreateShader(gl.FRAGMENT_SHADER);
+    gl.ShaderSource(fragment_shader, 1, &.{fragment_shader_source}, null);
+    gl.CompileShader(fragment_shader);
+
+    {
+        var info_log: [512:0]u8 = undefined;
+        var success: c_int = undefined;
+        gl.GetShaderiv(fragment_shader, gl.COMPILE_STATUS, &success);
+        if (success == gl.FALSE) {
+            gl.GetShaderInfoLog(fragment_shader, info_log.len, null, &info_log);
+            std.debug.print("fragment shader compilation error:\n{str}\n", .{info_log});
+        }
+    }
+
+    const program = gl.CreateProgram();
+    if (program == 0) {
+        return error.CreateProgramFailed;
+    }
+
+    gl.AttachShader(program, vertex_shader);
+    gl.AttachShader(program, fragment_shader);
+    gl.LinkProgram(program);
+
+    {
+        var success: c_int = undefined;
+        gl.GetProgramiv(program, gl.LINK_STATUS, &success);
+        if (success == gl.FALSE) {
+            var info_log: [512:0]u8 = undefined;
+            gl.GetProgramInfoLog(program, info_log.len, null, &info_log);
+            std.debug.print("program linkage error:\n{str}\n", .{info_log});
+        }
+    }
+
+    const offset_location = gl.GetUniformLocation(program, "uOffset");
+    if (offset_location == -1) {
+        return error.GetUniformLocationFailed;
+    }
+
+    gl.UseProgram(program);
+    gl.DeleteShader(vertex_shader);
+    gl.DeleteShader(fragment_shader);
+
+    const vertices = [_]f32{
+        -0.5, -0.5,
+        0.5,  -0.5,
+        0.0,  0.5,
+    };
+
+    // TODO: allow to zoom with a scaling option
+
+    // TODO: fill this with an offset
+    gl.Uniform2f(offset_location, -1.0, 0.0);
+
+    var vao: gl.uint = undefined;
+    gl.GenVertexArrays(1, (&vao)[0..1]);
+    gl.BindVertexArray(vao);
+
+    var vbo: gl.uint = undefined;
+    gl.GenBuffers(1, (&vbo)[0..1]);
+
+    gl.BindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.BufferData(gl.ARRAY_BUFFER, @sizeOf(@TypeOf(vertices)), &vertices, gl.STATIC_DRAW);
+
+    gl.VertexAttribPointer(0, 2, gl.FLOAT, gl.FALSE, 2 * @sizeOf(gl.float), 0);
+    gl.EnableVertexAttribArray(0);
+
+    gl.PointSize(10);
+
+    // TODO: add lib to allow live reloading
     while (true) {
-        c.glClear(c.GL_COLOR_BUFFER_BIT);
-        c.glFlush();
+        gl.Clear(gl.COLOR_BUFFER_BIT);
+
+        gl.UseProgram(program);
+        gl.BindVertexArray(vao);
+        gl.DrawArrays(gl.POINTS, 0, 3);
+
+        // gl.Flush();
 
         if (try platform.swapBuffersAndReturnStopSignal()) break;
     }
-
-    // // Initialize GUI
-    // var gui_instance = try gui.Gui.init(allocator);
-    // defer gui_instance.deinit();
-    //
-    // const block_points = [_]Mat2d{
-    //     try Mat2d.init(allocator, .{ 21, 17 }),
-    // };
-    //
-    // defer {
-    //     for (block_points) |block| {
-    //         block.deinit(allocator);
-    //     }
-    // }
-    //
-    // // Initialize mesh with some test data
-    // for (block_points) |block| {
-    //     const size = block.size;
-    //
-    //     var idx: usize = 0;
-    //     var i: usize = 0;
-    //     while (i < size[0]) : (i += 1) {
-    //         var j: usize = 0;
-    //         while (j < size[1]) : (j += 1) {
-    //             block.data[idx] = Vec2d{ @floatFromInt(i), @floatFromInt(j) };
-    //             idx += 1;
-    //         }
-    //     }
-    // }
-    //
-    // // Set the mesh data in the App
-    // app.setMesh(block_points[0]);
-    //
-    // // Main loop
-    // while (try app.update()) {
-    //     // The App update function handles all the rendering and event processing
-    // }
-}
-
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
 }

@@ -1,4 +1,5 @@
 const std = @import("std");
+pub const gl = @import("gl");
 const c = @cImport({
     @cInclude("wayland-client.h");
     @cInclude("wayland-egl.h");
@@ -145,7 +146,7 @@ pub fn deinit() void {
     c.wl_display_disconnect(display);
 }
 
-pub fn init(env: std.process.EnvMap, size: ?struct { usize, usize }) !void {
+pub fn init(env: std.process.EnvMap, size: ?struct { usize, usize }, gl_proc_table: *gl.ProcTable) !void {
     if (size) |s| {
         width = s[0];
         height = s[1];
@@ -282,6 +283,11 @@ pub fn init(env: std.process.EnvMap, size: ?struct { usize, usize }) !void {
 
     if (c.libdecor_dispatch(libdecor_context, 0) < 0) {
         std.log.err("err in libdecor_dispatch", .{});
+    }
+
+    // gl init
+    if (!gl_proc_table.init(c.eglGetProcAddress)) {
+        return error.GlInitFailed;
     }
 }
 

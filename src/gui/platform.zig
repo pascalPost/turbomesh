@@ -1,5 +1,8 @@
 const std = @import("std");
 const wayland = @import("wayland.zig");
+pub const gl = @import("gl");
+
+var gl_proc_table: gl.ProcTable = undefined;
 
 const Type = enum {
     wayland,
@@ -13,11 +16,13 @@ const platform = Platform{ .wayland = {} };
 
 pub fn init(env: std.process.EnvMap, size: struct { usize, usize }) !void {
     switch (platform) {
-        Type.wayland => try wayland.init(env, size),
+        Type.wayland => try wayland.init(env, size, &gl_proc_table),
     }
+    gl.makeProcTableCurrent(&gl_proc_table);
 }
 
 pub fn deinit() void {
+    gl.makeProcTableCurrent(null);
     switch (platform) {
         Type.wayland => wayland.deinit(),
     }
