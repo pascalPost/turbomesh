@@ -16,7 +16,11 @@ const c = @cImport({
     @cInclude("libdecor-0/libdecor.h");
 
     @cInclude("GL/gl.h");
+
+    @cInclude("linux/input-event-codes.h");
 });
+
+const log = std.log.scoped(.wayland);
 
 const FAILURE = -1;
 
@@ -26,6 +30,8 @@ var height: usize = 600;
 var display: ?*c.wl_display = null;
 var surface: ?*c.wl_surface = null;
 var compositor: ?*c.wl_compositor = null;
+var seat: ?*c.wl_seat = null;
+var pointer: ?*c.wl_pointer = null;
 pub var signal_stop = false;
 var egl_window: ?*c.wl_egl_window = null;
 var egl_display: c.EGLDisplay = null;
@@ -99,6 +105,171 @@ var libdecor_iface = c.libdecor_interface{
             unreachable;
         }
     }.handler,
+};
+
+var seat_listener = c.wl_seat_listener{
+    .capabilities = struct {
+        fn capabilities(data: ?*anyopaque, seat_: ?*c.wl_seat, capabilities_: u32) callconv(.c) void {
+            _ = data;
+            if (capabilities_ & c.WL_SEAT_CAPABILITY_POINTER != 0) {
+                pointer = c.wl_seat_get_pointer(seat_);
+            } else {
+                std.log.err("no pointer for main sear.", .{});
+                unreachable;
+            }
+        }
+    }.capabilities,
+    .name = struct {
+        fn name(user_data: ?*anyopaque, seat_: ?*c.wl_seat, name_: [*c]const u8) callconv(.c) void {
+            _ = user_data;
+            _ = seat_;
+            _ = name_;
+        }
+    }.name,
+};
+
+var pointer_state: struct {
+    dragging: bool,
+    last: struct { f64, f64 },
+    offset: struct { f64, f64 },
+} = .{ .dragging = false, .last = .{ 0, 0 }, .offset = .{ 0, 0 } };
+
+const PointerEventMask = struct {
+    const enter: usize = 0;
+    const leave: usize = 1 << 1;
+    const motion: usize = 1 << 2;
+    const button: usize = 1 << 3;
+    const axis: usize = 1 << 4;
+    const axis_source: usize = 1 << 5;
+    const axis_stop: usize = 1 << 6;
+    const axis_discrete: usize = 1 << 7;
+
+    value: u8 = 0,
+};
+
+const PointerEvent = struct {
+    mask: PointerEventMask = .{},
+    surface_x: c.wl_fixed_t = 0,
+    surface_y: c.wl_fixed_t = 0,
+    button: u32 = 0,
+    state: u32 = 0,
+    time: u32 = 0,
+    serial: u32 = 0,
+    axis: [2]struct {
+        valid: bool = false,
+        value: ?c.wl_fixed_t = null,
+        discrete: i32 = 0,
+    } = .{ .{}, .{} },
+    axis_source: u32 = 0,
+};
+
+var pointer_event = PointerEvent{};
+
+// TODO: change debug print to log with reasonable level
+var pointer_listener = c.wl_pointer_listener{
+    .enter = struct {
+        fn enter(
+            user_data: ?*anyopaque,
+            pointer_: ?*c.wl_pointer,
+            serial: u32,
+            surface_: ?*c.wl_surface,
+            surface_x: c.wl_fixed_t,
+            surface_y: c.wl_fixed_t,
+        ) callconv(.c) void {
+            _ = user_data;
+            _ = pointer_;
+            _ = surface_;
+
+            log.debug("enter at {} {}\n", .{ surface_x, surface_y });
+
+            pointer_event.mask.value |= PointerEventMask.enter;
+            pointer_event.serial = serial;
+            pointer_event.surface_x = surface_x;
+            pointer_event.surface_y = surface_y;
+        }
+    }.enter,
+
+    .leave = struct {
+        fn leave(user_data: ?*anyopaque, pointer_: ?*c.wl_pointer, serial: u32, surface_: ?*c.wl_surface) callconv(.c) void {
+            _ = user_data;
+            _ = pointer_;
+            _ = surface_;
+
+            log.debug("leave\n", .{});
+
+            pointer_event.mask.value |= PointerEventMask.leave;
+            pointer_event.serial = serial;
+        }
+    }.leave,
+
+    .motion = struct {
+        fn motion(user_data: ?*anyopaque, pointer_: ?*c.wl_pointer, time: u32, surface_x: c.wl_fixed_t, surface_y: c.wl_fixed_t) callconv(.c) void {
+            _ = user_data;
+            _ = pointer_;
+
+            log.debug("motion {} {}\n", .{ surface_x, surface_y });
+
+            pointer_event.mask.value |= PointerEventMask.motion;
+            pointer_event.time = time;
+            pointer_event.surface_x = surface_x;
+            pointer_event.surface_y = surface_y;
+        }
+    }.motion,
+
+    .button = struct {
+        fn button(user_data: ?*anyopaque, pointer_: ?*c.wl_pointer, serial: u32, time: u32, button_: u32, state: u32) callconv(.c) void {
+            _ = user_data;
+            _ = pointer_;
+
+            log.debug("button {} , time {} , state {}\n", .{ button_, time, state });
+
+            pointer_event.mask.value |= PointerEventMask.button;
+            pointer_event.serial = serial;
+            pointer_event.time = time;
+            pointer_event.button = button_;
+            pointer_event.state = state;
+        }
+    }.button,
+
+    .axis = struct {
+        fn axis(user_data: ?*anyopaque, pointer_: ?*c.wl_pointer, time: u32, axis_: u32, value: c.wl_fixed_t) callconv(.c) void {
+            _ = user_data;
+            _ = pointer_;
+
+            pointer_event.mask.value |= PointerEventMask.axis;
+            pointer_event.time = time;
+            pointer_event.axis[axis_].valid = true;
+            pointer_event.axis[axis_].value = value;
+        }
+    }.axis,
+
+    .frame = struct {
+        fn frame(user_data: ?*anyopaque, pointer_: ?*c.wl_pointer) callconv(.c) void {
+            _ = user_data;
+            _ = pointer_;
+
+            log.debug("frame\n", .{});
+
+            // const time = pointer_event.time;
+            // std.log.debug("pointer frame @ {}\n", .{time});
+
+            const x = c.wl_fixed_to_double(pointer_event.surface_x);
+            const y = c.wl_fixed_to_double(pointer_event.surface_y);
+
+            if (pointer_event.button == c.BTN_LEFT and pointer_event.state == c.WL_POINTER_BUTTON_STATE_PRESSED) {
+                pointer_state.dragging = true;
+
+                pointer_state.offset[0] += x - pointer_state.last[0];
+                pointer_state.offset[1] += y - pointer_state.last[1];
+
+                std.debug.print("dragging offset {} {}\n", .{ pointer_state.offset[0], pointer_state.offset[1] });
+            } else {
+                pointer_state.dragging = false;
+            }
+
+            pointer_state.last = .{ x, y };
+        }
+    }.frame,
 };
 
 pub fn swapBuffers() !void {
@@ -183,6 +354,8 @@ pub fn init(env: std.process.EnvMap, size: ?struct { usize, usize }, gl_proc_tab
 
                     if (std.mem.orderZ(u8, interface, c.wl_compositor_interface.name) == .eq) {
                         compositor = @ptrCast(c.wl_registry_bind(registry_, name, &c.wl_compositor_interface, version));
+                    } else if (std.mem.orderZ(u8, interface, c.wl_seat_interface.name) == .eq) {
+                        seat = @ptrCast(c.wl_registry_bind(registry_, name, &c.wl_seat_interface, version));
                     }
                 }
             }.handle,
@@ -210,6 +383,20 @@ pub fn init(env: std.process.EnvMap, size: ?struct { usize, usize }, gl_proc_tab
 
     if (compositor == null) {
         return error.UndefinedCompositor;
+    }
+
+    if (seat == null) {
+        return error.UndefinedSeat;
+    }
+
+    if (c.wl_seat_add_listener(seat, &seat_listener, null) == FAILURE) {
+        return error.SeatAddListenerFailed;
+    }
+
+    pointer = c.wl_seat_get_pointer(seat);
+
+    if (c.wl_pointer_add_listener(pointer, &pointer_listener, null) == FAILURE) {
+        return error.PointerAddListenerFailed;
     }
 
     surface = c.wl_compositor_create_surface(compositor);

@@ -14,6 +14,10 @@ const Platform = union(Type) {
 
 const platform = Platform{ .wayland = {} };
 
+// const MouseState = struct {
+//
+// };
+
 pub fn init(env: std.process.EnvMap, size: struct { usize, usize }) !void {
     switch (platform) {
         Type.wayland => try wayland.init(env, size, &gl_proc_table),
