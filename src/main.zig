@@ -2,8 +2,10 @@ const std = @import("std");
 const types = @import("types.zig");
 const cgns = @import("cgns.zig");
 const spline = @import("spline.zig");
-const platform = @import("gui/platform.zig");
-const gl = platform.gl;
+const glfw = @import("zglfw");
+pub const gl = @import("gl");
+
+var gl_proc_table: gl.ProcTable = undefined;
 
 const Mat2d = types.Mat2d;
 const Index2d = types.Index2d;
@@ -12,46 +14,56 @@ const Float = types.Float;
 const Index = types.Index;
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
-    const allocator = gpa.allocator();
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // defer std.debug.assert(gpa.deinit() == .ok);
+    // const allocator = gpa.allocator();
+    //
+    // // check graphics system
+    // var env = try std.process.getEnvMap(allocator);
+    // defer env.deinit();
 
-    // check graphics system
-    var env = try std.process.getEnvMap(allocator);
-    defer env.deinit();
+    try glfw.init();
+    defer glfw.terminate();
 
-    // const platform = guiPlatform.init(env);
-    try platform.init(env, .{ 800, 600 });
-    defer platform.deinit();
+    const gl_major = 4;
+    const gl_minor = 5;
+    glfw.windowHint(.context_version_major, gl_major);
+    glfw.windowHint(.context_version_minor, gl_minor);
+    glfw.windowHint(.opengl_profile, .opengl_core_profile);
+    glfw.windowHint(.opengl_forward_compat, true);
+    glfw.windowHint(.client_api, .opengl_api);
+    glfw.windowHint(.doublebuffer, true);
 
-    const block_points = [_]Mat2d{
-        try Mat2d.init(allocator, .{ 21, 17 }),
-    };
+    const window = try glfw.createWindow(800, 600, "zig-gamedev: minimal_glfw_gl", null);
+    defer glfw.destroyWindow(window);
 
-    defer {
-        for (block_points) |block| {
-            block.deinit(allocator);
-        }
+    glfw.makeContextCurrent(window);
+
+    glfw.swapInterval(1);
+
+    gl.makeProcTableCurrent(&gl_proc_table);
+    if (!gl_proc_table.init(glfw.getProcAddress)) {
+        return error.LoadGlAddressesFailed;
     }
-
-    // Initialize mesh with some test data
-    for (block_points) |block| {
-        const size = block.size;
-
-        var idx: usize = 0;
-        var i: usize = 0;
-        while (i < size[0]) : (i += 1) {
-            var j: usize = 0;
-            while (j < size[1]) : (j += 1) {
-                block.data[idx] = Vec2d.init(@floatFromInt(i), @floatFromInt(j));
-                idx += 1;
-            }
-        }
-    }
+    defer gl.makeProcTableCurrent(null);
 
     // TODO: add dark mode detection
     // TODO: add mode selection
     gl.ClearColor(1, 1, 1, 1); // white bg
+
+    {
+        var width: c_int = undefined;
+        var height: c_int = undefined;
+        glfw.getWindowSize(window, &width, &height);
+
+        var xscale: f32 = undefined;
+        var yscale: f32 = undefined;
+        glfw.getWindowContentScale(window, &xscale, &yscale);
+
+        const w: c_int = @intFromFloat(@as(f32, @floatFromInt(width)) * xscale);
+        const h: c_int = @intFromFloat(@as(f32, @floatFromInt(height)) * yscale);
+        gl.Viewport(0, 0, w, h);
+    }
 
     const vertex_shader_source =
         \\#version 330 core
@@ -139,7 +151,7 @@ pub fn main() !void {
     // TODO: allow to zoom with a scaling option
 
     // TODO: fill this with an offset
-    gl.Uniform2f(offset_location, -1.0, 0.0);
+    gl.Uniform2f(offset_location, 0.0, 0.0);
 
     var vao: gl.uint = undefined;
     gl.GenVertexArrays(1, (&vao)[0..1]);
@@ -156,16 +168,15 @@ pub fn main() !void {
 
     gl.PointSize(10);
 
-    // TODO: add lib to allow live reloading
-    while (true) {
+    while (!window.shouldClose()) {
+        glfw.pollEvents();
+
         gl.Clear(gl.COLOR_BUFFER_BIT);
 
         gl.UseProgram(program);
         gl.BindVertexArray(vao);
         gl.DrawArrays(gl.POINTS, 0, 3);
 
-        // gl.Flush();
-
-        if (try platform.swapBuffersAndReturnStopSignal()) break;
+        window.swapBuffers();
     }
 }

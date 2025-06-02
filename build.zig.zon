@@ -22,6 +22,10 @@
             .url = "git+https://github.com/ziglibs/zlm#35b76fae19f9d0a1ed541db621d7c4b3e266087e",
             .hash = "zlm-0.1.0-AAAAAPGfAAA0KsMzll3pFfdKhCXkhI_-RoUtoOR4kQP5",
         },
+        .zglfw = .{
+            .url = "git+https://github.com/zig-gamedev/zglfw#c337cb3d3f984468ea7a386335937a5d555fc024",
+            .hash = "zglfw-0.10.0-dev-zgVDNMacIQA-k7kNSfwUc9Lfzx-bb_wklVm25K-p8Tr7",
+        },
     },
     .paths = .{
         // This makes *all* files, recursively, included in this package. It is generally

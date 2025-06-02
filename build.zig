@@ -22,17 +22,16 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    // Add Wayland and OpenGL dependencies
+    const zglfw = b.dependency("zglfw", .{
+        .target = target,
+        .optimize = optimize,
+        .shared = true,
+    });
+    exe.root_module.addImport("zglfw", zglfw.module("root"));
 
-    // created with the wayland-scanner and xdg.xml installed by wayland-protocol package.
-    // exe.addCSourceFile(.{ .file = b.path("src/gui/wayland/xdg-shell-protocol.c"), .flags = &.{} });
-    // exe.addIncludePath(b.path("src/gui/wayland/"));
-
-    exe.linkSystemLibrary("wayland-client");
-    exe.linkSystemLibrary("wayland-egl");
-    exe.linkSystemLibrary("egl");
-    exe.linkSystemLibrary("decor-0");
-    // exe.linkSystemLibrary("gl");
+    if (target.result.os.tag != .emscripten) {
+        exe.linkLibrary(zglfw.artifact("glfw"));
+    }
 
     // Choose the OpenGL API, version, profile and extensions you want to generate bindings for.
     const gl_bindings = @import("zigglgen").generateBindingsModule(b, .{
