@@ -1,4 +1,6 @@
 const std = @import("std");
+const builtin = @import("builtin");
+// const discrete = @import("discrete.zig");
 const types = @import("types.zig");
 const cgns = @import("cgns.zig");
 const spline = @import("spline.zig");
@@ -13,14 +15,52 @@ const Vec2d = types.Vec2d;
 const Float = types.Float;
 const Index = types.Index;
 
+var dragging = false;
+var cursor_last: struct { f64, f64 } = .{ 0, 0 };
+var offset: struct { f64, f64 } = .{ 0, 0 };
+const sensitivity = 1.5;
+
+var width: usize = 800;
+var height: usize = 600;
+
 pub fn main() !void {
-    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    // defer std.debug.assert(gpa.deinit() == .ok);
-    // const allocator = gpa.allocator();
-    //
-    // // check graphics system
-    // var env = try std.process.getEnvMap(allocator);
-    // defer env.deinit();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
+
+    const block_points = [_]Mat2d{
+        try Mat2d.init(allocator, .{ 21, 5 }),
+    };
+
+    defer {
+        for (block_points) |block| {
+            block.deinit(allocator);
+        }
+    }
+
+    for (block_points) |block| {
+        const size = block.size;
+
+        var idx: usize = 0;
+        var i: usize = 0;
+        while (i < size[0]) : (i += 1) {
+            var j: usize = 0;
+            while (j < size[1]) : (j += 1) {
+                block.data[idx] = Vec2d.init(@floatFromInt(i), @floatFromInt(j));
+                idx += 1;
+            }
+        }
+    }
+
+    const point_data = try createPointBuffer(allocator, &block_points);
+    const point_buffer = point_data.points;
+    defer allocator.free(point_buffer);
+
+    const data_width = point_data.range_x[1] - point_data.range_x[0];
+    const data_height = point_data.range_y[1] - point_data.range_y[1];
+
+    const data_center = [2]f32{ point_data.range_x[0] + 0.5 * data_width, point_data.range_y[0] + 0.5 * data_height };
+    const data_scale: f32 = 2.0 / @max(data_width, data_height) * 0.8;
 
     try glfw.init();
     defer glfw.terminate();
@@ -34,12 +74,33 @@ pub fn main() !void {
     glfw.windowHint(.client_api, .opengl_api);
     glfw.windowHint(.doublebuffer, true);
 
-    const window = try glfw.createWindow(800, 600, "zig-gamedev: minimal_glfw_gl", null);
+    const window = try glfw.createWindow(@intCast(width), @intCast(height), "zig-gamedev: minimal_glfw_gl", null);
     defer glfw.destroyWindow(window);
 
     glfw.makeContextCurrent(window);
 
     glfw.swapInterval(1);
+
+    _ = glfw.setMouseButtonCallback(window, struct {
+        fn callback(win: *glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) callconv(.c) void {
+            _ = win;
+            _ = mods;
+            dragging = button == .left and action == .press;
+        }
+    }.callback);
+
+    _ = glfw.setCursorPosCallback(window, struct {
+        fn callback(win: *glfw.Window, xpos: f64, ypos: f64) callconv(.c) void {
+            _ = win;
+
+            if (dragging) {
+                offset[0] += (xpos - cursor_last[0]) * 2.0 / @as(f64, @floatFromInt(width)) * sensitivity;
+                offset[1] -= (ypos - cursor_last[1]) * 2.0 / @as(f64, @floatFromInt(height)) * sensitivity;
+            }
+
+            cursor_last = .{ xpos, ypos };
+        }
+    }.callback);
 
     gl.makeProcTableCurrent(&gl_proc_table);
     if (!gl_proc_table.init(glfw.getProcAddress)) {
@@ -47,32 +108,58 @@ pub fn main() !void {
     }
     defer gl.makeProcTableCurrent(null);
 
+    // dark mode detection for each platform
     // TODO: add dark mode detection
     // TODO: add mode selection
-    gl.ClearColor(1, 1, 1, 1); // white bg
+    const dark_mode = true;
+    // if (builtin.os.tag == .linux) {
+    //     std.process.Child.
+    // }
+
+    if (!dark_mode) {
+        gl.ClearColor(1, 1, 1, 0); // white bg
+    } else {
+        gl.ClearColor(0, 0, 0, 0); // black bg
+    }
 
     {
-        var width: c_int = undefined;
-        var height: c_int = undefined;
-        glfw.getWindowSize(window, &width, &height);
+        var width_: c_int = undefined;
+        var height_: c_int = undefined;
+        glfw.getWindowSize(window, &width_, &height_);
 
         var xscale: f32 = undefined;
         var yscale: f32 = undefined;
         glfw.getWindowContentScale(window, &xscale, &yscale);
 
-        const w: c_int = @intFromFloat(@as(f32, @floatFromInt(width)) * xscale);
-        const h: c_int = @intFromFloat(@as(f32, @floatFromInt(height)) * yscale);
+        const w: c_int = @intFromFloat(@as(f32, @floatFromInt(width_)) * xscale);
+        const h: c_int = @intFromFloat(@as(f32, @floatFromInt(height_)) * yscale);
+
+        width = @intCast(w);
+        height = @intCast(h);
+
         gl.Viewport(0, 0, w, h);
     }
+
+    _ = glfw.setFramebufferSizeCallback(window, struct {
+        fn func(win: *glfw.Window, width_: c_int, height_: c_int) callconv(.C) void {
+            _ = win;
+            width = @intCast(width_);
+            height = @intCast(height_);
+            gl.Viewport(0, 0, width_, height_);
+        }
+    }.func);
 
     const vertex_shader_source =
         \\#version 330 core
         \\layout (location = 0) in vec2 aPos;
-        \\uniform vec2 uOffset;
+        \\uniform float uScale;
+        \\uniform vec2 uCenter;
+        \\uniform vec2 uOffset; 
         \\
         \\void main()
         \\{
-        \\  gl_Position = vec4(aPos + uOffset, 0.0, 1.0);
+        \\  vec2 pos = (aPos - uCenter) * uScale + uOffset;
+        \\  gl_Position = vec4(pos, 0.0, 1.0);
         \\}
     ;
 
@@ -138,20 +225,21 @@ pub fn main() !void {
         return error.GetUniformLocationFailed;
     }
 
+    const center_location = gl.GetUniformLocation(program, "uCenter");
+    if (offset_location == -1) {
+        return error.GetUniformLocationFailed;
+    }
+
+    const scale_location = gl.GetUniformLocation(program, "uScale");
+    if (offset_location == -1) {
+        return error.GetUniformLocationFailed;
+    }
+
     gl.UseProgram(program);
     gl.DeleteShader(vertex_shader);
     gl.DeleteShader(fragment_shader);
 
-    const vertices = [_]f32{
-        -0.5, -0.5,
-        0.5,  -0.5,
-        0.0,  0.5,
-    };
-
     // TODO: allow to zoom with a scaling option
-
-    // TODO: fill this with an offset
-    gl.Uniform2f(offset_location, 0.0, 0.0);
 
     var vao: gl.uint = undefined;
     gl.GenVertexArrays(1, (&vao)[0..1]);
@@ -161,7 +249,7 @@ pub fn main() !void {
     gl.GenBuffers(1, (&vbo)[0..1]);
 
     gl.BindBuffer(gl.ARRAY_BUFFER, vbo);
-    gl.BufferData(gl.ARRAY_BUFFER, @sizeOf(@TypeOf(vertices)), &vertices, gl.STATIC_DRAW);
+    gl.BufferData(gl.ARRAY_BUFFER, @intCast(@sizeOf(f32) * point_buffer.len), point_buffer.ptr, gl.STATIC_DRAW);
 
     gl.VertexAttribPointer(0, 2, gl.FLOAT, gl.FALSE, 2 * @sizeOf(gl.float), 0);
     gl.EnableVertexAttribArray(0);
@@ -174,9 +262,52 @@ pub fn main() !void {
         gl.Clear(gl.COLOR_BUFFER_BIT);
 
         gl.UseProgram(program);
+        gl.Uniform1f(scale_location, data_scale);
+        gl.Uniform2f(center_location, data_center[0], data_center[1]);
+        gl.Uniform2f(offset_location, @floatCast(offset[0]), @floatCast(offset[1]));
         gl.BindVertexArray(vao);
-        gl.DrawArrays(gl.POINTS, 0, 3);
+        gl.DrawArrays(gl.POINTS, 0, @intCast(block_points[0].data.len));
 
         window.swapBuffers();
     }
+}
+
+fn createPointBuffer(allocator: std.mem.Allocator, points: []const Mat2d) !struct {
+    points: []f32,
+    range_x: [2]f32,
+    range_y: [2]f32,
+} {
+    const num_points = blk: {
+        var total: usize = 0;
+        for (points) |block| {
+            total += block.data.len;
+        }
+        break :blk total;
+    };
+
+    const buffer = try allocator.alloc(f32, 2 * num_points);
+
+    var range_x = [2]f32{ std.math.floatMax(f32), std.math.floatMin(f32) };
+    var range_y = [2]f32{ std.math.floatMax(f32), std.math.floatMin(f32) };
+
+    var id: usize = 0;
+    for (points) |block| {
+        for (block.data) |point| {
+            buffer[id] = @floatCast(point.data[0]);
+            range_x[0] = @min(range_x[0], buffer[id]);
+            range_x[1] = @max(range_x[1], buffer[id]);
+
+            buffer[id + 1] = @floatCast(point.data[1]);
+            range_y[0] = @min(range_y[0], buffer[id]);
+            range_y[1] = @max(range_y[1], buffer[id]);
+
+            id += 2;
+        }
+    }
+
+    return .{
+        .points = buffer,
+        .range_x = range_x,
+        .range_y = range_y,
+    };
 }
