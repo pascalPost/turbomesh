@@ -32,7 +32,7 @@ const abs = types.abs;
 /// | |             |  vj       *             down (4)                 *           | |              |
 /// | ->i           |           *                                      *           | ->i            |
 /// |_______________________________________________________________________________________________
-const O4H = struct {
+pub const O4H = struct {
     ps_csv_path: []const u8,
     ss_csv_path: []const u8,
     pitch: types.Float,
@@ -58,7 +58,7 @@ const O4H = struct {
         downstream_i: types.Index,
     },
 
-    fn run(self: *const O4H, allocator: std.mem.Allocator) !discrete.Mesh {
+    pub fn run(self: *const O4H, allocator: std.mem.Allocator) !discrete.Mesh {
 
         // TODO: remove pressure side and suction side and just use up and down (to be neutral w.r.t. turbine or compressor)
 

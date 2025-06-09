@@ -1,11 +1,13 @@
 const std = @import("std");
 const builtin = @import("builtin");
-// const discrete = @import("discrete.zig");
+const discrete = @import("discrete.zig");
 const types = @import("types.zig");
 const cgns = @import("cgns.zig");
 const spline = @import("spline.zig");
 const glfw = @import("zglfw");
 pub const gl = @import("gl");
+const o4h_template = @import("templates/O4H.zig");
+const smooth = @import("smooth.zig");
 
 var gl_proc_table: gl.ProcTable = undefined;
 
@@ -18,6 +20,7 @@ const Index = types.Index;
 var dragging = false;
 var cursor_last: struct { f64, f64 } = .{ 0, 0 };
 var offset: struct { f64, f64 } = .{ 0, 0 };
+var scale: f32 = 1;
 const sensitivity = 1.5;
 
 var width: usize = 800;
@@ -28,31 +31,33 @@ pub fn main() !void {
     defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
-    const block_points = [_]Mat2d{
-        try Mat2d.init(allocator, .{ 21, 5 }),
+    const template = o4h_template.O4H{
+        .ps_csv_path = "./examples/T106/T106_ps.dat",
+        .ss_csv_path = "./examples/T106/T106_ss.dat",
+        .pitch = 0.08836, // m
+        .blade_clustering = .{ .roberts = .{ .alpha = 0.5, .beta = 1.03 } },
+        .num_cells = .{
+            .o_grid = 20,
+            .in_up_j = 30,
+            .in_down_j = 10,
+            .in_i = 10,
+            .out_up_j = 40,
+            .out_down_j = 10,
+            .out_i = 10,
+            .middle_i = 100,
+            .down_j = 40,
+            .bulge = 40,
+            .upstream_i = 20,
+            .downstream_i = 10,
+        },
     };
 
-    defer {
-        for (block_points) |block| {
-            block.deinit(allocator);
-        }
-    }
+    var mesh = try template.run(allocator);
+    defer mesh.deinit();
 
-    for (block_points) |block| {
-        const size = block.size;
+    try smooth.mesh(allocator, &mesh, 10);
 
-        var idx: usize = 0;
-        var i: usize = 0;
-        while (i < size[0]) : (i += 1) {
-            var j: usize = 0;
-            while (j < size[1]) : (j += 1) {
-                block.data[idx] = Vec2d.init(@floatFromInt(i), @floatFromInt(j));
-                idx += 1;
-            }
-        }
-    }
-
-    const point_data = try createPointBuffer(allocator, &block_points);
+    const point_data = try createPointBuffer(allocator, mesh.blocks.items);
     const point_buffer = point_data.points;
     defer allocator.free(point_buffer);
 
@@ -61,8 +66,9 @@ pub fn main() !void {
 
     const data_center = [2]f32{ point_data.range_x[0] + 0.5 * data_width, point_data.range_y[0] + 0.5 * data_height };
     const data_scale: f32 = 2.0 / @max(data_width, data_height) * 0.8;
+    scale = data_scale;
 
-    const element_buffer = try createWireframeElementBuffer(allocator, &block_points);
+    const element_buffer = try createWireframeElementBuffer(allocator, mesh.blocks.items);
     defer allocator.free(element_buffer);
 
     try glfw.init();
@@ -102,6 +108,14 @@ pub fn main() !void {
             }
 
             cursor_last = .{ xpos, ypos };
+        }
+    }.callback);
+
+    _ = glfw.setScrollCallback(window, struct {
+        fn callback(win: *glfw.Window, xoffset: f64, yoffset: f64) callconv(.c) void {
+            _ = win;
+            _ = xoffset;
+            scale += @floatCast(1.0 * yoffset);
         }
     }.callback);
 
@@ -262,12 +276,12 @@ pub fn main() !void {
         gl.Clear(gl.COLOR_BUFFER_BIT);
 
         gl.UseProgram(program);
-        gl.Uniform1f(scale_location, data_scale);
+        gl.Uniform1f(scale_location, scale);
         gl.Uniform2f(center_location, data_center[0], data_center[1]);
         gl.Uniform2f(offset_location, @floatCast(offset[0]), @floatCast(offset[1]));
         gl.BindVertexArray(vao);
         gl.Uniform4f(color_location, 1.0, 1.0, 1.0, 1.0);
-        gl.DrawArrays(gl.POINTS, 0, @intCast(point_buffer.len / 2));
+        // gl.DrawArrays(gl.POINTS, 0, @intCast(point_buffer.len / 2));
         gl.DrawElements(gl.LINES, @intCast(element_buffer.len), gl.UNSIGNED_INT, 0);
 
         window.swapBuffers();
@@ -282,15 +296,15 @@ fn getUniformLocation(program: gl.uint, name: [:0]const u8) !gl.int {
     return location;
 }
 
-fn createPointBuffer(allocator: std.mem.Allocator, points: []const Mat2d) !struct {
+fn createPointBuffer(allocator: std.mem.Allocator, blocks: []discrete.Block2d) !struct {
     points: []f32,
     range_x: [2]f32,
     range_y: [2]f32,
 } {
     const num_points = blk: {
         var total: usize = 0;
-        for (points) |block| {
-            total += block.data.len;
+        for (blocks) |block| {
+            total += block.points.data.len;
         }
         break :blk total;
     };
@@ -301,15 +315,15 @@ fn createPointBuffer(allocator: std.mem.Allocator, points: []const Mat2d) !struc
     var range_y = [2]f32{ std.math.floatMax(f32), std.math.floatMin(f32) };
 
     var id: usize = 0;
-    for (points) |block| {
-        for (block.data) |point| {
+    for (blocks) |block| {
+        for (block.points.data) |point| {
             buffer[id] = @floatCast(point.data[0]);
             range_x[0] = @min(range_x[0], buffer[id]);
             range_x[1] = @max(range_x[1], buffer[id]);
 
             buffer[id + 1] = @floatCast(point.data[1]);
-            range_y[0] = @min(range_y[0], buffer[id]);
-            range_y[1] = @max(range_y[1], buffer[id]);
+            range_y[0] = @min(range_y[0], buffer[id + 1]);
+            range_y[1] = @max(range_y[1], buffer[id + 1]);
 
             id += 2;
         }
@@ -322,11 +336,12 @@ fn createPointBuffer(allocator: std.mem.Allocator, points: []const Mat2d) !struc
     };
 }
 
-fn createWireframeElementBuffer(allocator: std.mem.Allocator, points: []const Mat2d) ![]gl.uint {
+fn createWireframeElementBuffer(allocator: std.mem.Allocator, blocks: []const discrete.Block2d) ![]gl.uint {
     const num_lines = blk: {
         var total: usize = 0;
-        for (points) |block| {
-            const block_lines = block.size[0] * (block.size[1] - 1) * 2 + block.size[1] * (block.size[0] - 1) * 2;
+        for (blocks) |block| {
+            const size = block.points.size;
+            const block_lines = size[0] * (size[1] - 1) * 2 + size[1] * (size[0] - 1) * 2;
             total += block_lines;
         }
         break :blk total;
@@ -335,16 +350,17 @@ fn createWireframeElementBuffer(allocator: std.mem.Allocator, points: []const Ma
     const buffer = try allocator.alloc(gl.uint, 8 * num_lines);
 
     var buffer_id: usize = 0;
-    for (points) |block| {
-        const size = block.size;
+    var point_offset: gl.uint = 0;
+    for (blocks) |block| {
+        const size = block.points.size;
 
         // loop over j
         {
             var point_id: gl.uint = 0;
             for (0..size[0]) |_| {
                 for (1..size[1]) |_| {
-                    buffer[buffer_id] = point_id;
-                    buffer[buffer_id + 1] = point_id + 1;
+                    buffer[buffer_id] = point_offset + point_id;
+                    buffer[buffer_id + 1] = point_offset + point_id + 1;
 
                     point_id += 1;
                     buffer_id += 2;
@@ -359,14 +375,16 @@ fn createWireframeElementBuffer(allocator: std.mem.Allocator, points: []const Ma
             for (0..size[1]) |j| {
                 var point_id: gl.uint = @intCast(j);
                 for (1..size[0]) |_| {
-                    buffer[buffer_id] = point_id;
-                    buffer[buffer_id + 1] = point_id + @as(gl.uint, @intCast(size[1]));
+                    buffer[buffer_id] = point_offset + point_id;
+                    buffer[buffer_id + 1] = point_offset + point_id + @as(gl.uint, @intCast(size[1]));
 
                     point_id += @intCast(size[1]);
                     buffer_id += 2;
                 }
             }
         }
+
+        point_offset += @intCast(size[0] * size[1]);
     }
 
     return buffer;
