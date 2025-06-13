@@ -1,6 +1,11 @@
+const glfw = @import("zglfw");
 const gl = @import("gl");
 
 pub const State = struct {
+    window: *glfw.Window,
+    width: usize,
+    height: usize,
+
     gl_proc_table_ptr: *const gl.ProcTable,
     program: gl.uint,
     vao: gl.uint,

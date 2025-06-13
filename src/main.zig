@@ -19,9 +19,6 @@ const Vec2d = types.Vec2d;
 const Float = types.Float;
 const Index = types.Index;
 
-var width: usize = 800;
-var height: usize = 600;
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
@@ -78,7 +75,9 @@ pub fn main() !void {
     glfw.windowHint(.client_api, .opengl_api);
     glfw.windowHint(.doublebuffer, true);
 
-    const window = try glfw.createWindow(@intCast(width), @intCast(height), "zig-gamedev: minimal_glfw_gl", null);
+    var width: usize = 800;
+    var height: usize = 600;
+    const window = try glfw.createWindow(@intCast(width), @intCast(height), "turbomesh", null);
     defer glfw.destroyWindow(window);
 
     glfw.makeContextCurrent(window);
@@ -90,20 +89,6 @@ pub fn main() !void {
         return error.LoadGlAddressesFailed;
     }
     defer gl.makeProcTableCurrent(null);
-
-    // dark mode detection for each platform
-    // TODO: add dark mode detection
-    // TODO: add mode selection
-    const dark_mode = true;
-    // if (builtin.os.tag == .linux) {
-    //     std.process.Child.
-    // }
-
-    if (!dark_mode) {
-        gl.ClearColor(1, 1, 1, 0); // white bg
-    } else {
-        gl.ClearColor(0, 0, 0, 0); // black bg
-    }
 
     {
         var width_: c_int = undefined;
@@ -123,14 +108,19 @@ pub fn main() !void {
         gl.Viewport(0, 0, w, h);
     }
 
-    _ = glfw.setFramebufferSizeCallback(window, struct {
-        fn func(win: *glfw.Window, width_: c_int, height_: c_int) callconv(.C) void {
-            _ = win;
-            width = @intCast(width_);
-            height = @intCast(height_);
-            gl.Viewport(0, 0, width_, height_);
-        }
-    }.func);
+    // dark mode detection for each platform
+    // TODO: add dark mode detection
+    // TODO: add mode selection
+    const dark_mode = true;
+    // if (builtin.os.tag == .linux) {
+    //     std.process.Child.
+    // }
+
+    if (!dark_mode) {
+        gl.ClearColor(1, 1, 1, 0); // white bg
+    } else {
+        gl.ClearColor(0, 0, 0, 0); // black bg
+    }
 
     const vertex_shader_source =
         \\#version 330 core
@@ -236,10 +226,10 @@ pub fn main() !void {
 
     gl.PointSize(10);
 
-    var lib = try reload.Lib.open();
-    defer lib.close();
-
     var state = State{
+        .window = window,
+        .width = width,
+        .height = height,
         .gl_proc_table_ptr = &gl_proc_table,
         .program = program,
         .vao = vao,
@@ -255,40 +245,11 @@ pub fn main() !void {
 
     glfw.setWindowUserPointer(window, &state);
 
-    _ = glfw.setMouseButtonCallback(window, struct {
-        fn callback(win: *glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) callconv(.c) void {
-            _ = mods;
-
-            if (glfw.getWindowUserPointer(win, State)) |s| {
-                s.dragging = button == .left and action == .press;
-            }
-        }
-    }.callback);
-
-    _ = glfw.setCursorPosCallback(window, struct {
-        fn callback(win: *glfw.Window, xpos: f64, ypos: f64) callconv(.c) void {
-            if (glfw.getWindowUserPointer(win, State)) |s| {
-                if (s.dragging) {
-                    s.offset[0] += (xpos - s.cursor_last[0]) * 2.0 / @as(f64, @floatFromInt(width)) * s.scroll_sensitivity;
-                    s.offset[1] -= (ypos - s.cursor_last[1]) * 2.0 / @as(f64, @floatFromInt(height)) * s.scroll_sensitivity;
-                }
-
-                s.cursor_last = .{ xpos, ypos };
-            }
-        }
-    }.callback);
-
-    _ = glfw.setScrollCallback(window, struct {
-        fn callback(win: *glfw.Window, xoffset: f64, yoffset: f64) callconv(.c) void {
-            _ = xoffset;
-            if (glfw.getWindowUserPointer(win, State)) |s| {
-                s.scale += @floatCast(1.0 * yoffset);
-            }
-        }
-    }.callback);
+    var lib = try reload.Lib.open(&state);
+    defer lib.close();
 
     while (!window.shouldClose()) {
-        try lib.reload();
+        try lib.reload(&state);
         glfw.pollEvents();
         lib.update(&state);
         window.swapBuffers();

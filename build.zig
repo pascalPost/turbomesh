@@ -22,13 +22,26 @@ pub fn build(b: *std.Build) void {
         .extensions = &.{},
     });
 
+    const zglfw = b.dependency("zglfw", .{
+        .target = target,
+        .optimize = optimize,
+        .shared = true,
+    });
+
     const lib = b.addSharedLibrary(.{
         .name = "turbomesh",
         .root_source_file = b.path("src/lib.zig"),
         .target = target,
         .optimize = optimize,
     });
+
     lib.root_module.addImport("gl", gl_bindings);
+
+    lib.root_module.addImport("zglfw", zglfw.module("root"));
+
+    if (target.result.os.tag != .emscripten) {
+        lib.linkLibrary(zglfw.artifact("glfw"));
+    }
 
     b.installArtifact(lib);
 
@@ -39,11 +52,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const zglfw = b.dependency("zglfw", .{
-        .target = target,
-        .optimize = optimize,
-        .shared = true,
-    });
     exe.root_module.addImport("zglfw", zglfw.module("root"));
 
     if (target.result.os.tag != .emscripten) {
