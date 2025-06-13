@@ -15,8 +15,25 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
+    const gl_bindings = @import("zigglgen").generateBindingsModule(b, .{
+        .api = .gl,
+        .version = .@"4.5",
+        .profile = .core,
+        .extensions = &.{},
+    });
+
+    const lib = b.addSharedLibrary(.{
+        .name = "turbomesh",
+        .root_source_file = b.path("src/lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    lib.root_module.addImport("gl", gl_bindings);
+
+    b.installArtifact(lib);
+
     const exe = b.addExecutable(.{
-        .name = "turbomesh_zig",
+        .name = "turbomesh",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
@@ -33,13 +50,6 @@ pub fn build(b: *std.Build) void {
         exe.linkLibrary(zglfw.artifact("glfw"));
     }
 
-    // Choose the OpenGL API, version, profile and extensions you want to generate bindings for.
-    const gl_bindings = @import("zigglgen").generateBindingsModule(b, .{
-        .api = .gl,
-        .version = .@"4.5",
-        .profile = .core,
-        .extensions = &.{},
-    });
     exe.root_module.addImport("gl", gl_bindings);
 
     exe.linkSystemLibrary("cgns");

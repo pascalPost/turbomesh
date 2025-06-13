@@ -8,6 +8,8 @@ const glfw = @import("zglfw");
 pub const gl = @import("gl");
 const o4h_template = @import("templates/O4H.zig");
 const smooth = @import("smooth.zig");
+const reload = @import("reload.zig");
+const State = @import("state.zig").State;
 
 var gl_proc_table: gl.ProcTable = undefined;
 
@@ -16,12 +18,6 @@ const Index2d = types.Index2d;
 const Vec2d = types.Vec2d;
 const Float = types.Float;
 const Index = types.Index;
-
-var dragging = false;
-var cursor_last: struct { f64, f64 } = .{ 0, 0 };
-var offset: struct { f64, f64 } = .{ 0, 0 };
-var scale: f32 = 1;
-const sensitivity = 1.5;
 
 var width: usize = 800;
 var height: usize = 600;
@@ -66,7 +62,6 @@ pub fn main() !void {
 
     const data_center = [2]f32{ point_data.range_x[0] + 0.5 * data_width, point_data.range_y[0] + 0.5 * data_height };
     const data_scale: f32 = 2.0 / @max(data_width, data_height) * 0.8;
-    scale = data_scale;
 
     const element_buffer = try createWireframeElementBuffer(allocator, mesh.blocks.items);
     defer allocator.free(element_buffer);
@@ -89,35 +84,6 @@ pub fn main() !void {
     glfw.makeContextCurrent(window);
 
     glfw.swapInterval(1);
-
-    _ = glfw.setMouseButtonCallback(window, struct {
-        fn callback(win: *glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) callconv(.c) void {
-            _ = win;
-            _ = mods;
-            dragging = button == .left and action == .press;
-        }
-    }.callback);
-
-    _ = glfw.setCursorPosCallback(window, struct {
-        fn callback(win: *glfw.Window, xpos: f64, ypos: f64) callconv(.c) void {
-            _ = win;
-
-            if (dragging) {
-                offset[0] += (xpos - cursor_last[0]) * 2.0 / @as(f64, @floatFromInt(width)) * sensitivity;
-                offset[1] -= (ypos - cursor_last[1]) * 2.0 / @as(f64, @floatFromInt(height)) * sensitivity;
-            }
-
-            cursor_last = .{ xpos, ypos };
-        }
-    }.callback);
-
-    _ = glfw.setScrollCallback(window, struct {
-        fn callback(win: *glfw.Window, xoffset: f64, yoffset: f64) callconv(.c) void {
-            _ = win;
-            _ = xoffset;
-            scale += @floatCast(1.0 * yoffset);
-        }
-    }.callback);
 
     gl.makeProcTableCurrent(&gl_proc_table);
     if (!gl_proc_table.init(glfw.getProcAddress)) {
@@ -270,20 +236,61 @@ pub fn main() !void {
 
     gl.PointSize(10);
 
+    var lib = try reload.Lib.open();
+    defer lib.close();
+
+    var state = State{
+        .gl_proc_table_ptr = &gl_proc_table,
+        .program = program,
+        .vao = vao,
+        .offset_location = offset_location,
+        .center_location = center_location,
+        .scale_location = scale_location,
+        .color_location = color_location,
+        .scale = data_scale,
+        .center = data_center,
+        .point_buffer = point_buffer,
+        .element_buffer = element_buffer,
+    };
+
+    glfw.setWindowUserPointer(window, &state);
+
+    _ = glfw.setMouseButtonCallback(window, struct {
+        fn callback(win: *glfw.Window, button: glfw.MouseButton, action: glfw.Action, mods: glfw.Mods) callconv(.c) void {
+            _ = mods;
+
+            if (glfw.getWindowUserPointer(win, State)) |s| {
+                s.dragging = button == .left and action == .press;
+            }
+        }
+    }.callback);
+
+    _ = glfw.setCursorPosCallback(window, struct {
+        fn callback(win: *glfw.Window, xpos: f64, ypos: f64) callconv(.c) void {
+            if (glfw.getWindowUserPointer(win, State)) |s| {
+                if (s.dragging) {
+                    s.offset[0] += (xpos - s.cursor_last[0]) * 2.0 / @as(f64, @floatFromInt(width)) * s.scroll_sensitivity;
+                    s.offset[1] -= (ypos - s.cursor_last[1]) * 2.0 / @as(f64, @floatFromInt(height)) * s.scroll_sensitivity;
+                }
+
+                s.cursor_last = .{ xpos, ypos };
+            }
+        }
+    }.callback);
+
+    _ = glfw.setScrollCallback(window, struct {
+        fn callback(win: *glfw.Window, xoffset: f64, yoffset: f64) callconv(.c) void {
+            _ = xoffset;
+            if (glfw.getWindowUserPointer(win, State)) |s| {
+                s.scale += @floatCast(1.0 * yoffset);
+            }
+        }
+    }.callback);
+
     while (!window.shouldClose()) {
+        try lib.reload();
         glfw.pollEvents();
-
-        gl.Clear(gl.COLOR_BUFFER_BIT);
-
-        gl.UseProgram(program);
-        gl.Uniform1f(scale_location, scale);
-        gl.Uniform2f(center_location, data_center[0], data_center[1]);
-        gl.Uniform2f(offset_location, @floatCast(offset[0]), @floatCast(offset[1]));
-        gl.BindVertexArray(vao);
-        gl.Uniform4f(color_location, 1.0, 1.0, 1.0, 1.0);
-        // gl.DrawArrays(gl.POINTS, 0, @intCast(point_buffer.len / 2));
-        gl.DrawElements(gl.LINES, @intCast(element_buffer.len), gl.UNSIGNED_INT, 0);
-
+        lib.update(&state);
         window.swapBuffers();
     }
 }
