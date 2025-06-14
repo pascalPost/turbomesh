@@ -12,8 +12,8 @@ const lib_path = switch (builtin.os.tag) {
     else => @compileError("unknown OS"),
 };
 
-const InitFn = *const fn (*State) callconv(.c) void;
-// const DeinitFn = *const fn (*anyopaque) callconv(.c) void;
+const InitFn = *const fn (*State) callconv(.c) bool;
+const DeinitFn = *const fn () callconv(.c) void;
 const UpdateFn = *const fn (*State) callconv(.c) void;
 
 pub const Lib = struct {
@@ -21,7 +21,7 @@ pub const Lib = struct {
     mod_time: i128,
 
     init_fn: InitFn,
-    // deinit_fn: DeinitFn,
+    deinit_fn: DeinitFn,
     update_fn: UpdateFn,
 
     pub fn open(state: *State) !Lib {
@@ -30,18 +30,19 @@ pub const Lib = struct {
         abs_path = try cwd.realpath(lib_path, &abs_path_buffer);
         const res = try load();
 
-        res.init_fn(state);
+        if (!res.init_fn(state)) return error.InitLibFailed;
 
         return .{
             .lib_ptr = res.lib_ptr,
             .mod_time = stat.mtime,
             .init_fn = res.init_fn,
-            // .deinit_fn = res.deinit_fn,
+            .deinit_fn = res.deinit_fn,
             .update_fn = res.update_fn,
         };
     }
 
     pub fn close(self: *Lib) void {
+        self.deinit_fn();
         self.lib_ptr.close();
     }
 
@@ -50,7 +51,7 @@ pub const Lib = struct {
         const stat = try cwd.statFile(lib_path);
         if (stat.mtime <= self.mod_time) return; // return if no loading is needed.
 
-        self.lib_ptr.close();
+        self.close();
 
         const res = try load();
         self.lib_ptr = res.lib_ptr;
@@ -58,16 +59,8 @@ pub const Lib = struct {
         self.update_fn = res.update_fn;
         self.mod_time = stat.mtime;
 
-        self.init_fn(state);
+        if (!self.init_fn(state)) return error.InitLibFailed;
     }
-
-    // pub fn init(self: Lib, state: *State) void {
-    //     return self.init_fn(state);
-    // }
-
-    // pub fn deinit(self: Lib, state: *anyopaque) void {
-    //     return self.deinit_fn(state);
-    // }
 
     pub fn update(self: Lib, state: *State) void {
         return self.update_fn(state);
@@ -77,13 +70,13 @@ pub const Lib = struct {
 fn load() !struct {
     lib_ptr: std.DynLib,
     init_fn: InitFn,
-    // deinit_fn: DeinitFn,
+    deinit_fn: DeinitFn,
     update_fn: UpdateFn,
 } {
     var lib = try std.DynLib.open(abs_path);
 
     const init_fn = lib.lookup(InitFn, "init") orelse return error.LookupInitFnFailed;
-    // const deinit_fn: DeinitFn = lib.lookup(DeinitFn, "deinit") orelse return error.LookupDeinitFnFailed;
+    const deinit_fn: DeinitFn = lib.lookup(DeinitFn, "deinit") orelse return error.LookupDeinitFnFailed;
     const update_fn: UpdateFn = lib.lookup(UpdateFn, "update") orelse return error.LookupUpdateFnFailed;
 
     std.log.debug("lib loaded successfully.", .{});
@@ -91,7 +84,7 @@ fn load() !struct {
     return .{
         .lib_ptr = lib,
         .init_fn = init_fn,
-        // .deinit_fn = deinit_fn,
+        .deinit_fn = deinit_fn,
         .update_fn = update_fn,
     };
 }

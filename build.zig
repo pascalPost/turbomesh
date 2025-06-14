@@ -36,7 +36,6 @@ pub fn build(b: *std.Build) void {
     });
 
     lib.root_module.addImport("gl", gl_bindings);
-
     lib.root_module.addImport("zglfw", zglfw.module("root"));
 
     if (target.result.os.tag != .emscripten) {

@@ -7,13 +7,14 @@ pub const State = struct {
     height: usize,
 
     gl_proc_table_ptr: *const gl.ProcTable,
-    program: gl.uint,
-    vao: gl.uint,
 
-    offset_location: gl.int,
-    center_location: gl.int,
-    scale_location: gl.int,
-    color_location: gl.int,
+    // program: gl.uint,
+    // vao: gl.uint,
+    //
+    // offset_location: gl.int,
+    // center_location: gl.int,
+    // scale_location: gl.int,
+    // color_location: gl.int,
 
     scroll_sensitivity: f32 = 1.5,
 
@@ -21,9 +22,10 @@ pub const State = struct {
     cursor_last: struct { f64, f64 } = .{ 0, 0 },
 
     scale: f32,
+    aspect_ratio: f32,
     offset: struct { f64, f64 } = .{ 0, 0 },
     center: [2]f32,
 
-    point_buffer: []f32,
-    element_buffer: []gl.uint,
+    // point_buffer: []f32,
+    // element_buffer: []gl.uint,
 };
