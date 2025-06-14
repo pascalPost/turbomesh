@@ -24,46 +24,31 @@ pub fn main() !void {
     defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
-    _ = allocator;
+    const template = o4h_template.O4H{
+        .ps_csv_path = "./examples/T106/T106_ps.dat",
+        .ss_csv_path = "./examples/T106/T106_ss.dat",
+        .pitch = 0.08836, // m
+        .blade_clustering = .{ .roberts = .{ .alpha = 0.5, .beta = 1.03 } },
+        .num_cells = .{
+            .o_grid = 20,
+            .in_up_j = 30,
+            .in_down_j = 10,
+            .in_i = 10,
+            .out_up_j = 40,
+            .out_down_j = 10,
+            .out_i = 10,
+            .middle_i = 100,
+            .down_j = 40,
+            .bulge = 40,
+            .upstream_i = 20,
+            .downstream_i = 10,
+        },
+    };
 
-    // const template = o4h_template.O4H{
-    //     .ps_csv_path = "./examples/T106/T106_ps.dat",
-    //     .ss_csv_path = "./examples/T106/T106_ss.dat",
-    //     .pitch = 0.08836, // m
-    //     .blade_clustering = .{ .roberts = .{ .alpha = 0.5, .beta = 1.03 } },
-    //     .num_cells = .{
-    //         .o_grid = 20,
-    //         .in_up_j = 30,
-    //         .in_down_j = 10,
-    //         .in_i = 10,
-    //         .out_up_j = 40,
-    //         .out_down_j = 10,
-    //         .out_i = 10,
-    //         .middle_i = 100,
-    //         .down_j = 40,
-    //         .bulge = 40,
-    //         .upstream_i = 20,
-    //         .downstream_i = 10,
-    //     },
-    // };
-    //
-    // var mesh = try template.run(allocator);
-    // defer mesh.deinit();
-    //
-    // try smooth.mesh(allocator, &mesh, 10);
-    //
-    // const point_data = try createPointBuffer(allocator, mesh.blocks.items);
-    // const point_buffer = point_data.points;
-    // defer allocator.free(point_buffer);
-    //
-    // const data_width = point_data.range_x[1] - point_data.range_x[0];
-    // const data_height = point_data.range_y[1] - point_data.range_y[0];
-    //
-    // const data_center = [2]f32{ point_data.range_x[0] + 0.5 * data_width, point_data.range_y[0] + 0.5 * data_height };
-    // const data_scale: f32 = 2.0 / @max(data_width, data_height) * 0.8;
-    //
-    // const element_buffer = try createWireframeElementBuffer(allocator, mesh.blocks.items);
-    // defer allocator.free(element_buffer);
+    var mesh = try template.run(allocator);
+    defer mesh.deinit();
+
+    try smooth.mesh(allocator, &mesh, 10);
 
     try glfw.init();
     defer glfw.terminate();
@@ -111,21 +96,15 @@ pub fn main() !void {
     }
 
     var state = State{
+        .allocator = allocator,
         .window = window,
         .width = width,
         .height = height,
         .gl_proc_table_ptr = &gl_proc_table,
-        // .program = program,
-        // .vao = vao,
-        // .offset_location = offset_location,
-        // .center_location = center_location,
-        // .scale_location = scale_location,
-        // .color_location = color_location,
         .scale = 1,
         .aspect_ratio = @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(height)),
         .center = .{ 0, 0 },
-        // .point_buffer = point_buffer,
-        // .element_buffer = element_buffer,
+        .mesh = mesh,
     };
 
     glfw.setWindowUserPointer(window, &state);

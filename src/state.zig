@@ -1,7 +1,11 @@
+const std = @import("std");
+const discrete = @import("discrete.zig");
 const glfw = @import("zglfw");
 const gl = @import("gl");
 
 pub const State = struct {
+    allocator: std.mem.Allocator,
+
     window: *glfw.Window,
     width: usize,
     height: usize,
@@ -28,4 +32,8 @@ pub const State = struct {
 
     // point_buffer: []f32,
     // element_buffer: []gl.uint,
+
+    // data
+
+    mesh: ?discrete.Mesh = null,
 };
