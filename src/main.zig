@@ -101,7 +101,7 @@ pub fn main() !void {
         .width = width,
         .height = height,
         .gl_proc_table_ptr = &gl_proc_table,
-        .scale = 1,
+        .zoom = 1,
         .aspect_ratio = @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(height)),
         .center = .{ 0, 0 },
         .mesh = mesh,

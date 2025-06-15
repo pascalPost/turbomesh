@@ -147,7 +147,7 @@ export fn init(state: *State) callconv(.c) bool {
         const data_scale: f32 = 2.0 / @max(data_width, data_height) * 0.8;
 
         state.center = data_center;
-        state.scale = data_scale;
+        state.zoom = data_scale;
 
         element_buffer = createWireframeElementBuffer(allocator, mesh.blocks.items) catch return false;
 
@@ -200,7 +200,7 @@ export fn update(state: *State) callconv(.c) void {
 
     gl.Uniform2f(center_location, state.center[0], state.center[1]);
     gl.Uniform2f(offset_location, @floatCast(state.offset[0]), @floatCast(state.offset[1]));
-    gl.Uniform1f(scale_location, state.scale);
+    gl.Uniform1f(scale_location, state.zoom);
     gl.Uniform1f(aspect_location, state.aspect_ratio);
 
     gl.Uniform4f(color_location, 1.0, 1.0, 1.0, 1.0);
@@ -342,8 +342,8 @@ fn setCallbacks(state: *State) void {
         fn callback(win: *glfw.Window, xpos: f64, ypos: f64) callconv(.c) void {
             if (glfw.getWindowUserPointer(win, State)) |s| {
                 if (s.dragging) {
-                    s.offset[0] += (xpos - s.cursor_last[0]) * 2.0 / @as(f64, @floatFromInt(s.width)) * s.scroll_sensitivity;
-                    s.offset[1] -= (ypos - s.cursor_last[1]) * 2.0 / @as(f64, @floatFromInt(s.height)) * s.scroll_sensitivity;
+                    s.offset[0] += (xpos - s.cursor_last[0]) * 2.0 / @as(f64, @floatFromInt(s.width)) * s.mouse_sensitivity;
+                    s.offset[1] -= (ypos - s.cursor_last[1]) * 2.0 / @as(f64, @floatFromInt(s.height)) * s.mouse_sensitivity;
                 }
 
                 s.cursor_last = .{ xpos, ypos };
@@ -355,8 +355,24 @@ fn setCallbacks(state: *State) void {
         fn callback(win: *glfw.Window, xoffset: f64, yoffset: f64) callconv(.c) void {
             _ = xoffset;
             if (glfw.getWindowUserPointer(win, State)) |s| {
-                s.scale += @floatCast(1.0 * yoffset);
+                const zoom_last = s.zoom;
+                const mouse_pos = getMouseNDC(win, s);
+                if (yoffset < 0) s.zoom *= 1 - s.zoom_speed else if (yoffset > 0) s.zoom *= 1 + s.zoom_speed;
+
+                s.offset[0] = (s.offset[0] - mouse_pos[0]) * (s.zoom / zoom_last) + mouse_pos[0];
+                s.offset[1] = (s.offset[1] - mouse_pos[1]) * (s.zoom / zoom_last) + mouse_pos[1];
             }
         }
     }.callback);
+}
+
+fn getMouseNDC(window: *glfw.Window, state: *State) struct { f32, f32 } {
+    var xpos: f64 = undefined;
+    var ypos: f64 = undefined;
+    glfw.getCursorPos(window, &xpos, &ypos);
+
+    return .{
+        2 * @as(f32, @floatCast(xpos)) / @as(f32, @floatFromInt(state.width)) - 1,
+        1 - 2 * @as(f32, @floatCast(ypos)) / @as(f32, @floatFromInt(state.height)),
+    };
 }

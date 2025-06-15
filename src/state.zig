@@ -20,18 +20,16 @@ pub const State = struct {
     // scale_location: gl.int,
     // color_location: gl.int,
 
-    scroll_sensitivity: f32 = 1.5,
-
+    mouse_sensitivity: f32 = 1.5,
     dragging: bool = false,
     cursor_last: struct { f64, f64 } = .{ 0, 0 },
 
-    scale: f32,
     aspect_ratio: f32,
     offset: struct { f64, f64 } = .{ 0, 0 },
     center: [2]f32,
 
-    // point_buffer: []f32,
-    // element_buffer: []gl.uint,
+    zoom_speed: f32 = 0.1,
+    zoom: f32,
 
     // data
 
