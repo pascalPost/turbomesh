@@ -50,6 +50,8 @@ const boundary = @import("boundary.zig");
 // TODO: rework w.r.t. new handling of block connections.
 
 pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations: usize) !void {
+    const time_start = try std.time.Instant.now();
+
     var system = try RowCompressedMatrixSystem2d.init(allocator, mesh_data);
     defer system.deinit();
 
@@ -101,6 +103,10 @@ pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations:
             }
         }
     }
+
+    const time_end = try std.time.Instant.now();
+    const time_delta: f32 = @floatFromInt(time_end.since(time_start));
+    std.debug.print("elapsed time for smoothing: {d:.2} s\n", .{time_delta / std.time.ns_per_s});
 }
 
 /// The 9 point stencil data for the point (i,j). The values are stored in an array where the index in
