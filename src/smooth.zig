@@ -49,13 +49,13 @@ const solver = @import("solver.zig");
 // }
 // TODO: rework w.r.t. new handling of block connections.
 
-pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations: usize) !void {
+pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations: usize, solver_backend: solver.Type) !void {
     const time_start = try std.time.Instant.now();
 
     var system = try RowCompressedMatrixSystem2d.init(allocator, mesh_data);
     defer system.deinit();
 
-    var s = solver.PetscSolver.init(system);
+    var s = solver.Solver.init(solver_backend, system);
     defer s.deinit();
 
     // iterate and fill matrix values

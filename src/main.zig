@@ -48,7 +48,7 @@ pub fn main() !void {
     var mesh = try template.run(allocator);
     defer mesh.deinit();
 
-    try smooth.mesh(allocator, &mesh, 10);
+    try smooth.mesh(allocator, &mesh, 20, .petsc);
 
     try glfw.init();
     defer glfw.terminate();

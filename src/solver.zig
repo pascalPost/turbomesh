@@ -5,40 +5,42 @@ const umfpack = @import("umfpack.zig");
 const petsc = @import("petsc_import.zig");
 const RowCompressedMatrixSystem2d = @import("smooth.zig").RowCompressedMatrixSystem2d;
 
-const SolverType = enum {
+pub const Type = enum {
     umfpack,
     petsc,
 };
 
-// const Solver = struct {
-//     backend: SolverType,
-//
-//     fn init(backend: SolverType) Solver {
-//         switch (backend) {
-//             .umfpack => {},
-//             .
-//         }
-//     }
-//     fn deinit() void {}
-//     fn solve() void {}
-// };
-
-const Solver = union(SolverType) {
+pub const Solver = union(Type) {
     umfpack: UmfpackSolver,
     petsc: PetscSolver,
+
+    pub fn init(backend: Type, system: RowCompressedMatrixSystem2d) Solver {
+        switch (backend) {
+            .umfpack => return .{ .umfpack = UmfpackSolver.init(system) },
+            .petsc => return .{ .petsc = PetscSolver.init(system) },
+        }
+    }
+
+    pub fn deinit(self: *Solver) void {
+        switch (self.*) {
+            .umfpack => {},
+            .petsc => |*s| s.deinit(),
+        }
+    }
+
+    pub fn solve(self: *Solver) !void {
+        try switch (self.*) {
+            .umfpack => |s| try s.solve(),
+            .petsc => |*s| s.solve(),
+        };
+    }
 };
 
-// TODO: remove pub from Solver implementations
-
-pub const UmfpackSolver = struct {
+const UmfpackSolver = struct {
     system: RowCompressedMatrixSystem2d,
 
     pub fn init(system: RowCompressedMatrixSystem2d) UmfpackSolver {
         return .{ .system = system };
-    }
-
-    pub fn deinit(self: UmfpackSolver) void {
-        _ = self;
     }
 
     pub fn solve(self: UmfpackSolver) !void {
@@ -47,7 +49,7 @@ pub const UmfpackSolver = struct {
     }
 };
 
-pub const PetscSolver = struct {
+const PetscSolver = struct {
     system: RowCompressedMatrixSystem2d,
     ksp: petsc.KSP,
     A: petsc.Mat,
