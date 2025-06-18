@@ -5,7 +5,7 @@ const c = @cImport({
 
 // UMFPACK docs: https://github.com/PetterS/SuiteSparse/tree/master/UMFPACK/Doc
 
-pub fn solve2(
+pub fn solve(
     n_row: i32,
     n_col: i32,
     ap: []const i32,

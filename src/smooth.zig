@@ -1,8 +1,8 @@
 const std = @import("std");
 const discrete = @import("discrete.zig");
 const types = @import("types.zig");
-const umfpack = @import("umfpack.zig");
 const boundary = @import("boundary.zig");
+const solver = @import("solver.zig");
 
 // This module provides a block-structured elliptic grid generation algorithm.
 // It takes a set of boundary points and iteratively adjusts interior points to create
@@ -55,32 +55,37 @@ pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations:
     var system = try RowCompressedMatrixSystem2d.init(allocator, mesh_data);
     defer system.deinit();
 
+    var s = solver.PetscSolver.init(system);
+    defer s.deinit();
+
     // iterate and fill matrix values
     for (0..iterations) |n| {
         std.debug.print("  iteration: {}\n", .{n});
 
-        try system.fillAndSolve();
+        try system.fill();
+        try s.solve();
 
         var x_norm_sqr: f64 = 0.0;
         var y_norm_sqr: f64 = 0.0;
 
-        // TODO: inefficient - enhance
         {
-            var row_block_start_idx: usize = 0;
+            var row_block_start_id: usize = 0;
             for (mesh_data.blocks.items) |block| {
-                for (0..block.points.size[0]) |i| {
-                    for (0..block.points.size[1]) |j| {
-                        const point_idx = block.points.index(.{ i, j });
-                        const row_idx = row_block_start_idx + point_idx;
-                        const p = block.points.data[point_idx];
+                var point_id: usize = 0;
+                for (0..block.points.size[0]) |_| {
+                    for (0..block.points.size[1]) |_| {
+                        const row_idx = row_block_start_id + point_id;
+                        const p = block.points.data[point_id];
                         const dx = p.data[0] - system.x_new[row_idx];
                         const dy = p.data[1] - system.y_new[row_idx];
 
                         x_norm_sqr += dx * dx;
                         y_norm_sqr += dy * dy;
+
+                        point_id += 1;
                     }
                 }
-                row_block_start_idx += block.points.size[0] * block.points.size[1];
+                row_block_start_id += block.points.size[0] * block.points.size[1];
             }
         }
 
@@ -88,18 +93,18 @@ pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations:
         std.debug.print("\tresidual: {}\n", .{norm});
 
         // copy into coordinate field
-        // TODO: inefficient - enhance
         {
-            var row_block_start_idx: usize = 0;
+            var row_block_start_id: usize = 0;
             for (mesh_data.blocks.items) |block| {
-                for (0..block.points.size[0]) |i| {
-                    for (0..block.points.size[1]) |j| {
-                        const point_idx = block.points.index(.{ i, j });
-                        const row_idx = row_block_start_idx + point_idx;
-                        block.points.data[point_idx] = types.Vec2d.init(system.x_new[row_idx], system.y_new[row_idx]);
+                var point_id: usize = 0;
+                for (0..block.points.size[0]) |_| {
+                    for (0..block.points.size[1]) |_| {
+                        const row_idx = row_block_start_id + point_id;
+                        block.points.data[point_id] = types.Vec2d.init(system.x_new[row_idx], system.y_new[row_idx]);
+                        point_id += 1;
                     }
                 }
-                row_block_start_idx += block.points.size[0] * block.points.size[1];
+                row_block_start_id += block.points.size[0] * block.points.size[1];
             }
         }
     }
@@ -218,16 +223,16 @@ fn connectionDataCheck(mesh_data: *const discrete.Mesh) void {
     // TODO: check that endpoints match! That allows to ease the connection handling!
 }
 
-const RowCompressedMatrixSystem2d = struct {
+pub const RowCompressedMatrixSystem2d = struct {
     mesh: *discrete.Mesh,
     allocator: std.mem.Allocator,
     buffer_int: []c_int,
     buffer_float: []f64,
 
-    /// cum sum of non-zero entries in columns (size DOF + 1); first value must be zero
+    /// cum sum of non-zero entries in each row (size DOF + 1); first value must be zero
     lhs_p: []c_int,
 
-    /// row indicies with non-zero values (size non-zero entries)
+    /// col indicies with non-zero values (size non-zero entries)
     lhs_i: []c_int,
 
     /// sparse matrix coefficients w.r.t. lhs_i
@@ -963,16 +968,13 @@ const RowCompressedMatrixSystem2d = struct {
         }
     }
 
-    fn fillAndSolve(self: *RowCompressedMatrixSystem2d) !void {
+    fn fill(self: *RowCompressedMatrixSystem2d) !void {
         // laplace conditions (zero intialization)
         const s = 0.0;
         const t = 0.0;
 
         self.fillBlockInternalPointData(s, t);
         self.fillBlockConnectionData(s, t);
-
-        const dof = self.rhs_x.len;
-        try umfpack.solve2(@intCast(dof), @intCast(dof), self.lhs_p, self.lhs_i, self.lhs_values, self.rhs_x, self.x_new, self.rhs_y, self.y_new);
     }
 };
 
