@@ -9,41 +9,58 @@ pub const gl = @import("gl");
 const o4h_template = @import("templates/O4H.zig");
 const smooth = @import("smooth.zig");
 const reload = @import("reload.zig");
+const cmd = @import("cmd.zig");
 const State = @import("state.zig").State;
 
 var gl_proc_table: gl.ProcTable = undefined;
-
-const Mat2d = types.Mat2d;
-const Index2d = types.Index2d;
-const Vec2d = types.Vec2d;
-const Float = types.Float;
-const Index = types.Index;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
-    const template = o4h_template.O4H{
-        .ps_csv_path = "./examples/T106/T106_ps.dat",
-        .ss_csv_path = "./examples/T106/T106_ss.dat",
-        .pitch = 0.08836, // m
-        .blade_clustering = .{ .roberts = .{ .alpha = 0.5, .beta = 1.03 } },
-        .num_cells = .{
-            .o_grid = 20,
-            .in_up_j = 30,
-            .in_down_j = 10,
-            .in_i = 10,
-            .out_up_j = 40,
-            .out_down_j = 10,
-            .out_i = 10,
-            .middle_i = 100,
-            .down_j = 40,
-            .bulge = 40,
-            .upstream_i = 20,
-            .downstream_i = 10,
-        },
-    };
+    const config_file = try cmd.parseArgs();
+    defer config_file.close();
+
+    var json_reader = std.json.reader(allocator, config_file.reader());
+    defer json_reader.deinit();
+
+    const parsed = try std.json.parseFromTokenSource(o4h_template.O4H, allocator, &json_reader, .{});
+    defer parsed.deinit();
+
+    // TODO: re-parse file on modification
+    // TODO: add boundary layer thickness
+    // TODO: add boundary stencil comm on walls for first mesh line smoothing
+    // TODO: add batch option
+
+    const template = parsed.value;
+
+    // const template = o4h_template.O4H{
+    //     .ps_csv_path = "./examples/T106/T106_ps.dat",
+    //     .ss_csv_path = "./examples/T106/T106_ss.dat",
+    //     .pitch = 0.08836, // m
+    //     .blade_clustering = .{ .roberts = .{ .alpha = 0.5, .beta = 1.03 } },
+    //     .num_cells = .{
+    //         .o_grid = 20,
+    //         .in_up_j = 30,
+    //         .in_down_j = 10,
+    //         .in_i = 10,
+    //         .out_up_j = 40,
+    //         .out_down_j = 10,
+    //         .out_i = 10,
+    //         .middle_i = 100,
+    //         .down_j = 40,
+    //         .bulge = 40,
+    //         .upstream_i = 20,
+    //         .downstream_i = 10,
+    //     },
+    // };
+
+    // TODO: use this to write config file
+    // const file = try std.fs.cwd().createFile("T106.json", .{});
+    // defer file.close();
+    //
+    // try std.json.stringify(template, .{ .whitespace = .indent_4 }, file.writer());
 
     var mesh = try template.run(allocator);
     defer mesh.deinit();

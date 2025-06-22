@@ -5,6 +5,7 @@ const Float = types.Float;
 const Vec2d = types.Vec2d;
 
 pub fn parseCsvIntoVec2d(allocator: std.mem.Allocator, file_path: []const u8) !std.ArrayList(Vec2d) {
+    std.log.info("reading csv: {s}", .{file_path});
     var file = try std.fs.cwd().openFile(file_path, .{});
     defer file.close();
 

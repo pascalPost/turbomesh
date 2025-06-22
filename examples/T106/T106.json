@@ -1,0 +1,25 @@
+{
+    "ps_csv_path": "examples/T106/T106_ps.dat",
+    "ss_csv_path": "examples/T106/T106_ss.dat",
+    "pitch": 8.836e-2,
+    "blade_clustering": {
+        "roberts": {
+            "alpha": 5e-1,
+            "beta": 1.03e0
+        }
+    },
+    "num_cells": {
+        "o_grid": 20,
+        "middle_i": 100,
+        "in_up_j": 30,
+        "in_down_j": 10,
+        "in_i": 10,
+        "out_up_j": 40,
+        "out_down_j": 10,
+        "out_i": 10,
+        "down_j": 40,
+        "bulge": 40,
+        "upstream_i": 20,
+        "downstream_i": 10
+    }
+}
