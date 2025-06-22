@@ -2,7 +2,7 @@ const std = @import("std");
 const discrete = @import("discrete.zig");
 const types = @import("types.zig");
 const boundary = @import("boundary.zig");
-const solver = @import("solver.zig");
+pub const solver = @import("solver.zig");
 
 // This module provides a block-structured elliptic grid generation algorithm.
 // It takes a set of boundary points and iteratively adjusts interior points to create

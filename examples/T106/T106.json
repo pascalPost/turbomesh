@@ -1,14 +1,16 @@
 {
-    "ps_csv_path": "examples/T106/T106_ps.dat",
-    "ss_csv_path": "examples/T106/T106_ss.dat",
-    "pitch": 8.836e-2,
-    "blade_clustering": {
+  "template": {
+    "O4H": {
+      "ps_csv_path": "examples/T106/T106_ps.dat",
+      "ss_csv_path": "examples/T106/T106_ss.dat",
+      "pitch": 8.836e-2,
+      "blade_clustering": {
         "roberts": {
-            "alpha": 5e-1,
-            "beta": 1.03e0
+          "alpha": 5e-1,
+          "beta": 1.03e0
         }
-    },
-    "num_cells": {
+      },
+      "num_cells": {
         "o_grid": 20,
         "middle_i": 100,
         "in_up_j": 30,
@@ -21,5 +23,13 @@
         "bulge": 40,
         "upstream_i": 20,
         "downstream_i": 10
+      }
     }
+  },
+  "smoothing": {
+    "iterations": 20,
+    "backend": "umfpack"
+  },
+  "output": "examples/T106/T106.cgns",
+  "gui": true
 }

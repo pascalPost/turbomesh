@@ -6,13 +6,23 @@ const cgns = @import("cgns.zig");
 const spline = @import("spline.zig");
 const glfw = @import("zglfw");
 pub const gl = @import("gl");
-const o4h_template = @import("templates/O4H.zig");
+const templates = @import("templates/templates.zig");
 const smooth = @import("smooth.zig");
 const reload = @import("reload.zig");
 const cmd = @import("cmd.zig");
 const State = @import("state.zig").State;
 
 var gl_proc_table: gl.ProcTable = undefined;
+
+const Config = struct {
+    template: templates.Template,
+    smoothing: struct {
+        iterations: usize,
+        backend: smooth.solver.Type,
+    },
+    output: ?[:0]const u8 = null,
+    gui: ?bool = null,
+};
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -25,47 +35,45 @@ pub fn main() !void {
     var json_reader = std.json.reader(allocator, config_file.reader());
     defer json_reader.deinit();
 
-    const parsed = try std.json.parseFromTokenSource(o4h_template.O4H, allocator, &json_reader, .{});
+    const parsed = try std.json.parseFromTokenSource(Config, allocator, &json_reader, .{});
     defer parsed.deinit();
+
+    const config = parsed.value;
 
     // TODO: re-parse file on modification
     // TODO: add boundary layer thickness
     // TODO: add boundary stencil comm on walls for first mesh line smoothing
     // TODO: add batch option
 
-    const template = parsed.value;
+    // TODO: add ini, toml, yaml config files to allow comments!
 
-    // const template = o4h_template.O4H{
-    //     .ps_csv_path = "./examples/T106/T106_ps.dat",
-    //     .ss_csv_path = "./examples/T106/T106_ss.dat",
-    //     .pitch = 0.08836, // m
-    //     .blade_clustering = .{ .roberts = .{ .alpha = 0.5, .beta = 1.03 } },
-    //     .num_cells = .{
-    //         .o_grid = 20,
-    //         .in_up_j = 30,
-    //         .in_down_j = 10,
-    //         .in_i = 10,
-    //         .out_up_j = 40,
-    //         .out_down_j = 10,
-    //         .out_i = 10,
-    //         .middle_i = 100,
-    //         .down_j = 40,
-    //         .bulge = 40,
-    //         .upstream_i = 20,
-    //         .downstream_i = 10,
-    //     },
-    // };
-
-    // TODO: use this to write config file
+    // // TODO: use this to write config file
     // const file = try std.fs.cwd().createFile("T106.json", .{});
     // defer file.close();
     //
-    // try std.json.stringify(template, .{ .whitespace = .indent_4 }, file.writer());
+    // const config = Config{
+    //     .template = .{ .O4H = template },
+    //     .smoothing = .{
+    //         .iterations = 20,
+    //         .backend = .umfpack,
+    //     },
+    //     .output = "examples/T106/T106.cgns",
+    // };
 
-    var mesh = try template.run(allocator);
+    // try std.json.stringify(config, .{ .whitespace = .indent_2 }, file.writer());
+
+    // std.process.exit(0);
+
+    var mesh = try config.template.run(allocator);
     defer mesh.deinit();
 
-    try smooth.mesh(allocator, &mesh, 20, .petsc);
+    try smooth.mesh(allocator, &mesh, config.smoothing.iterations, config.smoothing.backend);
+
+    if (config.output) |filename| {
+        try mesh.write(allocator, filename);
+    }
+
+    if (config.gui == null or !config.gui.?) std.process.exit(0);
 
     try glfw.init();
     defer glfw.terminate();
