@@ -908,7 +908,7 @@ pub const RowCompressedMatrixSystem2d = struct {
                     const im1_j = point_data[0][@intCast(point_idx[0] - it.in_connection_direction_shift[0])];
                     const i_jm1 = point_data[0][@intCast(point_idx[0] + it.first_internal_point_shift[0])];
                     const ip1_j = point_data[0][@intCast(point_idx[0] + it.in_connection_direction_shift[0])];
-                    const i_jp1 = types.add(point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])], .{ .data = .{ 0, -0.08836 } });
+                    const i_jp1 = types.add(point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])], types.neg(periodicity));
 
                     const stencil = StencilData.init(im1_j, ip1_j, i_jm1, i_jp1, s, t);
 

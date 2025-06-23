@@ -63,6 +63,10 @@ pub fn abs(v: Vec2d) Float {
     return std.math.sqrt(v.data[0] * v.data[0] + v.data[1] * v.data[1]);
 }
 
+pub fn neg(v: Vec2d) Vec2d {
+    return .{ .data = .{ -v.data[0], -v.data[1] } };
+}
+
 /// A 2D matrix type with storage in column-major order
 pub const Mat2d = struct {
     size: Index2d,
