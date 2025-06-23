@@ -4,6 +4,7 @@ const types = @import("types.zig");
 const umfpack = @import("umfpack.zig");
 const boundary = @import("boundary.zig");
 const tfi = @import("tfi.zig");
+const cgns = @import("cgns.zig");
 
 // This module provides a block-structured elliptic grid generation algorithm.
 // It takes a set of boundary points and iteratively adjusts interior points to create
@@ -105,6 +106,8 @@ pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations:
             }
         }
     }
+
+    try system.write("smooth.cgns");
 }
 
 /// The 9 point stencil data for the point (i,j). The values are stored in an array where the index in
@@ -325,6 +328,23 @@ const RowCompressedMatrixSystem2d = struct {
         self.allocator.free(self.row_idx_range_start_for_each_block);
         self.boundary_points.deinit();
         self.control_function.deinit();
+    }
+
+    fn write(self: RowCompressedMatrixSystem2d, filename: [:0]const u8) !void {
+        // buffer
+        var size: usize = 0;
+        for (self.mesh.blocks.items) |b| {
+            size = @max(size, b.points.data.len);
+        }
+        var buffer = try self.allocator.alloc(types.Float, size);
+        defer self.allocator.free(buffer);
+
+        // block data
+        var block_points = try self.allocator.alloc(types.Mat2d, self.mesh.blocks.items.len);
+        defer self.allocator.free(block_points);
+        for (self.mesh.blocks.items, block_points[0..]) |b, *data| data.* = b.points;
+
+        try cgns.write(filename, self.mesh.names.items, block_points, buffer[0..], self.control_function.data);
     }
 
     // fn initControlFunctionKhamaysehEtAl(self: *RowCompressedMatrixSystem2d) !void {
@@ -1704,6 +1724,7 @@ const ControlFunction = struct {
                     // forward differences
                     const x_xi = -x_0_0 + x_1_0;
                     const y_xi = -y_0_0 + y_1_0;
+                    // const x_xi = -1.5 * x_0_0 + 2 * x_1_0 - 0.5 * x_
                     const x_xi2 = x_0_0 - 2 * x_1_0 + x_2_0;
                     const y_xi2 = y_0_0 - 2 * y_1_0 + y_2_0;
 
@@ -1875,8 +1896,8 @@ const ControlFunction = struct {
 
                 {
                     const x_0_0, const y_0_0 = block.points.data[local_id].data;
-                    const x_1_0, const y_1_0 = block.points.data[local_id + size[1]].data;
                     const x_0_1, const y_0_1 = block.points.data[local_id + 1].data;
+                    const x_1_0, const y_1_0 = block.points.data[local_id + size[1]].data;
 
                     // forward differences
                     const x_xi = -x_0_0 + x_1_0;
