@@ -1040,6 +1040,8 @@ pub const RowCompressedMatrixSystem2d = struct {
     fn fillBlockInternalPointData(self: RowCompressedMatrixSystem2d) void {
         var row_idx: usize = 0;
 
+        // const control_function = must be either constant 0 w/0 data access or get value by row_id and field access
+
         for (self.mesh.blocks.items) |block| {
             var point_idx: usize = 0;
 
@@ -1681,15 +1683,14 @@ const ControlFunction = struct {
     // algorithm: KhamaysehEtAl,
     algorithm: White,
 
-    fn init(allocator: std.mem.Allocator, dof: usize, mesh_data: *const discrete.Mesh) !ControlFunction {
+    fn init(allocator: std.mem.Allocator, dof: usize, algorithm: White) !ControlFunction {
         // TODO: merge with other allocations.
         var data = try allocator.alloc(types.Vec2d, dof);
         @memset(data[0..], .{ .data = .{ 0, 0 } });
         return .{
             .allocator = allocator,
             .data = data,
-            // .algorithm = try .init(allocator, mesh_data, data),
-            .algorithm = .init(mesh_data, data),
+            .algorithm = algorithm,
         };
     }
 
@@ -1700,6 +1701,12 @@ const ControlFunction = struct {
 
     const White = struct {
         mesh: *const discrete.Mesh,
+
+        /// target distance to first point
+        ds_target: f64,
+
+        /// target wall angle between point on wall and first point
+        theta_target: f64 = 0.5 * std.math.pi,
 
         fn init(mesh_data: *const discrete.Mesh, control_function: []types.Vec2d) White {
             var white = White{ .mesh = mesh_data };
@@ -1792,7 +1799,6 @@ const ControlFunction = struct {
 
                         control_function[block_range_start + local_id] = .init(p, q);
                         local_id += 1;
-                        // local_id += size[1];
 
                         for (1..block.points.size[1]) |j| {
                             const factor: f64 = 1 - @as(f64, @floatFromInt(j)) / (@as(f64, @floatFromInt(size[1])) - 1);
@@ -1851,6 +1857,7 @@ const ControlFunction = struct {
         }
 
         fn computeUpdate(
+            self: White,
             local_id: *usize,
             control_function: []types.Vec2d,
             x_xi: f64,
@@ -1860,10 +1867,6 @@ const ControlFunction = struct {
             size_j: usize,
             block_range_start: usize,
         ) void {
-            // const beta = 0.1;
-            const ds_target = 1e-5;
-            const theta_target = 0.5 * std.math.pi;
-
             const g11 = x_xi * x_xi + y_xi * y_xi;
             const g12 = x_xi * x_eta + y_xi * y_eta;
             const g22 = x_eta * x_eta + y_eta * y_eta;
@@ -1871,14 +1874,11 @@ const ControlFunction = struct {
             const ds = @sqrt(g22);
             const theta = std.math.acos(g12 / @sqrt(g11 * g22));
 
-            const delta_ds = ds_target - ds;
-            const delta_theta = theta_target - theta;
+            const delta_ds = self.ds_target - ds;
+            const delta_theta = self.theta_target - theta;
 
-            // const delta_p = -0.1 * std.math.tanh(delta_theta / theta_target);
-            // const delta_q = 0.1 * std.math.tanh(delta_ds / ds_target);
-
-            const delta_p = -std.math.atan2(delta_theta, theta_target);
-            const delta_q = std.math.atan2(delta_ds, ds_target);
+            const delta_p = -std.math.atan2(delta_theta, self.theta_target);
+            const delta_q = std.math.atan2(delta_ds, self.ds_target);
 
             var p, var q = control_function[block_range_start + local_id.*].data;
             p += 0.1 * delta_p;
