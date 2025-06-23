@@ -19,6 +19,7 @@ const Config = struct {
     smoothing: struct {
         iterations: usize,
         backend: smooth.solver.Type,
+        control_function: smooth.control_function.Algorithm,
     },
     output: ?[:0]const u8 = null,
     gui: ?bool = null,
@@ -67,7 +68,7 @@ pub fn main() !void {
     var mesh = try config.template.run(allocator);
     defer mesh.deinit();
 
-    try smooth.mesh(allocator, &mesh, config.smoothing.iterations, config.smoothing.backend);
+    try smooth.mesh(allocator, &mesh, config.smoothing.iterations, config.smoothing.backend, config.smoothing.control_function);
 
     if (config.output) |filename| {
         try mesh.write(allocator, filename);

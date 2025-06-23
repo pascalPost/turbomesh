@@ -10,8 +10,9 @@ const Type = enum {
 };
 
 pub const Algorithm = union(Type) {
-    laplace: Laplace,
+    laplace: void,
     white: White,
+    // white: White,
     // khamaysehEtAl: KhamaysehEtAl,
 };
 
@@ -20,14 +21,14 @@ pub const ControlFunction = struct {
     data: []types.Vec2d,
     algorithm: Algorithm,
 
-    pub fn init(allocator: std.mem.Allocator, dof: usize, algorithm: Algorithm) !ControlFunction {
+    pub fn init(allocator: std.mem.Allocator, dof: usize, mesh: discrete.Mesh, algorithm: Algorithm) !ControlFunction {
         // TODO: merge with other allocations.
         var data = try allocator.alloc(types.Vec2d, dof);
         @memset(data[0..], .{ .data = .{ 0, 0 } });
 
         switch (algorithm) {
             .laplace => {},
-            .white => |a| a.initControlFunction(data),
+            .white => White.initControlFunction(data, mesh),
         }
 
         return .{
@@ -41,36 +42,31 @@ pub const ControlFunction = struct {
         self.allocator.free(self.data);
     }
 
-    pub fn update(self: ControlFunction) void {
+    pub fn update(self: ControlFunction, mesh: discrete.Mesh) void {
         switch (self.algorithm) {
             .laplace => {},
-            .white => |a| a.update(self.data),
+            .white => |a| a.update(self.data, mesh),
         }
     }
 };
 
-pub const Laplace = struct {};
-
 pub const White = struct {
-    mesh: *const discrete.Mesh,
-
     /// target distance to first point
     ds_target: f64,
 
     /// target wall angle between point on wall and first point
     theta_target: f64 = 0.5 * std.math.pi,
 
-    pub fn init(mesh_data: *const discrete.Mesh, ds_target: f64, theta_target: f64) White {
+    pub fn init(ds_target: f64, theta_target: f64) White {
         return .{
-            .mesh = mesh_data,
             .ds_target = ds_target,
             .theta_target = theta_target,
         };
     }
 
-    fn initControlFunction(self: White, control_function: []types.Vec2d) void {
+    fn initControlFunction(control_function: []types.Vec2d, mesh: discrete.Mesh) void {
         var block_range_start: usize = 0;
-        for (self.mesh.blocks.items[0..2]) |block| {
+        for (mesh.blocks.items[0..2]) |block| {
             const size = block.points.size;
 
             var local_id: usize = 0;
@@ -243,9 +239,12 @@ pub const White = struct {
         }
     }
 
-    fn update(self: White, control_function: []types.Vec2d) void {
+    fn update(self: White, control_function: []types.Vec2d, mesh: discrete.Mesh) void {
         var block_range_start: usize = 0;
-        for (self.mesh.blocks.items[0..2]) |block| {
+
+        // TODO: remove this hard coding!
+
+        for (mesh.blocks.items[0..2]) |block| {
             const size = block.points.size;
 
             var local_id: usize = 0;

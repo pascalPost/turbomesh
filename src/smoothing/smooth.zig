@@ -4,7 +4,7 @@ const types = @import("../types.zig");
 const boundary = @import("../boundary.zig");
 pub const solver = @import("solver.zig");
 const cgns = @import("../cgns.zig");
-const control_function = @import("control_function.zig");
+pub const control_function = @import("control_function.zig");
 
 // This module provides a block-structured elliptic grid generation algorithm.
 // It takes a set of boundary points and iteratively adjusts interior points to create
@@ -51,10 +51,10 @@ const control_function = @import("control_function.zig");
 // }
 // TODO: rework w.r.t. new handling of block connections.
 
-pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations: usize, solver_backend: solver.Type) !void {
+pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations: usize, solver_backend: solver.Type, control_function_algorithm: control_function.Algorithm) !void {
     const time_start = try std.time.Instant.now();
 
-    var system = try RowCompressedMatrixSystem2d.init(allocator, mesh_data);
+    var system = try RowCompressedMatrixSystem2d.init(allocator, mesh_data, control_function_algorithm);
     defer system.deinit();
 
     var s = solver.Solver.init(solver_backend, system);
@@ -260,7 +260,7 @@ pub const RowCompressedMatrixSystem2d = struct {
 
     control_function: control_function.ControlFunction,
 
-    fn init(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh) !RowCompressedMatrixSystem2d {
+    fn init(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, control_function_algorithm: control_function.Algorithm) !RowCompressedMatrixSystem2d {
         connectionDataCheck(mesh_data);
 
         // TODO: check that endpoints match! That allows to ease the connection handling!
@@ -308,8 +308,6 @@ pub const RowCompressedMatrixSystem2d = struct {
         const index_converter = try IndexConverter.init(mesh_data, allocator);
         defer index_converter.deinit();
 
-        const control_function_algorithm = control_function.Algorithm{ .white = .init(mesh_data, 1e-5, 0.5 * std.math.pi) };
-
         var system = RowCompressedMatrixSystem2d{
             .mesh = mesh_data,
             .allocator = allocator,
@@ -324,7 +322,7 @@ pub const RowCompressedMatrixSystem2d = struct {
             .y_new = y_new,
             .row_idx_range_start_for_each_block = row_idx_range_start_for_each_block,
             .boundary_points = try .init(allocator, index_converter, mesh_data),
-            .control_function = try .init(allocator, dof, control_function_algorithm),
+            .control_function = try .init(allocator, dof, mesh_data.*, control_function_algorithm),
         };
 
         try system.initNonZeroMatrixEntries(dof, non_zero_entries_capacity, index_converter);
@@ -1018,7 +1016,7 @@ pub const RowCompressedMatrixSystem2d = struct {
 
     fn fill(self: *RowCompressedMatrixSystem2d, iteration: usize) !void {
         if (iteration > 0) {
-            self.control_function.update();
+            self.control_function.update(self.mesh.*);
         }
         self.fillBlockInternalPointData();
         self.fillBlockConnectionData();

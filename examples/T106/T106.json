@@ -28,7 +28,13 @@
   },
   "smoothing": {
     "iterations": 20,
-    "backend": "umfpack"
+    "backend": "umfpack",
+    "control_function" : {
+      "white" : {
+        "ds_target" : 1e-6,
+        "theta_target": 1.570796327
+      }
+    }
   },
   "output": "examples/T106/T106.cgns",
   "gui": true
