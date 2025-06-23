@@ -6,7 +6,7 @@ const clustering = @import("../clustering.zig");
 const discrete = @import("../discrete.zig");
 const geometry = @import("../geometry.zig");
 const boundary = @import("../boundary.zig");
-const smooth = @import("../smooth.zig");
+const smooth = @import("../smoothing/smooth.zig");
 
 const Float = types.Float;
 const Vec2d = types.Vec2d;

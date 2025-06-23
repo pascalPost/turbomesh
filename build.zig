@@ -63,7 +63,7 @@ pub fn build(b: *std.Build) void {
     exe.linkSystemLibrary("cgns");
     exe.linkSystemLibrary("umfpack");
     exe.linkSystemLibrary("petsc");
-    exe.addCSourceFile(.{ .file = b.path("src/petsc_shim.c") });
+    exe.addCSourceFile(.{ .file = b.path("src/smoothing/petsc_shim.c") });
     exe.linkSystemLibrary("mpi"); // needed by petsc
     exe.linkSystemLibrary("dierckx");
     exe.addLibraryPath(b.path("./third_party/dierckx/"));
