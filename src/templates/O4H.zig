@@ -57,6 +57,11 @@ pub const O4H = struct {
         upstream_i: types.Index,
         downstream_i: types.Index,
     },
+    smoothing: struct {
+        iterations: usize,
+        backend: smooth.solver.Type = .umfpack,
+        wall_control_function: smooth.control_function.Algorithm = .{ .laplace = {} },
+    },
 
     pub fn run(self: *const O4H, allocator: std.mem.Allocator) !discrete.Mesh {
 
@@ -510,6 +515,8 @@ pub const O4H = struct {
         // TODO: add boundary conditions
 
         // TODO: consider removing the Side definition... Check if this eases the code.
+
+        try smooth.mesh(allocator, &mesh, self.smoothing.iterations, self.smoothing.backend, self.smoothing.wall_control_function);
 
         return mesh;
     }

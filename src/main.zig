@@ -7,7 +7,6 @@ const spline = @import("spline.zig");
 const glfw = @import("zglfw");
 pub const gl = @import("gl");
 const templates = @import("templates/templates.zig");
-const smooth = @import("smoothing/smooth.zig");
 const reload = @import("reload.zig");
 const cmd = @import("cmd.zig");
 const State = @import("state.zig").State;
@@ -16,11 +15,6 @@ var gl_proc_table: gl.ProcTable = undefined;
 
 const Config = struct {
     template: templates.Template,
-    smoothing: struct {
-        iterations: usize,
-        backend: smooth.solver.Type,
-        control_function: smooth.control_function.Algorithm,
-    },
     output: ?[:0]const u8 = null,
     gui: ?bool = null,
 };
@@ -52,23 +46,12 @@ pub fn main() !void {
     // const file = try std.fs.cwd().createFile("T106.json", .{});
     // defer file.close();
     //
-    // const config = Config{
-    //     .template = .{ .O4H = template },
-    //     .smoothing = .{
-    //         .iterations = 20,
-    //         .backend = .umfpack,
-    //     },
-    //     .output = "examples/T106/T106.cgns",
-    // };
-
     // try std.json.stringify(config, .{ .whitespace = .indent_2 }, file.writer());
 
     // std.process.exit(0);
 
     var mesh = try config.template.run(allocator);
     defer mesh.deinit();
-
-    try smooth.mesh(allocator, &mesh, config.smoothing.iterations, config.smoothing.backend, config.smoothing.control_function);
 
     if (config.output) |filename| {
         try mesh.write(allocator, filename);

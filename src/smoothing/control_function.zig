@@ -12,7 +12,6 @@ const Type = enum {
 pub const Algorithm = union(Type) {
     laplace: void,
     white: White,
-    // white: White,
     // khamaysehEtAl: KhamaysehEtAl,
 };
 

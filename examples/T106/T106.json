@@ -23,16 +23,16 @@
         "bulge": 40,
         "upstream_i": 20,
         "downstream_i": 10
-      }
-    }
-  },
-  "smoothing": {
-    "iterations": 20,
-    "backend": "umfpack",
-    "control_function" : {
-      "white" : {
-        "ds_target" : 1e-6,
-        "theta_target": 1.570796327
+      },
+      "smoothing": {
+        "iterations": 20,
+        "backend": "umfpack",
+        "wall_control_function" : {
+          "white" : {
+            "ds_target" : 1e-6,
+            "theta_target": 1.570796327
+          }
+        }
       }
     }
   },
