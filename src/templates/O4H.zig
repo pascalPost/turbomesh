@@ -423,6 +423,15 @@ pub const O4H = struct {
 
         try mesh.connections.appendSlice(&.{
             boundary.Connection.init(.{
+                .{ .block = ss_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.o_grid },
+                .{ .block = ps_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.o_grid },
+            }, null),
+            boundary.Connection.init(.{
+                .{ .block = ss_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.o_grid },
+                .{ .block = ps_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.o_grid },
+            }, null),
+
+            boundary.Connection.init(.{
                 .{ .block = down_id, .side = boundary.Side.j_min, .start = self.num_cells.down_j, .end = 0 },
                 .{ .block = upstream_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.bulge },
             }, null),
@@ -464,15 +473,6 @@ pub const O4H = struct {
             boundary.Connection.init(.{
                 .{ .block = up_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.bulge },
                 .{ .block = downstream_id, .side = boundary.Side.j_min, .start = downstream_j_min.points.len - 1 - self.num_cells.bulge, .end = downstream_j_min.points.len - 1 },
-            }, null),
-
-            boundary.Connection.init(.{
-                .{ .block = ss_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.o_grid },
-                .{ .block = ps_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.o_grid },
-            }, null),
-            boundary.Connection.init(.{
-                .{ .block = ss_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.o_grid },
-                .{ .block = ps_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.o_grid },
             }, null),
 
             boundary.Connection.init(.{

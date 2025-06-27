@@ -83,7 +83,6 @@ pub const White = struct {
                 // forward differences
                 const x_xi = -x_0_0 + x_1_0;
                 const y_xi = -y_0_0 + y_1_0;
-                // const x_xi = -1.5 * x_0_0 + 2 * x_1_0 - 0.5 * x_
                 const x_xi2 = x_0_0 - 2 * x_1_0 + x_2_0;
                 const y_xi2 = y_0_0 - 2 * y_1_0 + y_2_0;
 
@@ -99,12 +98,10 @@ pub const White = struct {
                 const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
                 const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
 
-                // std.debug.print("block {} point {} P {} Q {}\n", .{ block_id, point_id, p, q });
-
                 control_function[block_range_start + local_id] = .init(p, q);
                 local_id += 1;
 
-                for (1..block.points.size[1]) |j| {
+                for (1..size[1]) |j| {
                     const factor: f64 = 1 - @as(f64, @floatFromInt(j)) / (@as(f64, @floatFromInt(size[1])) - 1);
                     control_function[block_range_start + local_id] = .init(factor * p, factor * q);
                     local_id += 1;
@@ -124,8 +121,8 @@ pub const White = struct {
                     // central differences
                     const x_xi = 0.5 * (x_ip1_0 - x_im1_0);
                     const y_xi = 0.5 * (y_ip1_0 - y_im1_0);
-                    const x_xi2 = x_ip1_0 - 2.0 * x_i_0 + x_im1_0;
-                    const y_xi2 = y_ip1_0 - 2.0 * y_i_0 + y_im1_0;
+                    const x_xi2 = x_ip1_0 - 2 * x_i_0 + x_im1_0;
+                    const y_xi2 = y_ip1_0 - 2 * y_i_0 + y_im1_0;
 
                     const g11 = x_xi * x_xi + y_xi * y_xi;
 
@@ -141,12 +138,10 @@ pub const White = struct {
                     const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
                     const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
 
-                    // std.debug.print("block {} point {} P {} Q {}\n", .{ block_id, point_id, p, q });
-
                     control_function[block_range_start + local_id] = .init(p, q);
                     local_id += 1;
 
-                    for (1..block.points.size[1]) |j| {
+                    for (1..size[1]) |j| {
                         const factor: f64 = 1 - @as(f64, @floatFromInt(j)) / (@as(f64, @floatFromInt(size[1])) - 1);
                         control_function[block_range_start + local_id] = .init(factor * p, factor * q);
                         local_id += 1;
@@ -185,22 +180,99 @@ pub const White = struct {
                 const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
                 const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
 
-                // std.debug.print("block {} point {} P {} Q {}\n", .{ block_id, point_id, p, q });
-
                 control_function[block_range_start + local_id] = .init(p, q);
                 local_id += 1;
 
-                for (1..block.points.size[1]) |j| {
+                for (1..size[1]) |j| {
                     const factor: f64 = 1 - @as(f64, @floatFromInt(j)) / (@as(f64, @floatFromInt(size[1])) - 1);
                     control_function[block_range_start + local_id] = .init(factor * p, factor * q);
                     local_id += 1;
                 }
             }
 
-            const num_points = block.points.size[0] * block.points.size[1];
+            const num_points = size[0] * size[1];
             block_range_start += num_points;
+        }
 
-            // TODO: add connections!
+        // TODO: add connections!
+
+        // for (mesh.connections.items) |connection| {
+        {
+            const connection = mesh.connections.items[0];
+
+            // TODO: remove hard coding
+            // TODO: save for which connections this needs to be done to avoid looping and chacling all
+
+            const range_0 = connection.ranges[0];
+            const range_1 = connection.ranges[1];
+
+            std.debug.assert(range_0.block == 0 and range_0.start == 0 and range_0.side == .j_min);
+            std.debug.assert(range_1.block == 1 and range_1.start == 0 and range_1.side == .j_min);
+
+            // if (range_0.block == 0 and range_1.block == 1) {
+            // NOTE: not (yet) implemented... not sure if this could be needed at some point.
+            std.debug.assert(connection.periodicity == null);
+
+            const point_data = [2][]types.Vec2d{
+                mesh.blocks.items[connection.ranges[0].block].points.data,
+                mesh.blocks.items[connection.ranges[1].block].points.data,
+            };
+
+            var it = smooth.RangeFillMatrixIterator.init(connection, &mesh);
+
+            const connected_points = it.next().?;
+            const point_idx: [2]c_int = .{ @intCast(connected_points[0].value), @intCast(connected_points[1].value) };
+
+            std.debug.assert(point_idx[0] == 0);
+            std.debug.assert(point_idx[1] == 0);
+
+            // NOTE: i an j are arbitrary for connections... This is for now hard coded for the connection needed. This needs to be
+            // extended for generality.
+
+            const x_i_j, const y_i_j = point_data[0][@intCast(point_idx[0])].data;
+            const x_ip1_j, const y_ip1_j = point_data[0][@intCast(point_idx[0] + it.first_internal_point_shift[0])].data;
+            const x_im1_j, const y_im1_j = point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])].data;
+            const x_i_jp1, const y_i_jp1 = point_data[0][@intCast(point_idx[0] + it.in_connection_direction_shift[0])].data;
+            const x_i_jp2, const y_i_jp2 = point_data[0][@intCast(point_idx[0] + 2 * it.in_connection_direction_shift[0])].data;
+
+            // central difference
+            const x_xi = 0.5 * (x_ip1_j - x_im1_j);
+            const y_xi = 0.5 * (y_ip1_j - y_im1_j);
+            const x_xi2 = x_ip1_j - 2 * x_i_j + x_im1_j;
+            const y_xi2 = y_ip1_j - 2 * y_i_j + y_im1_j;
+
+            const g11 = x_xi * x_xi + y_xi * y_xi;
+
+            // forward differences
+            const x_eta = -x_i_j + x_i_jp1;
+            const y_eta = -y_i_j + y_i_jp1;
+            const x_eta2 = x_i_j - 2 * x_i_jp1 + x_i_jp2;
+            const y_eta2 = y_i_j - 2 * y_i_jp1 + y_i_jp2;
+
+            const g22 = x_eta * x_eta + y_eta * y_eta;
+
+            // eq. 6.10
+            const p = -(x_xi * x_xi2 + y_xi * y_xi2) / g11 - (x_xi * x_eta2 + y_xi * y_eta2) / g22;
+            const q = -(x_eta * x_eta2 + y_eta * y_eta2) / g22 - (x_eta * x_xi2 + y_eta * y_xi2) / g11;
+
+            // block 0
+            {
+                block_range_start = 0;
+                var local_id: usize = 0;
+                const block = mesh.blocks.items[0];
+                const size = block.points.size;
+
+                control_function[block_range_start + local_id] = .init(p, q);
+                local_id += 1;
+
+                for (1..size[1]) |j| {
+                    const factor: f64 = 1 - @as(f64, @floatFromInt(j)) / (@as(f64, @floatFromInt(size[1])) - 1);
+                    control_function[block_range_start + local_id] = .init(factor * p, factor * q);
+                    local_id += 1;
+                }
+
+                block_range_start = size[0] * size[1];
+            }
         }
     }
 
@@ -313,88 +385,88 @@ pub const White = struct {
             block_range_start += num_points;
         }
 
+        // TODO: add connections!
+
         // for (mesh.connections.items) |connection| {
-        //
-        //     // TODO: remove hard coding
-        //     // TODO: save for which connections this needs to be done to avoid looping and chacling all
-        //
-        //     const range_0 = connection.ranges[0];
-        //     const range_1 = connection.ranges[1];
-        //
-        //     if (range_0.block == 0 and range_1.block == 1) {
-        //         // NOTE: not (yet) implemented... not sure if this could be needed at some point.
-        //         std.debug.assert(connection.periodicity == null);
-        //
-        //         const point_data = [2][]types.Vec2d{
-        //             self.mesh.blocks.items[connection.ranges[0].block].points.data,
-        //             self.mesh.blocks.items[connection.ranges[1].block].points.data,
-        //         };
-        //
-        //         var it = smooth.RangeFillMatrixIterator.init(connection, self.mesh);
-        //
-        //         const connected_points = it.next().?;
-        //         const point_idx: [2]c_int = .{ @intCast(connected_points[0].value), @intCast(connected_points[1].value) };
-        //
-        //         // NOTE: i an j are arbitrary for connections....
-        //         // TODO: make this consistent with the real directions of the block
-        //
-        //         const x_i_j, const y_i_j = point_data[0][@intCast(point_idx[0])];
-        //         const x_i_jm1, const y_i_jm1 = point_data[0][@intCast(point_idx[0] + it.first_internal_point_shift[0])];
-        //         const x_i_jp1, const y_i_jp1 = point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])];
-        //         const x_ip1_j, const y_ip1_j = point_data[0][@intCast(point_idx[0] + it.in_connection_direction_shift[0])];
-        //
-        //         // const x_im1_0, const y_im1_0 = block.points.data[local_id - size[1]].data;
-        //         // const x_i_0, const y_i_0 = block.points.data[local_id].data;
-        //         // const x_i_1, const y_i_1 = block.points.data[local_id + 1].data;
-        //         // const x_ip1_0, const y_ip1_0 = block.points.data[local_id + size[1]].data;
-        //
-        //         // central differences
-        //         const x_xi = 0.5 * (x_i_jp1 - x_i_jm1);
-        //         const y_xi = 0.5 * (y_i_jp1 - y_i_jm1);
-        //
-        //         // forward differences
-        //         const x_eta = -x_i_j + x_ip1_j;
-        //         const y_eta = -y_i_j + y_ip1_j;
-        //
-        //         {
-        //             const g11 = x_xi * x_xi + y_xi * y_xi;
-        //             const g12 = x_xi * x_eta + y_xi * y_eta;
-        //             const g22 = x_eta * x_eta + y_eta * y_eta;
-        //
-        //             const ds = @sqrt(g22);
-        //             const theta = std.math.acos(g12 / @sqrt(g11 * g22));
-        //
-        //             const delta_ds = self.ds_target - ds;
-        //             const delta_theta = self.theta_target - theta;
-        //
-        //             const delta_p = -std.math.atan2(delta_theta, self.theta_target);
-        //             const delta_q = std.math.atan2(delta_ds, self.ds_target);
-        //
-        //             var p, var q = control_function[block_range_start + local_id.*].data;
-        //             p += 0.1 * delta_p;
-        //             q += 0.1 * delta_q;
-        //             control_function[block_range_start + local_id.*] = .init(p, q);
-        //             local_id.* += 1;
-        //
-        //             // TODO: wouldn't it be better to do this once at the end!?
-        //             // TODO: this is hard coded to run over j
-        //
-        //             for (1..size_j) |j| {
-        //                 const factor: f64 = 1 - @as(f64, @floatFromInt(j)) / (@as(f64, @floatFromInt(size_j)) - 1);
-        //                 control_function[block_range_start + local_id.*] = .init(factor * p, factor * q);
-        //                 local_id.* += 1;
-        //             }
-        //         }
-        //
-        //         {
-        //             // TODO: enhance this!!!
-        //             var local_id = connected_points[0].value;
-        //             const block = mesh.blocks.items[range_0.block];
-        //             self.computeUpdate(&local_id, control_function, x_xi, y_xi, x_eta, y_eta, block.points.size[1], 0);
-        //         }
-        //         self.computeUpdate(&local_id, control_function, x_xi, y_xi, x_eta, y_eta, block.points.size[1], block_range_start);
-        //     }
-        // }
+        {
+            const connection = mesh.connections.items[0];
+
+            // TODO: remove hard coding
+            // TODO: save for which connections this needs to be done to avoid looping and chacling all
+
+            const range_0 = connection.ranges[0];
+            const range_1 = connection.ranges[1];
+
+            std.debug.assert(range_0.block == 0 and range_0.start == 0 and range_0.side == .j_min);
+            std.debug.assert(range_1.block == 1 and range_1.start == 0 and range_1.side == .j_min);
+
+            // if (range_0.block == 0 and range_1.block == 1) {
+            // NOTE: not (yet) implemented... not sure if this could be needed at some point.
+            std.debug.assert(connection.periodicity == null);
+
+            const point_data = [2][]types.Vec2d{
+                mesh.blocks.items[connection.ranges[0].block].points.data,
+                mesh.blocks.items[connection.ranges[1].block].points.data,
+            };
+
+            var it = smooth.RangeFillMatrixIterator.init(connection, &mesh);
+
+            const connected_points = it.next().?;
+            const point_idx: [2]c_int = .{ @intCast(connected_points[0].value), @intCast(connected_points[1].value) };
+
+            // NOTE: i an j are arbitrary for connections... This is for now hard coded for the connection needed. This needs to be
+            // extended for generality.
+
+            const x_i_j, const y_i_j = point_data[0][@intCast(point_idx[0])].data;
+            const x_ip1_j, const y_ip1_j = point_data[0][@intCast(point_idx[0] + it.first_internal_point_shift[0])].data;
+            const x_im1_j, const y_im1_j = point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])].data;
+            const x_i_jp1, const y_i_jp1 = point_data[0][@intCast(point_idx[0] + it.in_connection_direction_shift[0])].data;
+
+            // central difference
+            // TODO: no clue why this needs to be negative!!!
+            const x_xi = -0.5 * (x_ip1_j - x_im1_j);
+            const y_xi = -0.5 * (y_ip1_j - y_im1_j);
+
+            // forward differences
+            const x_eta = -x_i_j + x_i_jp1;
+            const y_eta = -y_i_j + y_i_jp1;
+
+            const g11 = x_xi * x_xi + y_xi * y_xi;
+            const g12 = x_xi * x_eta + y_xi * y_eta;
+            const g22 = x_eta * x_eta + y_eta * y_eta;
+
+            const ds = @sqrt(g22);
+            const theta = std.math.acos(g12 / @sqrt(g11 * g22));
+
+            const delta_ds = self.ds_target - ds;
+            const delta_theta = self.theta_target - theta;
+
+            const delta_p = -std.math.atan2(delta_theta, self.theta_target);
+            const delta_q = std.math.atan2(delta_ds, self.ds_target);
+
+            var p, var q = control_function[0].data;
+            p += 0.1 * delta_p;
+            q += 0.1 * delta_q;
+
+            // block 0
+            {
+                block_range_start = 0;
+                var local_id: usize = 0;
+                const block = mesh.blocks.items[0];
+                const size = block.points.size;
+
+                control_function[block_range_start + local_id] = .init(p, q);
+                local_id += 1;
+
+                for (1..size[1]) |j| {
+                    const factor: f64 = 1 - @as(f64, @floatFromInt(j)) / (@as(f64, @floatFromInt(size[1])) - 1);
+                    control_function[block_range_start + local_id] = .init(factor * p, factor * q);
+                    local_id += 1;
+                }
+            }
+
+            // NOTE: the connected block points are not solved; i.e. the forcing does not need to be computed.
+        }
     }
 };
 

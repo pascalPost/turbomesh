@@ -1307,13 +1307,13 @@ const BlockBoundaryPoints = struct {
     }
 };
 
-const RangeFillMatrixIterator = struct {
+pub const RangeFillMatrixIterator = struct {
     count: usize,
     first_internal_point_shift: [2]c_int,
     in_connection_direction_shift: [2]c_int,
     position: [2]LocalIndex,
 
-    fn next(self: *RangeFillMatrixIterator) ?[2]LocalIndex {
+    pub fn next(self: *RangeFillMatrixIterator) ?[2]LocalIndex {
         if (self.count == 0) return null;
         const position = self.position;
 
@@ -1332,7 +1332,7 @@ const RangeFillMatrixIterator = struct {
         self.count -= 1;
     }
 
-    fn init(
+    pub fn init(
         connection: boundary.Connection,
         mesh_data: *const discrete.Mesh,
     ) RangeFillMatrixIterator {
