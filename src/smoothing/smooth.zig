@@ -579,7 +579,7 @@ pub const RowCompressedMatrixSystem2d = struct {
             try self.initNonZeroMatrixForConnectionEndpoint(it.next().?, connection, non_zero_entries, index_converter);
 
             // middle of the connection
-            for (0..it.count) |_| {
+            for (0..it.count - 1) |_| {
                 const connected_points_local_idx = it.next().?;
                 const connected_points_global_idx = [2]c_int{
                     @intCast(index_converter.globalIndex(.{ .block = connection.ranges[0].block, .local_idx = connected_points_local_idx[0] }).value),
@@ -794,24 +794,7 @@ pub const RowCompressedMatrixSystem2d = struct {
         for (self.mesh.connections.items) |connection| {
             if (connection.periodicity) |periodicity| {
                 var it = RangeFillMatrixIterator.init(connection, self.mesh);
-
-                // TODO: change this to a while loop!
-
-                for (0..it.count) |_| {
-                    const connected_points = it.next().?;
-                    const global_idx_1 = self.row_idx_range_start_for_each_block[connection.ranges[1].block] + connected_points[1].value;
-
-                    // adjust RHS for periodicity for the connected point
-                    self.rhs_x[global_idx_1] = -periodicity.data[0];
-                    self.rhs_y[global_idx_1] = -periodicity.data[1];
-                }
-
-                // TODO: fix the RangeFillMatrixIterator to also account for the 2nd endpoint!
-                // Perhaps also create an internal iterator version and something that just gives the endpoints.
-
-                // account for 2nd endpoint
-                {
-                    const connected_points = it.position;
+                while (it.next()) |connected_points| {
                     const global_idx_1 = self.row_idx_range_start_for_each_block[connection.ranges[1].block] + connected_points[1].value;
 
                     // adjust RHS for periodicity for the connected point
@@ -906,6 +889,7 @@ pub const RowCompressedMatrixSystem2d = struct {
             };
 
             var it = RangeFillMatrixIterator.init(connection, self.mesh);
+            it.limitToRangeInternalPoints();
 
             //           |
             //       connection
@@ -924,11 +908,8 @@ pub const RowCompressedMatrixSystem2d = struct {
 
             const point_stencil_idx = computeConnectionStencilPositions(connection, it);
 
-            _ = it.next();
-
             if (connection.periodicity) |periodicity| {
-                for (0..it.count) |_| {
-                    const connected_points = it.next().?;
+                while (it.next()) |connected_points| {
                     const point_idx: [2]c_int = .{ @intCast(connected_points[0].value), @intCast(connected_points[1].value) };
 
                     // TODO: this could be enhanced by computing this just once for the connection (plus +1 or -1 for the next connection point)
@@ -938,7 +919,7 @@ pub const RowCompressedMatrixSystem2d = struct {
                     const im1_j = point_data[0][@intCast(point_idx[0] - it.in_connection_direction_shift[0])];
                     const i_jm1 = point_data[0][@intCast(point_idx[0] + it.first_internal_point_shift[0])];
                     const ip1_j = point_data[0][@intCast(point_idx[0] + it.in_connection_direction_shift[0])];
-                    const i_jp1 = types.add(point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])], .{ .data = .{ 0, -0.08836 } });
+                    const i_jp1 = types.add(point_data[1][@intCast(point_idx[1] + it.first_internal_point_shift[1])], types.neg(periodicity));
 
                     const cf = self.control_function.data[@intCast(global_idx_0)];
                     const stencil = StencilData.init(
@@ -970,8 +951,7 @@ pub const RowCompressedMatrixSystem2d = struct {
                     self.rhs_y[@intCast(global_idx_0)] = periodicity.data[1] * (stencil.get(.im1_jp1) + stencil.get(.i_jp1) + stencil.get(.ip1_jp1));
                 }
             } else {
-                for (0..it.count) |_| {
-                    const connected_points = it.next().?;
+                while (it.next()) |connected_points| {
                     const point_idx: [2]c_int = .{ @intCast(connected_points[0].value), @intCast(connected_points[1].value) };
 
                     // TODO: this could be enhanced by computing this just once for the connection (plus +1 or -1 for the next connection point)
@@ -1347,6 +1327,11 @@ const RangeFillMatrixIterator = struct {
         return position;
     }
 
+    fn limitToRangeInternalPoints(self: *RangeFillMatrixIterator) void {
+        _ = self.next();
+        self.count -= 1;
+    }
+
     fn init(
         connection: boundary.Connection,
         mesh_data: *const discrete.Mesh,
@@ -1382,9 +1367,9 @@ const RangeFillMatrixIterator = struct {
             }
             if (start > end) {
                 data.in_connection_direction_shift[side_idx] = -data.in_connection_direction_shift[side_idx];
-                data.count = start - end;
+                data.count = start - end + 1;
             } else {
-                data.count = end - start;
+                data.count = end - start + 1;
             }
         }
 

@@ -362,6 +362,8 @@ pub const O4H = struct {
 
         const upstream_x_10 = upstream_j_max.points[0];
         const upstream_x_11 = upstream_j_max.points[upstream_j_max.points.len - 1];
+
+        // TODO: remove hard coding
         const upstream_x_00 = add(upstream_x_10, Vec2d.init(-0.05, 0.0));
         const upstream_x_01 = add(upstream_x_00, Vec2d.init(0.0, self.pitch));
 
@@ -399,6 +401,8 @@ pub const O4H = struct {
 
         const downstream_x_00 = downstream_j_min.points[0];
         const downstream_x_01 = downstream_j_min.points[downstream_j_min.points.len - 1];
+
+        // TODO: remove hard coding
         const downstream_x_10 = add(downstream_x_00, Vec2d.init(0.02, 0.00));
         const downstream_x_11 = add(downstream_x_10, Vec2d.init(0.0, self.pitch));
 
