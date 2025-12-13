@@ -28,11 +28,15 @@ pub fn build(b: *std.Build) void {
         .shared = true,
     });
 
-    const lib = b.addSharedLibrary(.{
+    const lib = b.addLibrary(.{
         .name = "turbomesh",
-        .root_source_file = b.path("src/lib.zig"),
-        .target = target,
-        .optimize = optimize,
+        .linkage = .dynamic,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/lib.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+        .use_llvm = true,
     });
 
     lib.root_module.addImport("gl", gl_bindings);
@@ -46,10 +50,13 @@ pub fn build(b: *std.Build) void {
 
     const exe = b.addExecutable(.{
         .name = "turbomesh",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
         .version = .{ .major = 0, .minor = 1, .patch = 0 },
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+        .use_llvm = true,
     });
 
     exe.root_module.addImport("zglfw", zglfw.module("root"));
@@ -102,15 +109,18 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
 
     const tests = b.addTest(.{
-        .root_source_file = b.path("src/tests.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/tests.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+        .use_llvm = true,
     });
 
     tests.linkSystemLibrary("cgns");
     tests.linkSystemLibrary("umfpack");
     tests.linkSystemLibrary("petsc");
-    tests.addCSourceFile(.{ .file = b.path("src/petsc_shim.c") });
+    tests.addCSourceFile(.{ .file = b.path("src/smoothing/petsc_shim.c") });
     tests.linkSystemLibrary("mpi"); // needed by petsc
     tests.linkSystemLibrary("dierckx");
     tests.addLibraryPath(b.path("./third_party/dierckx/"));

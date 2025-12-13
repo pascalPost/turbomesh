@@ -240,9 +240,7 @@ pub const PETSC_HIPBLAS_INT_MAX: c_int = 2147483647;
 const enum_unnamed_6 = c_int;
 pub const PetscExodusIIInt = c_int;
 pub const PetscExodusIIFloat = f32;
-pub const PETSC_FALSE: c_int = 0;
-pub const PETSC_TRUE: c_int = 1;
-pub const PetscBool = c_uint;
+pub const PetscBool = bool;
 pub const PetscBools: [*c]const [*c]const u8 = @extern([*c]const [*c]const u8, .{
     .name = "PetscBools",
 });
@@ -250,6 +248,9 @@ pub const PETSC_BOOL3_FALSE: c_int = 0;
 pub const PETSC_BOOL3_TRUE: c_int = 1;
 pub const PETSC_BOOL3_UNKNOWN: c_int = -1;
 pub const PetscBool3 = c_int;
+pub const PetscBool3s: [*c]const [*c]const u8 = @extern([*c]const [*c]const u8, .{
+    .name = "PetscBool3s",
+});
 pub const PetscReal = f64;
 // /usr/include/bits/floatn.h:83:24: warning: unsupported type: 'Complex'
 pub const __cfloat128 = @compileError("unable to resolve typedef child type");
@@ -263,533 +264,533 @@ pub const _Float64x = c_longdouble;
 pub const cacos = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:55:13
 
-// (no file):75:1: warning: unsupported type: 'Complex'
+// (no file):77:1: warning: unsupported type: 'Complex'
 pub const __cacos = @compileError("unable to resolve prototype of function");
-// (no file):75:1
+// (no file):77:1
 
 // /usr/include/bits/cmathcalls.h:57:13: warning: unsupported type: 'Complex'
 pub const casin = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:57:13
 
-// (no file):76:1: warning: unsupported type: 'Complex'
+// (no file):78:1: warning: unsupported type: 'Complex'
 pub const __casin = @compileError("unable to resolve prototype of function");
-// (no file):76:1
+// (no file):78:1
 
 // /usr/include/bits/cmathcalls.h:59:13: warning: unsupported type: 'Complex'
 pub const catan = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:59:13
 
-// (no file):77:1: warning: unsupported type: 'Complex'
+// (no file):79:1: warning: unsupported type: 'Complex'
 pub const __catan = @compileError("unable to resolve prototype of function");
-// (no file):77:1
+// (no file):79:1
 
 // /usr/include/bits/cmathcalls.h:62:13: warning: unsupported type: 'Complex'
 pub const ccos = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:62:13
 
-// (no file):78:1: warning: unsupported type: 'Complex'
+// (no file):80:1: warning: unsupported type: 'Complex'
 pub const __ccos = @compileError("unable to resolve prototype of function");
-// (no file):78:1
+// (no file):80:1
 
 // /usr/include/bits/cmathcalls.h:64:13: warning: unsupported type: 'Complex'
 pub const csin = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:64:13
 
-// (no file):79:1: warning: unsupported type: 'Complex'
+// (no file):81:1: warning: unsupported type: 'Complex'
 pub const __csin = @compileError("unable to resolve prototype of function");
-// (no file):79:1
+// (no file):81:1
 
 // /usr/include/bits/cmathcalls.h:66:13: warning: unsupported type: 'Complex'
 pub const ctan = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:66:13
 
-// (no file):80:1: warning: unsupported type: 'Complex'
+// (no file):82:1: warning: unsupported type: 'Complex'
 pub const __ctan = @compileError("unable to resolve prototype of function");
-// (no file):80:1
+// (no file):82:1
 
 // /usr/include/bits/cmathcalls.h:72:13: warning: unsupported type: 'Complex'
 pub const cacosh = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:72:13
 
-// (no file):81:1: warning: unsupported type: 'Complex'
+// (no file):83:1: warning: unsupported type: 'Complex'
 pub const __cacosh = @compileError("unable to resolve prototype of function");
-// (no file):81:1
+// (no file):83:1
 
 // /usr/include/bits/cmathcalls.h:74:13: warning: unsupported type: 'Complex'
 pub const casinh = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:74:13
 
-// (no file):82:1: warning: unsupported type: 'Complex'
+// (no file):84:1: warning: unsupported type: 'Complex'
 pub const __casinh = @compileError("unable to resolve prototype of function");
-// (no file):82:1
+// (no file):84:1
 
 // /usr/include/bits/cmathcalls.h:76:13: warning: unsupported type: 'Complex'
 pub const catanh = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:76:13
 
-// (no file):83:1: warning: unsupported type: 'Complex'
+// (no file):85:1: warning: unsupported type: 'Complex'
 pub const __catanh = @compileError("unable to resolve prototype of function");
-// (no file):83:1
+// (no file):85:1
 
 // /usr/include/bits/cmathcalls.h:79:13: warning: unsupported type: 'Complex'
 pub const ccosh = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:79:13
 
-// (no file):84:1: warning: unsupported type: 'Complex'
+// (no file):86:1: warning: unsupported type: 'Complex'
 pub const __ccosh = @compileError("unable to resolve prototype of function");
-// (no file):84:1
+// (no file):86:1
 
 // /usr/include/bits/cmathcalls.h:81:13: warning: unsupported type: 'Complex'
 pub const csinh = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:81:13
 
-// (no file):85:1: warning: unsupported type: 'Complex'
+// (no file):87:1: warning: unsupported type: 'Complex'
 pub const __csinh = @compileError("unable to resolve prototype of function");
-// (no file):85:1
+// (no file):87:1
 
 // /usr/include/bits/cmathcalls.h:83:13: warning: unsupported type: 'Complex'
 pub const ctanh = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:83:13
 
-// (no file):86:1: warning: unsupported type: 'Complex'
+// (no file):88:1: warning: unsupported type: 'Complex'
 pub const __ctanh = @compileError("unable to resolve prototype of function");
-// (no file):86:1
+// (no file):88:1
 
 // /usr/include/bits/cmathcalls.h:89:13: warning: unsupported type: 'Complex'
 pub const cexp = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:89:13
 
-// (no file):87:1: warning: unsupported type: 'Complex'
+// (no file):89:1: warning: unsupported type: 'Complex'
 pub const __cexp = @compileError("unable to resolve prototype of function");
-// (no file):87:1
+// (no file):89:1
 
 // /usr/include/bits/cmathcalls.h:92:13: warning: unsupported type: 'Complex'
 pub const clog = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:92:13
 
-// (no file):88:1: warning: unsupported type: 'Complex'
+// (no file):90:1: warning: unsupported type: 'Complex'
 pub const __clog = @compileError("unable to resolve prototype of function");
-// (no file):88:1
+// (no file):90:1
 
 // /usr/include/bits/cmathcalls.h:103:13: warning: unsupported type: 'Complex'
 pub const cpow = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:103:13
 
-// (no file):89:1: warning: unsupported type: 'Complex'
+// (no file):91:1: warning: unsupported type: 'Complex'
 pub const __cpow = @compileError("unable to resolve prototype of function");
-// (no file):89:1
+// (no file):91:1
 
 // /usr/include/bits/cmathcalls.h:106:13: warning: unsupported type: 'Complex'
 pub const csqrt = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:106:13
 
-// (no file):90:1: warning: unsupported type: 'Complex'
+// (no file):92:1: warning: unsupported type: 'Complex'
 pub const __csqrt = @compileError("unable to resolve prototype of function");
-// (no file):90:1
+// (no file):92:1
 
 // /usr/include/bits/cmathcalls.h:112:23: warning: unsupported type: 'Complex'
 pub const cabs = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:112:23
 
-// (no file):91:1: warning: unsupported type: 'Complex'
+// (no file):93:1: warning: unsupported type: 'Complex'
 pub const __cabs = @compileError("unable to resolve prototype of function");
-// (no file):91:1
+// (no file):93:1
 
 // /usr/include/bits/cmathcalls.h:115:23: warning: unsupported type: 'Complex'
 pub const carg = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:115:23
 
-// (no file):92:1: warning: unsupported type: 'Complex'
+// (no file):94:1: warning: unsupported type: 'Complex'
 pub const __carg = @compileError("unable to resolve prototype of function");
-// (no file):92:1
+// (no file):94:1
 
 // /usr/include/bits/cmathcalls.h:118:13: warning: unsupported type: 'Complex'
 pub const conj = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:118:13
 
-// (no file):93:1: warning: unsupported type: 'Complex'
+// (no file):95:1: warning: unsupported type: 'Complex'
 pub const __conj = @compileError("unable to resolve prototype of function");
-// (no file):93:1
+// (no file):95:1
 
 // /usr/include/bits/cmathcalls.h:121:13: warning: unsupported type: 'Complex'
 pub const cproj = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:121:13
 
-// (no file):94:1: warning: unsupported type: 'Complex'
+// (no file):96:1: warning: unsupported type: 'Complex'
 pub const __cproj = @compileError("unable to resolve prototype of function");
-// (no file):94:1
+// (no file):96:1
 
 // /usr/include/bits/cmathcalls.h:127:23: warning: unsupported type: 'Complex'
 pub const cimag = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:127:23
 
-// (no file):95:1: warning: unsupported type: 'Complex'
+// (no file):97:1: warning: unsupported type: 'Complex'
 pub const __cimag = @compileError("unable to resolve prototype of function");
-// (no file):95:1
+// (no file):97:1
 
 // /usr/include/bits/cmathcalls.h:130:23: warning: unsupported type: 'Complex'
 pub const creal = @compileError("unable to resolve prototype of function");
 // /usr/include/bits/cmathcalls.h:130:23
 
-// (no file):96:1: warning: unsupported type: 'Complex'
+// (no file):98:1: warning: unsupported type: 'Complex'
 pub const __creal = @compileError("unable to resolve prototype of function");
-// (no file):96:1
-
-// (no file):97:1: warning: unsupported type: 'Complex'
-pub const cacosf = @compileError("unable to resolve prototype of function");
-// (no file):97:1
+// (no file):98:1
 
 // (no file):99:1: warning: unsupported type: 'Complex'
-pub const __cacosf = @compileError("unable to resolve prototype of function");
+pub const cacosf = @compileError("unable to resolve prototype of function");
 // (no file):99:1
 
-// (no file):100:1: warning: unsupported type: 'Complex'
-pub const casinf = @compileError("unable to resolve prototype of function");
-// (no file):100:1
+// (no file):101:1: warning: unsupported type: 'Complex'
+pub const __cacosf = @compileError("unable to resolve prototype of function");
+// (no file):101:1
 
 // (no file):102:1: warning: unsupported type: 'Complex'
-pub const __casinf = @compileError("unable to resolve prototype of function");
+pub const casinf = @compileError("unable to resolve prototype of function");
 // (no file):102:1
 
-// (no file):103:1: warning: unsupported type: 'Complex'
-pub const catanf = @compileError("unable to resolve prototype of function");
-// (no file):103:1
+// (no file):104:1: warning: unsupported type: 'Complex'
+pub const __casinf = @compileError("unable to resolve prototype of function");
+// (no file):104:1
 
 // (no file):105:1: warning: unsupported type: 'Complex'
-pub const __catanf = @compileError("unable to resolve prototype of function");
+pub const catanf = @compileError("unable to resolve prototype of function");
 // (no file):105:1
 
-// (no file):106:1: warning: unsupported type: 'Complex'
-pub const ccosf = @compileError("unable to resolve prototype of function");
-// (no file):106:1
+// (no file):107:1: warning: unsupported type: 'Complex'
+pub const __catanf = @compileError("unable to resolve prototype of function");
+// (no file):107:1
 
 // (no file):108:1: warning: unsupported type: 'Complex'
-pub const __ccosf = @compileError("unable to resolve prototype of function");
+pub const ccosf = @compileError("unable to resolve prototype of function");
 // (no file):108:1
 
-// (no file):109:1: warning: unsupported type: 'Complex'
-pub const csinf = @compileError("unable to resolve prototype of function");
-// (no file):109:1
+// (no file):110:1: warning: unsupported type: 'Complex'
+pub const __ccosf = @compileError("unable to resolve prototype of function");
+// (no file):110:1
 
 // (no file):111:1: warning: unsupported type: 'Complex'
-pub const __csinf = @compileError("unable to resolve prototype of function");
+pub const csinf = @compileError("unable to resolve prototype of function");
 // (no file):111:1
 
-// (no file):112:1: warning: unsupported type: 'Complex'
-pub const ctanf = @compileError("unable to resolve prototype of function");
-// (no file):112:1
+// (no file):113:1: warning: unsupported type: 'Complex'
+pub const __csinf = @compileError("unable to resolve prototype of function");
+// (no file):113:1
 
 // (no file):114:1: warning: unsupported type: 'Complex'
-pub const __ctanf = @compileError("unable to resolve prototype of function");
+pub const ctanf = @compileError("unable to resolve prototype of function");
 // (no file):114:1
 
-// (no file):115:1: warning: unsupported type: 'Complex'
-pub const cacoshf = @compileError("unable to resolve prototype of function");
-// (no file):115:1
+// (no file):116:1: warning: unsupported type: 'Complex'
+pub const __ctanf = @compileError("unable to resolve prototype of function");
+// (no file):116:1
 
 // (no file):117:1: warning: unsupported type: 'Complex'
-pub const __cacoshf = @compileError("unable to resolve prototype of function");
+pub const cacoshf = @compileError("unable to resolve prototype of function");
 // (no file):117:1
 
-// (no file):118:1: warning: unsupported type: 'Complex'
-pub const casinhf = @compileError("unable to resolve prototype of function");
-// (no file):118:1
+// (no file):119:1: warning: unsupported type: 'Complex'
+pub const __cacoshf = @compileError("unable to resolve prototype of function");
+// (no file):119:1
 
 // (no file):120:1: warning: unsupported type: 'Complex'
-pub const __casinhf = @compileError("unable to resolve prototype of function");
+pub const casinhf = @compileError("unable to resolve prototype of function");
 // (no file):120:1
 
-// (no file):121:1: warning: unsupported type: 'Complex'
-pub const catanhf = @compileError("unable to resolve prototype of function");
-// (no file):121:1
+// (no file):122:1: warning: unsupported type: 'Complex'
+pub const __casinhf = @compileError("unable to resolve prototype of function");
+// (no file):122:1
 
 // (no file):123:1: warning: unsupported type: 'Complex'
-pub const __catanhf = @compileError("unable to resolve prototype of function");
+pub const catanhf = @compileError("unable to resolve prototype of function");
 // (no file):123:1
 
-// (no file):124:1: warning: unsupported type: 'Complex'
-pub const ccoshf = @compileError("unable to resolve prototype of function");
-// (no file):124:1
+// (no file):125:1: warning: unsupported type: 'Complex'
+pub const __catanhf = @compileError("unable to resolve prototype of function");
+// (no file):125:1
 
 // (no file):126:1: warning: unsupported type: 'Complex'
-pub const __ccoshf = @compileError("unable to resolve prototype of function");
+pub const ccoshf = @compileError("unable to resolve prototype of function");
 // (no file):126:1
 
-// (no file):127:1: warning: unsupported type: 'Complex'
-pub const csinhf = @compileError("unable to resolve prototype of function");
-// (no file):127:1
+// (no file):128:1: warning: unsupported type: 'Complex'
+pub const __ccoshf = @compileError("unable to resolve prototype of function");
+// (no file):128:1
 
 // (no file):129:1: warning: unsupported type: 'Complex'
-pub const __csinhf = @compileError("unable to resolve prototype of function");
+pub const csinhf = @compileError("unable to resolve prototype of function");
 // (no file):129:1
 
-// (no file):130:1: warning: unsupported type: 'Complex'
-pub const ctanhf = @compileError("unable to resolve prototype of function");
-// (no file):130:1
+// (no file):131:1: warning: unsupported type: 'Complex'
+pub const __csinhf = @compileError("unable to resolve prototype of function");
+// (no file):131:1
 
 // (no file):132:1: warning: unsupported type: 'Complex'
-pub const __ctanhf = @compileError("unable to resolve prototype of function");
+pub const ctanhf = @compileError("unable to resolve prototype of function");
 // (no file):132:1
 
-// (no file):133:1: warning: unsupported type: 'Complex'
-pub const cexpf = @compileError("unable to resolve prototype of function");
-// (no file):133:1
+// (no file):134:1: warning: unsupported type: 'Complex'
+pub const __ctanhf = @compileError("unable to resolve prototype of function");
+// (no file):134:1
 
 // (no file):135:1: warning: unsupported type: 'Complex'
-pub const __cexpf = @compileError("unable to resolve prototype of function");
+pub const cexpf = @compileError("unable to resolve prototype of function");
 // (no file):135:1
 
-// (no file):136:1: warning: unsupported type: 'Complex'
-pub const clogf = @compileError("unable to resolve prototype of function");
-// (no file):136:1
+// (no file):137:1: warning: unsupported type: 'Complex'
+pub const __cexpf = @compileError("unable to resolve prototype of function");
+// (no file):137:1
 
 // (no file):138:1: warning: unsupported type: 'Complex'
-pub const __clogf = @compileError("unable to resolve prototype of function");
+pub const clogf = @compileError("unable to resolve prototype of function");
 // (no file):138:1
 
-// (no file):139:1: warning: unsupported type: 'Complex'
-pub const cpowf = @compileError("unable to resolve prototype of function");
-// (no file):139:1
+// (no file):140:1: warning: unsupported type: 'Complex'
+pub const __clogf = @compileError("unable to resolve prototype of function");
+// (no file):140:1
 
 // (no file):141:1: warning: unsupported type: 'Complex'
-pub const __cpowf = @compileError("unable to resolve prototype of function");
+pub const cpowf = @compileError("unable to resolve prototype of function");
 // (no file):141:1
 
-// (no file):142:1: warning: unsupported type: 'Complex'
-pub const csqrtf = @compileError("unable to resolve prototype of function");
-// (no file):142:1
+// (no file):143:1: warning: unsupported type: 'Complex'
+pub const __cpowf = @compileError("unable to resolve prototype of function");
+// (no file):143:1
 
 // (no file):144:1: warning: unsupported type: 'Complex'
-pub const __csqrtf = @compileError("unable to resolve prototype of function");
+pub const csqrtf = @compileError("unable to resolve prototype of function");
 // (no file):144:1
 
-// (no file):145:1: warning: unsupported type: 'Complex'
-pub const cabsf = @compileError("unable to resolve prototype of function");
-// (no file):145:1
+// (no file):146:1: warning: unsupported type: 'Complex'
+pub const __csqrtf = @compileError("unable to resolve prototype of function");
+// (no file):146:1
 
 // (no file):147:1: warning: unsupported type: 'Complex'
-pub const __cabsf = @compileError("unable to resolve prototype of function");
+pub const cabsf = @compileError("unable to resolve prototype of function");
 // (no file):147:1
 
-// (no file):148:1: warning: unsupported type: 'Complex'
-pub const cargf = @compileError("unable to resolve prototype of function");
-// (no file):148:1
+// (no file):149:1: warning: unsupported type: 'Complex'
+pub const __cabsf = @compileError("unable to resolve prototype of function");
+// (no file):149:1
 
 // (no file):150:1: warning: unsupported type: 'Complex'
-pub const __cargf = @compileError("unable to resolve prototype of function");
+pub const cargf = @compileError("unable to resolve prototype of function");
 // (no file):150:1
 
-// (no file):151:1: warning: unsupported type: 'Complex'
-pub const conjf = @compileError("unable to resolve prototype of function");
-// (no file):151:1
+// (no file):152:1: warning: unsupported type: 'Complex'
+pub const __cargf = @compileError("unable to resolve prototype of function");
+// (no file):152:1
 
 // (no file):153:1: warning: unsupported type: 'Complex'
-pub const __conjf = @compileError("unable to resolve prototype of function");
+pub const conjf = @compileError("unable to resolve prototype of function");
 // (no file):153:1
 
-// (no file):154:1: warning: unsupported type: 'Complex'
-pub const cprojf = @compileError("unable to resolve prototype of function");
-// (no file):154:1
+// (no file):155:1: warning: unsupported type: 'Complex'
+pub const __conjf = @compileError("unable to resolve prototype of function");
+// (no file):155:1
 
 // (no file):156:1: warning: unsupported type: 'Complex'
-pub const __cprojf = @compileError("unable to resolve prototype of function");
+pub const cprojf = @compileError("unable to resolve prototype of function");
 // (no file):156:1
 
-// (no file):157:1: warning: unsupported type: 'Complex'
-pub const cimagf = @compileError("unable to resolve prototype of function");
-// (no file):157:1
+// (no file):158:1: warning: unsupported type: 'Complex'
+pub const __cprojf = @compileError("unable to resolve prototype of function");
+// (no file):158:1
 
 // (no file):159:1: warning: unsupported type: 'Complex'
-pub const __cimagf = @compileError("unable to resolve prototype of function");
+pub const cimagf = @compileError("unable to resolve prototype of function");
 // (no file):159:1
 
-// (no file):160:1: warning: unsupported type: 'Complex'
-pub const crealf = @compileError("unable to resolve prototype of function");
-// (no file):160:1
+// (no file):161:1: warning: unsupported type: 'Complex'
+pub const __cimagf = @compileError("unable to resolve prototype of function");
+// (no file):161:1
 
 // (no file):162:1: warning: unsupported type: 'Complex'
-pub const __crealf = @compileError("unable to resolve prototype of function");
+pub const crealf = @compileError("unable to resolve prototype of function");
 // (no file):162:1
 
-// (no file):163:1: warning: unsupported type: 'Complex'
-pub const cacosl = @compileError("unable to resolve prototype of function");
-// (no file):163:1
+// (no file):164:1: warning: unsupported type: 'Complex'
+pub const __crealf = @compileError("unable to resolve prototype of function");
+// (no file):164:1
 
 // (no file):165:1: warning: unsupported type: 'Complex'
-pub const __cacosl = @compileError("unable to resolve prototype of function");
+pub const cacosl = @compileError("unable to resolve prototype of function");
 // (no file):165:1
 
-// (no file):166:1: warning: unsupported type: 'Complex'
-pub const casinl = @compileError("unable to resolve prototype of function");
-// (no file):166:1
+// (no file):167:1: warning: unsupported type: 'Complex'
+pub const __cacosl = @compileError("unable to resolve prototype of function");
+// (no file):167:1
 
 // (no file):168:1: warning: unsupported type: 'Complex'
-pub const __casinl = @compileError("unable to resolve prototype of function");
+pub const casinl = @compileError("unable to resolve prototype of function");
 // (no file):168:1
 
-// (no file):169:1: warning: unsupported type: 'Complex'
-pub const catanl = @compileError("unable to resolve prototype of function");
-// (no file):169:1
+// (no file):170:1: warning: unsupported type: 'Complex'
+pub const __casinl = @compileError("unable to resolve prototype of function");
+// (no file):170:1
 
 // (no file):171:1: warning: unsupported type: 'Complex'
-pub const __catanl = @compileError("unable to resolve prototype of function");
+pub const catanl = @compileError("unable to resolve prototype of function");
 // (no file):171:1
 
-// (no file):172:1: warning: unsupported type: 'Complex'
-pub const ccosl = @compileError("unable to resolve prototype of function");
-// (no file):172:1
+// (no file):173:1: warning: unsupported type: 'Complex'
+pub const __catanl = @compileError("unable to resolve prototype of function");
+// (no file):173:1
 
 // (no file):174:1: warning: unsupported type: 'Complex'
-pub const __ccosl = @compileError("unable to resolve prototype of function");
+pub const ccosl = @compileError("unable to resolve prototype of function");
 // (no file):174:1
 
-// (no file):175:1: warning: unsupported type: 'Complex'
-pub const csinl = @compileError("unable to resolve prototype of function");
-// (no file):175:1
+// (no file):176:1: warning: unsupported type: 'Complex'
+pub const __ccosl = @compileError("unable to resolve prototype of function");
+// (no file):176:1
 
 // (no file):177:1: warning: unsupported type: 'Complex'
-pub const __csinl = @compileError("unable to resolve prototype of function");
+pub const csinl = @compileError("unable to resolve prototype of function");
 // (no file):177:1
 
-// (no file):178:1: warning: unsupported type: 'Complex'
-pub const ctanl = @compileError("unable to resolve prototype of function");
-// (no file):178:1
+// (no file):179:1: warning: unsupported type: 'Complex'
+pub const __csinl = @compileError("unable to resolve prototype of function");
+// (no file):179:1
 
 // (no file):180:1: warning: unsupported type: 'Complex'
-pub const __ctanl = @compileError("unable to resolve prototype of function");
+pub const ctanl = @compileError("unable to resolve prototype of function");
 // (no file):180:1
 
-// (no file):181:1: warning: unsupported type: 'Complex'
-pub const cacoshl = @compileError("unable to resolve prototype of function");
-// (no file):181:1
+// (no file):182:1: warning: unsupported type: 'Complex'
+pub const __ctanl = @compileError("unable to resolve prototype of function");
+// (no file):182:1
 
 // (no file):183:1: warning: unsupported type: 'Complex'
-pub const __cacoshl = @compileError("unable to resolve prototype of function");
+pub const cacoshl = @compileError("unable to resolve prototype of function");
 // (no file):183:1
 
-// (no file):184:1: warning: unsupported type: 'Complex'
-pub const casinhl = @compileError("unable to resolve prototype of function");
-// (no file):184:1
+// (no file):185:1: warning: unsupported type: 'Complex'
+pub const __cacoshl = @compileError("unable to resolve prototype of function");
+// (no file):185:1
 
 // (no file):186:1: warning: unsupported type: 'Complex'
-pub const __casinhl = @compileError("unable to resolve prototype of function");
+pub const casinhl = @compileError("unable to resolve prototype of function");
 // (no file):186:1
 
-// (no file):187:1: warning: unsupported type: 'Complex'
-pub const catanhl = @compileError("unable to resolve prototype of function");
-// (no file):187:1
+// (no file):188:1: warning: unsupported type: 'Complex'
+pub const __casinhl = @compileError("unable to resolve prototype of function");
+// (no file):188:1
 
 // (no file):189:1: warning: unsupported type: 'Complex'
-pub const __catanhl = @compileError("unable to resolve prototype of function");
+pub const catanhl = @compileError("unable to resolve prototype of function");
 // (no file):189:1
 
-// (no file):190:1: warning: unsupported type: 'Complex'
-pub const ccoshl = @compileError("unable to resolve prototype of function");
-// (no file):190:1
+// (no file):191:1: warning: unsupported type: 'Complex'
+pub const __catanhl = @compileError("unable to resolve prototype of function");
+// (no file):191:1
 
 // (no file):192:1: warning: unsupported type: 'Complex'
-pub const __ccoshl = @compileError("unable to resolve prototype of function");
+pub const ccoshl = @compileError("unable to resolve prototype of function");
 // (no file):192:1
 
-// (no file):193:1: warning: unsupported type: 'Complex'
-pub const csinhl = @compileError("unable to resolve prototype of function");
-// (no file):193:1
+// (no file):194:1: warning: unsupported type: 'Complex'
+pub const __ccoshl = @compileError("unable to resolve prototype of function");
+// (no file):194:1
 
 // (no file):195:1: warning: unsupported type: 'Complex'
-pub const __csinhl = @compileError("unable to resolve prototype of function");
+pub const csinhl = @compileError("unable to resolve prototype of function");
 // (no file):195:1
 
-// (no file):196:1: warning: unsupported type: 'Complex'
-pub const ctanhl = @compileError("unable to resolve prototype of function");
-// (no file):196:1
+// (no file):197:1: warning: unsupported type: 'Complex'
+pub const __csinhl = @compileError("unable to resolve prototype of function");
+// (no file):197:1
 
 // (no file):198:1: warning: unsupported type: 'Complex'
-pub const __ctanhl = @compileError("unable to resolve prototype of function");
+pub const ctanhl = @compileError("unable to resolve prototype of function");
 // (no file):198:1
 
-// (no file):199:1: warning: unsupported type: 'Complex'
-pub const cexpl = @compileError("unable to resolve prototype of function");
-// (no file):199:1
+// (no file):200:1: warning: unsupported type: 'Complex'
+pub const __ctanhl = @compileError("unable to resolve prototype of function");
+// (no file):200:1
 
 // (no file):201:1: warning: unsupported type: 'Complex'
-pub const __cexpl = @compileError("unable to resolve prototype of function");
+pub const cexpl = @compileError("unable to resolve prototype of function");
 // (no file):201:1
 
-// (no file):202:1: warning: unsupported type: 'Complex'
-pub const clogl = @compileError("unable to resolve prototype of function");
-// (no file):202:1
+// (no file):203:1: warning: unsupported type: 'Complex'
+pub const __cexpl = @compileError("unable to resolve prototype of function");
+// (no file):203:1
 
 // (no file):204:1: warning: unsupported type: 'Complex'
-pub const __clogl = @compileError("unable to resolve prototype of function");
+pub const clogl = @compileError("unable to resolve prototype of function");
 // (no file):204:1
 
-// (no file):205:1: warning: unsupported type: 'Complex'
-pub const cpowl = @compileError("unable to resolve prototype of function");
-// (no file):205:1
+// (no file):206:1: warning: unsupported type: 'Complex'
+pub const __clogl = @compileError("unable to resolve prototype of function");
+// (no file):206:1
 
 // (no file):207:1: warning: unsupported type: 'Complex'
-pub const __cpowl = @compileError("unable to resolve prototype of function");
+pub const cpowl = @compileError("unable to resolve prototype of function");
 // (no file):207:1
 
-// (no file):208:1: warning: unsupported type: 'Complex'
-pub const csqrtl = @compileError("unable to resolve prototype of function");
-// (no file):208:1
+// (no file):209:1: warning: unsupported type: 'Complex'
+pub const __cpowl = @compileError("unable to resolve prototype of function");
+// (no file):209:1
 
 // (no file):210:1: warning: unsupported type: 'Complex'
-pub const __csqrtl = @compileError("unable to resolve prototype of function");
+pub const csqrtl = @compileError("unable to resolve prototype of function");
 // (no file):210:1
 
-// (no file):211:1: warning: unsupported type: 'Complex'
-pub const cabsl = @compileError("unable to resolve prototype of function");
-// (no file):211:1
+// (no file):212:1: warning: unsupported type: 'Complex'
+pub const __csqrtl = @compileError("unable to resolve prototype of function");
+// (no file):212:1
 
 // (no file):213:1: warning: unsupported type: 'Complex'
-pub const __cabsl = @compileError("unable to resolve prototype of function");
+pub const cabsl = @compileError("unable to resolve prototype of function");
 // (no file):213:1
 
-// (no file):214:1: warning: unsupported type: 'Complex'
-pub const cargl = @compileError("unable to resolve prototype of function");
-// (no file):214:1
+// (no file):215:1: warning: unsupported type: 'Complex'
+pub const __cabsl = @compileError("unable to resolve prototype of function");
+// (no file):215:1
 
 // (no file):216:1: warning: unsupported type: 'Complex'
-pub const __cargl = @compileError("unable to resolve prototype of function");
+pub const cargl = @compileError("unable to resolve prototype of function");
 // (no file):216:1
 
-// (no file):217:1: warning: unsupported type: 'Complex'
-pub const conjl = @compileError("unable to resolve prototype of function");
-// (no file):217:1
+// (no file):218:1: warning: unsupported type: 'Complex'
+pub const __cargl = @compileError("unable to resolve prototype of function");
+// (no file):218:1
 
 // (no file):219:1: warning: unsupported type: 'Complex'
-pub const __conjl = @compileError("unable to resolve prototype of function");
+pub const conjl = @compileError("unable to resolve prototype of function");
 // (no file):219:1
 
-// (no file):220:1: warning: unsupported type: 'Complex'
-pub const cprojl = @compileError("unable to resolve prototype of function");
-// (no file):220:1
+// (no file):221:1: warning: unsupported type: 'Complex'
+pub const __conjl = @compileError("unable to resolve prototype of function");
+// (no file):221:1
 
 // (no file):222:1: warning: unsupported type: 'Complex'
-pub const __cprojl = @compileError("unable to resolve prototype of function");
+pub const cprojl = @compileError("unable to resolve prototype of function");
 // (no file):222:1
 
-// (no file):223:1: warning: unsupported type: 'Complex'
-pub const cimagl = @compileError("unable to resolve prototype of function");
-// (no file):223:1
+// (no file):224:1: warning: unsupported type: 'Complex'
+pub const __cprojl = @compileError("unable to resolve prototype of function");
+// (no file):224:1
 
 // (no file):225:1: warning: unsupported type: 'Complex'
-pub const __cimagl = @compileError("unable to resolve prototype of function");
+pub const cimagl = @compileError("unable to resolve prototype of function");
 // (no file):225:1
 
-// (no file):226:1: warning: unsupported type: 'Complex'
-pub const creall = @compileError("unable to resolve prototype of function");
-// (no file):226:1
+// (no file):227:1: warning: unsupported type: 'Complex'
+pub const __cimagl = @compileError("unable to resolve prototype of function");
+// (no file):227:1
 
 // (no file):228:1: warning: unsupported type: 'Complex'
-pub const __creall = @compileError("unable to resolve prototype of function");
+pub const creall = @compileError("unable to resolve prototype of function");
 // (no file):228:1
 
-// /opt/petsc/linux-c-opt/include/petscsystypes.h:591:25: warning: unsupported type: 'Complex'
+// (no file):230:1: warning: unsupported type: 'Complex'
+pub const __creall = @compileError("unable to resolve prototype of function");
+// (no file):230:1
+
+// /opt/petsc/linux-c-opt/include/petscsystypes.h:599:25: warning: unsupported type: 'Complex'
 pub const PetscComplex = @compileError("unable to resolve typedef child type");
-// /opt/petsc/linux-c-opt/include/petscsystypes.h:591:25
+// /opt/petsc/linux-c-opt/include/petscsystypes.h:599:25
 pub const PetscScalar = PetscReal;
 pub const PETSC_COPY_VALUES: c_int = 0;
 pub const PETSC_OWN_POINTER: c_int = 1;
@@ -839,6 +840,7 @@ pub const struct__n_PetscObjectList = extern struct {
 };
 pub const PetscObjectList = [*c]struct__n_PetscObjectList;
 pub const PetscObjectState = PetscInt64;
+pub const PetscFortranCallbackFn = fn () callconv(.c) void;
 pub const PetscFortranCallbackId = usize;
 pub const struct__n_PetscOptionItem = extern struct {
     option: [*c]u8 = @import("std").mem.zeroes([*c]u8),
@@ -904,7 +906,7 @@ pub const struct__p_PetscObject = extern struct {
     realstarcomposedstate: [*c]PetscObjectState = @import("std").mem.zeroes([*c]PetscObjectState),
     realcomposeddata: [*c]PetscReal = @import("std").mem.zeroes([*c]PetscReal),
     realstarcomposeddata: [*c][*c]PetscReal = @import("std").mem.zeroes([*c][*c]PetscReal),
-    fortran_func_pointers: [*c]?*const fn () callconv(.c) void = @import("std").mem.zeroes([*c]?*const fn () callconv(.c) void),
+    fortran_func_pointers: [*c]?*const PetscFortranCallbackFn = @import("std").mem.zeroes([*c]?*const PetscFortranCallbackFn),
     num_fortran_func_pointers: PetscFortranCallbackId = @import("std").mem.zeroes(PetscFortranCallbackId),
     fortrancallback: [2][*c]PetscFortranCallback = @import("std").mem.zeroes([2][*c]PetscFortranCallback),
     num_fortrancallback: [2]PetscFortranCallbackId = @import("std").mem.zeroes([2]PetscFortranCallbackId),
@@ -2236,7 +2238,7 @@ pub const struct__G_fpos64_t = extern struct {
 };
 pub const __fpos64_t = struct__G_fpos64_t;
 pub const struct__IO_marker = opaque {};
-// /usr/include/bits/types/struct_FILE.h:74:7: warning: struct demoted to opaque type - has bitfield
+// /usr/include/bits/types/struct_FILE.h:75:7: warning: struct demoted to opaque type - has bitfield
 pub const struct__IO_FILE = opaque {};
 pub const __FILE = struct__IO_FILE;
 pub const FILE = struct__IO_FILE;
@@ -2349,7 +2351,6 @@ pub extern fn funlockfile(__stream: ?*FILE) void;
 pub extern fn __uflow(?*FILE) c_int;
 pub extern fn __overflow(?*FILE, c_int) c_int;
 pub extern var MPIU_ENUM: MPI_Datatype;
-pub extern var MPIU_BOOL: MPI_Datatype;
 pub extern var MPIU_FORTRANADDR: MPI_Datatype;
 pub extern var MPIU_SIZE_T: MPI_Datatype;
 pub extern var PETSC_STDOUT: ?*FILE;
@@ -2822,7 +2823,7 @@ pub extern fn PetscIsNormalReal(PetscReal) PetscBool;
 pub fn PetscIsInfOrNanReal(arg_v: PetscReal) callconv(.c) PetscBool {
     var v = arg_v;
     _ = &v;
-    return @as(c_uint, @bitCast(if ((PetscIsInfReal(v) != 0) or (PetscIsNanReal(v) != 0)) PETSC_TRUE else PETSC_FALSE));
+    return (if ((@as(c_int, @intFromBool(PetscIsInfReal(v))) != 0) or (@as(c_int, @intFromBool(PetscIsNanReal(v))) != 0)) @as(c_int, 1) else @as(c_int, 0)) != 0;
 }
 pub fn PetscIsInfScalar(arg_v: PetscScalar) callconv(.c) PetscBool {
     var v = arg_v;
@@ -2859,7 +2860,7 @@ pub fn PetscIsCloseAtTolScalar(arg_lhs: PetscScalar, arg_rhs: PetscScalar, arg_r
     var close: PetscBool = PetscIsCloseAtTol(lhs, rhs, rtol, atol_1);
     _ = &close;
     if (false) {
-        close = @as(c_uint, @intFromBool((close != 0) and (PetscIsCloseAtTol(@as(PetscReal, @floatFromInt(@as(c_int, 0))), @as(PetscReal, @floatFromInt(@as(c_int, 0))), rtol, atol_1) != 0)));
+        close = @as(PetscBool, (@as(c_int, @intFromBool(close)) != 0) and (@as(c_int, @intFromBool(PetscIsCloseAtTol(@as(PetscReal, @floatFromInt(@as(c_int, 0))), @as(PetscReal, @floatFromInt(@as(c_int, 0))), rtol, atol_1))) != 0));
     }
     return close;
 }
@@ -2985,6 +2986,33 @@ pub fn PetscCeilInt64(arg_x: PetscInt64, arg_y: PetscInt64) callconv(.c) PetscIn
     _ = &y;
     return @divTrunc(x, y) + @as(PetscInt64, @bitCast(@as(c_long, if (@import("std").zig.c_translation.signedRemainder(x, y) != 0) @as(c_int, 1) else @as(c_int, 0))));
 }
+pub fn PetscGCD(arg_a: PetscInt, arg_b: PetscInt) callconv(.c) PetscInt {
+    var a = arg_a;
+    _ = &a;
+    var b = arg_b;
+    _ = &b;
+    a = if (a < @as(c_int, 0)) -a else a;
+    b = if (b < @as(c_int, 0)) -b else b;
+    while (b != @as(c_int, 0)) {
+        var tmp: PetscInt = b;
+        _ = &tmp;
+        b = @import("std").zig.c_translation.signedRemainder(a, b);
+        a = tmp;
+    }
+    return a;
+}
+pub fn PetscLCM(arg_a: PetscInt, arg_b: PetscInt) callconv(.c) PetscInt {
+    var a = arg_a;
+    _ = &a;
+    var b = arg_b;
+    _ = &b;
+    var gcd: PetscInt = undefined;
+    _ = &gcd;
+    a = if (a < @as(c_int, 0)) -a else a;
+    b = if (b < @as(c_int, 0)) -b else b;
+    gcd = PetscGCD(a, b);
+    return if (gcd != 0) a * @divTrunc(b, gcd) else @as(c_int, 0);
+}
 pub extern fn PetscLinearRegression(PetscInt, [*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal, [*c]PetscReal) PetscErrorCode;
 pub extern var PETSC_COMM_WORLD: MPI_Comm;
 pub extern fn get_petsc_comm_self() callconv(.c) MPI_Comm;
@@ -3030,16 +3058,14 @@ pub extern var MPIU_MAXSUM_OP: MPI_Op;
 pub extern var Petsc_Garbage_SetIntersectOp: MPI_Op;
 pub extern fn PetscMaxSum(MPI_Comm, [*c]const PetscInt, [*c]PetscInt, [*c]PetscInt) PetscErrorCode;
 pub extern var MPIU_SUM___FP16___FLOAT128: MPI_Op;
-pub extern fn MPIULong_Send(?*anyopaque, PetscInt, MPI_Datatype, PetscMPIInt, PetscMPIInt, MPI_Comm) PetscErrorCode;
-pub extern fn MPIULong_Recv(?*anyopaque, PetscInt, MPI_Datatype, PetscMPIInt, PetscMPIInt, MPI_Comm) PetscErrorCode;
 pub const PetscVoidFn = fn () callconv(.c) void;
 pub const PetscVoidFunction = ?*const PetscVoidFn;
 pub const PetscVoidStarFunction = [*c]?*const PetscVoidFn;
-pub const PetscErrorCodeFn = fn () callconv(.c) PetscErrorCode;
+pub const PetscErrorCodeFn = fn () callconv(.c) void;
 pub const PetscErrorCodeFunction = ?*const PetscErrorCodeFn;
 pub const PetscCtxDestroyFn = fn ([*c]?*anyopaque) callconv(.c) PetscErrorCode;
-pub const PetscCtxDestroyDefault = @compileError("unable to resolve function type clang.TypeClass.Elaborated");
-// /opt/petsc/linux-c-opt/include/petscsys.h:1273:32
+pub const PetscCtxDestroyDefault = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscsys.h:1345:32
 pub extern var PETSC_MPI_ERROR_CLASS: PetscMPIInt;
 pub extern var PETSC_MPI_ERROR_CODE: PetscMPIInt;
 pub extern fn PetscMPIErrorString(PetscMPIInt, usize, [*c]u8) void;
@@ -3143,7 +3169,7 @@ pub extern fn PetscObjectGetNewTag(PetscObject, [*c]PetscMPIInt) PetscErrorCode;
 pub extern fn PetscObjectCompose(PetscObject, [*c]const u8, PetscObject) PetscErrorCode;
 pub extern fn PetscObjectRemoveReference(PetscObject, [*c]const u8) PetscErrorCode;
 pub extern fn PetscObjectQuery(PetscObject, [*c]const u8, [*c]PetscObject) PetscErrorCode;
-pub extern fn PetscObjectComposeFunction_Private(PetscObject, [*c]const u8, ?*const fn () callconv(.c) void) PetscErrorCode;
+pub extern fn PetscObjectComposeFunction_Private(PetscObject, [*c]const u8, ?*const PetscErrorCodeFn) PetscErrorCode;
 pub extern fn PetscObjectSetFromOptions(PetscObject) PetscErrorCode;
 pub extern fn PetscObjectSetUp(PetscObject) PetscErrorCode;
 pub extern fn PetscObjectSetPrintedOptions(PetscObject) PetscErrorCode;
@@ -3237,6 +3263,7 @@ pub extern fn PetscOptionsScalar_Private(PetscOptionItems, [*c]const u8, [*c]con
 pub extern fn PetscOptionsName_Private(PetscOptionItems, [*c]const u8, [*c]const u8, [*c]const u8, [*c]PetscBool) PetscErrorCode;
 pub extern fn PetscOptionsString_Private(PetscOptionItems, [*c]const u8, [*c]const u8, [*c]const u8, [*c]const u8, [*c]u8, usize, [*c]PetscBool) PetscErrorCode;
 pub extern fn PetscOptionsBool_Private(PetscOptionItems, [*c]const u8, [*c]const u8, [*c]const u8, PetscBool, [*c]PetscBool, [*c]PetscBool) PetscErrorCode;
+pub extern fn PetscOptionsBool3_Private(PetscOptionItems, [*c]const u8, [*c]const u8, [*c]const u8, PetscBool3, [*c]PetscBool3, [*c]PetscBool) PetscErrorCode;
 pub extern fn PetscOptionsBoolGroupBegin_Private(PetscOptionItems, [*c]const u8, [*c]const u8, [*c]const u8, [*c]PetscBool) PetscErrorCode;
 pub extern fn PetscOptionsBoolGroup_Private(PetscOptionItems, [*c]const u8, [*c]const u8, [*c]const u8, [*c]PetscBool) PetscErrorCode;
 pub extern fn PetscOptionsBoolGroupEnd_Private(PetscOptionItems, [*c]const u8, [*c]const u8, [*c]const u8, [*c]PetscBool) PetscErrorCode;
@@ -3260,7 +3287,7 @@ pub extern fn PetscMemoryView(PetscViewer, [*c]const u8) PetscErrorCode;
 pub extern fn PetscObjectPrintClassNamePrefixType(PetscObject, PetscViewer) PetscErrorCode;
 pub extern fn PetscObjectView(PetscObject, PetscViewer) PetscErrorCode;
 pub extern fn PetscObjectHasFunction(PetscObject, [*c]const u8, [*c]PetscBool) PetscErrorCode;
-pub extern fn PetscObjectQueryFunction_Private(PetscObject, [*c]const u8, [*c]?*const fn () callconv(.c) void) PetscErrorCode;
+pub extern fn PetscObjectQueryFunction_Private(PetscObject, [*c]const u8, [*c]?*const PetscErrorCodeFn) PetscErrorCode;
 pub extern fn PetscObjectSetOptionsPrefix(PetscObject, [*c]const u8) PetscErrorCode;
 pub extern fn PetscObjectAppendOptionsPrefix(PetscObject, [*c]const u8) PetscErrorCode;
 pub extern fn PetscObjectPrependOptionsPrefix(PetscObject, [*c]const u8) PetscErrorCode;
@@ -3280,7 +3307,7 @@ pub extern fn PetscRegisterFinalizeAll() PetscErrorCode;
 pub extern fn PetscDLOpen([*c]const u8, PetscDLMode, [*c]PetscDLHandle) PetscErrorCode;
 pub extern fn PetscDLClose([*c]PetscDLHandle) PetscErrorCode;
 pub extern fn PetscDLSym(PetscDLHandle, [*c]const u8, [*c]?*anyopaque) PetscErrorCode;
-pub extern fn PetscDLAddr(?*const fn () callconv(.c) void, [*c][*c]u8) PetscErrorCode;
+pub extern fn PetscDLAddr(?*const PetscVoidFn, [*c][*c]u8) PetscErrorCode;
 pub extern fn PetscDemangleSymbol([*c]const u8, [*c][*c]u8) PetscErrorCode;
 pub extern fn PetscMallocGetStack(?*anyopaque, [*c][*c]PetscStack) PetscErrorCode;
 pub extern fn PetscObjectsDump(?*FILE, PetscBool) PetscErrorCode;
@@ -3292,10 +3319,10 @@ pub extern fn PetscObjectListReverseFind(PetscObjectList, PetscObject, [*c][*c]c
 pub extern fn PetscObjectListAdd([*c]PetscObjectList, [*c]const u8, PetscObject) PetscErrorCode;
 pub extern fn PetscObjectListRemoveReference([*c]PetscObjectList, [*c]const u8) PetscErrorCode;
 pub extern fn PetscObjectListDuplicate(PetscObjectList, [*c]PetscObjectList) PetscErrorCode;
-pub extern fn PetscFunctionListAdd_Private([*c]PetscFunctionList, [*c]const u8, ?*const PetscVoidFn) PetscErrorCode;
+pub extern fn PetscFunctionListAdd_Private([*c]PetscFunctionList, [*c]const u8, ?*const PetscErrorCodeFn) PetscErrorCode;
 pub extern fn PetscFunctionListDestroy([*c]PetscFunctionList) PetscErrorCode;
 pub extern fn PetscFunctionListClear(PetscFunctionList) PetscErrorCode;
-pub extern fn PetscFunctionListFind_Private(PetscFunctionList, [*c]const u8, [*c]?*const PetscVoidFn) PetscErrorCode;
+pub extern fn PetscFunctionListFind_Private(PetscFunctionList, [*c]const u8, [*c]?*const PetscErrorCodeFn) PetscErrorCode;
 pub extern fn PetscFunctionListPrintTypes(MPI_Comm, ?*FILE, [*c]const u8, [*c]const u8, [*c]const u8, [*c]const u8, PetscFunctionList, [*c]const u8, [*c]const u8) PetscErrorCode;
 pub extern fn PetscFunctionListDuplicate(PetscFunctionList, [*c]PetscFunctionList) PetscErrorCode;
 pub extern fn PetscFunctionListView(PetscFunctionList, PetscViewer) PetscErrorCode;
@@ -4381,7 +4408,7 @@ pub extern fn PetscRMTree([*c]const u8) PetscErrorCode;
 pub fn PetscBinaryBigEndian() callconv(.c) PetscBool {
     var _petsc_v: c_long = 1;
     _ = &_petsc_v;
-    return @as(c_uint, @bitCast(if (@as(c_int, @bitCast(@as(c_uint, @as([*c]u8, @ptrCast(@alignCast(&_petsc_v)))[@as(c_uint, @intCast(@as(c_int, 0)))]))) != 0) PETSC_FALSE else PETSC_TRUE));
+    return (if (@as(c_int, @bitCast(@as(c_uint, @as([*c]u8, @ptrCast(@alignCast(&_petsc_v)))[@as(c_uint, @intCast(@as(c_int, 0)))]))) != 0) @as(c_int, 0) else @as(c_int, 1)) != 0;
 }
 pub extern fn PetscBinaryRead(c_int, ?*anyopaque, PetscCount, [*c]PetscInt, PetscDataType) PetscErrorCode;
 pub extern fn PetscBinarySynchronizedRead(MPI_Comm, c_int, ?*anyopaque, PetscInt, [*c]PetscInt, PetscDataType) PetscErrorCode;
@@ -4415,7 +4442,21 @@ pub extern fn PetscCommBuildTwoSidedF(MPI_Comm, PetscMPIInt, MPI_Datatype, Petsc
 pub extern fn PetscCommBuildTwoSidedFReq(MPI_Comm, PetscMPIInt, MPI_Datatype, PetscMPIInt, [*c]const PetscMPIInt, ?*const anyopaque, [*c]PetscMPIInt, [*c][*c]PetscMPIInt, ?*anyopaque, PetscMPIInt, [*c][*c]MPI_Request, [*c][*c]MPI_Request, send: ?*const fn (MPI_Comm, [*c]const PetscMPIInt, PetscMPIInt, PetscMPIInt, ?*anyopaque, [*c]MPI_Request, ?*anyopaque) callconv(.c) PetscErrorCode, recv: ?*const fn (MPI_Comm, [*c]const PetscMPIInt, PetscMPIInt, ?*anyopaque, [*c]MPI_Request, ?*anyopaque) callconv(.c) PetscErrorCode, ctx: ?*anyopaque) PetscErrorCode;
 pub extern fn PetscCommBuildTwoSidedSetType(MPI_Comm, PetscBuildTwoSidedType) PetscErrorCode;
 pub extern fn PetscCommBuildTwoSidedGetType(MPI_Comm, [*c]PetscBuildTwoSidedType) PetscErrorCode;
-pub extern fn PetscSSEIsEnabled(MPI_Comm, [*c]PetscBool, [*c]PetscBool) PetscErrorCode;
+pub fn PetscSSEIsEnabled(arg_comm: MPI_Comm, arg_lflag: [*c]PetscBool, arg_gflag: [*c]PetscBool) callconv(.c) PetscErrorCode {
+    var comm = arg_comm;
+    _ = &comm;
+    var lflag = arg_lflag;
+    _ = &lflag;
+    var gflag = arg_gflag;
+    _ = &gflag;
+    if (lflag != null) {
+        lflag.* = @as(c_int, 0) != 0;
+    }
+    if (gflag != null) {
+        gflag.* = @as(c_int, 0) != 0;
+    }
+    return @as(PetscErrorCode, @bitCast(@as(c_int, 0)));
+}
 pub extern fn PetscObjectComm(PetscObject) MPI_Comm;
 pub fn PetscSubcommParent(arg_scomm: PetscSubcomm) callconv(.c) MPI_Comm {
     var scomm = arg_scomm;
@@ -4497,8 +4538,6 @@ pub extern fn PetscGlobusAuthorize(MPI_Comm, [*c]u8, usize) PetscErrorCode;
 pub extern fn PetscGlobusUpload(MPI_Comm, [*c]const u8, [*c]const u8) PetscErrorCode;
 pub extern fn PetscPullJSONValue([*c]const u8, [*c]const u8, [*c]u8, usize, [*c]PetscBool) PetscErrorCode;
 pub extern fn PetscPushJSONValue([*c]u8, [*c]const u8, [*c]const u8, usize) PetscErrorCode;
-pub extern fn MPIU_Win_allocate_shared(MPI_Aint, PetscMPIInt, MPI_Info, MPI_Comm, ?*anyopaque, [*c]MPI_Win) PetscErrorCode;
-pub extern fn MPIU_Win_shared_query(MPI_Win, PetscMPIInt, [*c]MPI_Aint, [*c]PetscMPIInt, ?*anyopaque) PetscErrorCode;
 pub extern fn PetscHasExternalPackage([*c]const u8, [*c]PetscBool) PetscErrorCode;
 pub extern fn PCMPIServerBegin() PetscErrorCode;
 pub extern fn PCMPIServerEnd() PetscErrorCode;
@@ -4514,8 +4553,8 @@ pub const PCMPIServerAddresses = extern struct {
     n: PetscInt = @import("std").mem.zeroes(PetscInt),
     addr: [3]?*anyopaque = @import("std").mem.zeroes([3]?*anyopaque),
 };
-pub const PCMPIServerAddressesDestroy = @compileError("unable to resolve function type clang.TypeClass.Elaborated");
-// /opt/petsc/linux-c-opt/include/petscsys.h:2870:32
+pub const PCMPIServerAddressesDestroy = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscsys.h:2927:32
 pub extern fn PetscBLASSetNumThreads(PetscInt) PetscErrorCode;
 pub extern fn PetscBLASGetNumThreads([*c]PetscInt) PetscErrorCode;
 pub const PETSC_MEMTYPE_HOST: c_int = 0;
@@ -4663,6 +4702,7 @@ pub fn PetscMemoryAccessModeToString(arg_mode: PetscMemoryAccessMode) callconv(.
     __builtin_unreachable();
     return "invalid";
 }
+pub extern fn PetscStackView(?*FILE) PetscErrorCode;
 pub const struct__n_PetscBag = opaque {};
 pub const PetscBag = ?*struct__n_PetscBag;
 pub const struct__n_PetscBagItem = opaque {};
@@ -4865,6 +4905,7 @@ pub extern fn PetscDrawLGSetLimits(PetscDrawLG, PetscReal, PetscReal, PetscReal,
 pub extern fn PetscDrawLGSetColors(PetscDrawLG, [*c]const c_int) PetscErrorCode;
 pub extern fn PetscDrawLGSetOptionsPrefix(PetscDrawLG, [*c]const u8) PetscErrorCode;
 pub extern fn PetscDrawLGSetFromOptions(PetscDrawLG) PetscErrorCode;
+pub extern fn PetscDrawLGGetData(PetscDrawLG, [*c]PetscInt, [*c]PetscInt, [*c][*c]const PetscReal, [*c][*c]const PetscReal) PetscErrorCode;
 pub extern var PETSC_DRAWSP_CLASSID: PetscClassId;
 pub extern fn PetscDrawSPCreate(PetscDraw, c_int, [*c]PetscDrawSP) PetscErrorCode;
 pub extern fn PetscDrawSPDestroy([*c]PetscDrawSP) PetscErrorCode;
@@ -5805,10 +5846,10 @@ pub const VECOP_DUPLICATE: c_int = 0;
 pub const VECOP_SET: c_int = 10;
 pub const VECOP_VIEW: c_int = 33;
 pub const VECOP_LOAD: c_int = 41;
-pub const VECOP_VIEWNATIVE: c_int = 69;
-pub const VECOP_LOADNATIVE: c_int = 70;
+pub const VECOP_VIEWNATIVE: c_int = 68;
+pub const VECOP_LOADNATIVE: c_int = 69;
 pub const VecOperation = c_uint;
-pub extern fn VecSetOperation(Vec, VecOperation, ?*const fn () callconv(.c) void) PetscErrorCode;
+pub extern fn VecSetOperation(Vec, VecOperation, ?*const PetscErrorCodeFn) PetscErrorCode;
 pub extern fn VecMPISetGhost(Vec, PetscInt, [*c]const PetscInt) PetscErrorCode;
 pub extern fn VecCreateGhost(MPI_Comm, PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]Vec) PetscErrorCode;
 pub extern fn VecCreateGhostWithArray(MPI_Comm, PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]Vec) PetscErrorCode;
@@ -6805,6 +6846,7 @@ pub extern fn PetscSectionGetOffsetRange(PetscSection, [*c]PetscInt, [*c]PetscIn
 pub extern fn PetscSectionView(PetscSection, PetscViewer) PetscErrorCode;
 pub extern fn PetscSectionViewFromOptions(PetscSection, PetscObject, [*c]const u8) PetscErrorCode;
 pub extern fn PetscSectionLoad(PetscSection, PetscViewer) PetscErrorCode;
+pub extern fn PetscSectionArrayView(PetscSection, ?*anyopaque, PetscDataType, PetscViewer) PetscErrorCode;
 pub extern fn PetscSectionReset(PetscSection) PetscErrorCode;
 pub extern fn PetscSectionDestroy([*c]PetscSection) PetscErrorCode;
 pub extern fn PetscSectionCreateGlobalSection(PetscSection, PetscSF, PetscBool, PetscBool, PetscBool, [*c]PetscSection) PetscErrorCode;
@@ -7062,6 +7104,8 @@ pub extern fn MatDiagonalGetDiagonal(Mat, [*c]Vec) PetscErrorCode;
 pub extern fn MatDiagonalRestoreDiagonal(Mat, [*c]Vec) PetscErrorCode;
 pub extern fn MatDiagonalGetInverseDiagonal(Mat, [*c]Vec) PetscErrorCode;
 pub extern fn MatDiagonalRestoreInverseDiagonal(Mat, [*c]Vec) PetscErrorCode;
+pub extern fn MatConstantDiagonalGetConstant(Mat, [*c]PetscScalar) PetscErrorCode;
+pub extern fn MatGetCurrentMemType(Mat, [*c]PetscMemType) PetscErrorCode;
 pub extern fn MatPythonSetType(Mat, [*c]const u8) PetscErrorCode;
 pub extern fn MatPythonGetType(Mat, [*c][*c]const u8) PetscErrorCode;
 pub extern fn MatPythonCreate(MPI_Comm, PetscInt, PetscInt, PetscInt, PetscInt, [*c]const u8, [*c]Mat) PetscErrorCode;
@@ -7182,6 +7226,7 @@ pub extern fn MatSetBlockSizes(Mat, PetscInt, PetscInt) PetscErrorCode;
 pub extern fn MatSetBlockSizesFromMats(Mat, Mat, Mat) PetscErrorCode;
 pub extern fn MatSetVariableBlockSizes(Mat, PetscInt, [*c]const PetscInt) PetscErrorCode;
 pub extern fn MatGetVariableBlockSizes(Mat, [*c]PetscInt, [*c][*c]const PetscInt) PetscErrorCode;
+pub extern fn MatSelectVariableBlockSizes(Mat, Mat, IS) PetscErrorCode;
 pub extern fn MatDenseGetColumn(Mat, PetscInt, [*c][*c]PetscScalar) PetscErrorCode;
 pub extern fn MatDenseRestoreColumn(Mat, [*c][*c]PetscScalar) PetscErrorCode;
 pub extern fn MatDenseGetColumnVec(Mat, PetscInt, [*c]Vec) PetscErrorCode;
@@ -7650,11 +7695,12 @@ pub fn MatColoringTestValid(arg_matcoloring: MatColoring, arg_iscoloring: ISColo
 pub extern fn MatISColoringTest(Mat, ISColoring) PetscErrorCode;
 pub const struct__p_MatFDColoring = opaque {};
 pub const MatFDColoring = ?*struct__p_MatFDColoring;
+pub const MatFDColoringFn = fn (?*anyopaque, Vec, Vec, ?*anyopaque) callconv(.c) PetscErrorCode;
 pub extern fn MatFDColoringCreate(Mat, ISColoring, [*c]MatFDColoring) PetscErrorCode;
 pub extern fn MatFDColoringDestroy([*c]MatFDColoring) PetscErrorCode;
 pub extern fn MatFDColoringView(MatFDColoring, PetscViewer) PetscErrorCode;
-pub extern fn MatFDColoringSetFunction(MatFDColoring, ?*const fn () callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
-pub extern fn MatFDColoringGetFunction(MatFDColoring, [*c]?*const fn () callconv(.c) PetscErrorCode, [*c]?*anyopaque) PetscErrorCode;
+pub extern fn MatFDColoringSetFunction(MatFDColoring, ?*const MatFDColoringFn, ?*anyopaque) PetscErrorCode;
+pub extern fn MatFDColoringGetFunction(MatFDColoring, [*c]?*const MatFDColoringFn, [*c]?*anyopaque) PetscErrorCode;
 pub extern fn MatFDColoringSetParameters(MatFDColoring, PetscReal, PetscReal) PetscErrorCode;
 pub extern fn MatFDColoringSetFromOptions(MatFDColoring) PetscErrorCode;
 pub extern fn MatFDColoringApply(Mat, MatFDColoring, Vec, ?*anyopaque) PetscErrorCode;
@@ -7813,92 +7859,91 @@ pub const MATOP_CREATE_SUBMATRIX: c_int = 59;
 pub const MATOP_DESTROY: c_int = 60;
 pub const MATOP_VIEW: c_int = 61;
 pub const MATOP_CONVERT_FROM: c_int = 62;
-pub const MATOP_MATMAT_MULT_SYMBOLIC: c_int = 64;
-pub const MATOP_MATMAT_MULT_NUMERIC: c_int = 65;
-pub const MATOP_SET_LOCAL_TO_GLOBAL_MAP: c_int = 66;
-pub const MATOP_SET_VALUES_LOCAL: c_int = 67;
-pub const MATOP_ZERO_ROWS_LOCAL: c_int = 68;
-pub const MATOP_GET_ROW_MAX_ABS: c_int = 69;
-pub const MATOP_GET_ROW_MIN_ABS: c_int = 70;
-pub const MATOP_CONVERT: c_int = 71;
-pub const MATOP_HAS_OPERATION: c_int = 72;
-pub const MATOP_SET_VALUES_ADIFOR: c_int = 74;
-pub const MATOP_FD_COLORING_APPLY: c_int = 75;
-pub const MATOP_SET_FROM_OPTIONS: c_int = 76;
-pub const MATOP_FIND_ZERO_DIAGONALS: c_int = 79;
-pub const MATOP_MULT_MULTIPLE: c_int = 80;
-pub const MATOP_SOLVE_MULTIPLE: c_int = 81;
-pub const MATOP_GET_INERTIA: c_int = 82;
-pub const MATOP_LOAD: c_int = 83;
-pub const MATOP_IS_SYMMETRIC: c_int = 84;
-pub const MATOP_IS_HERMITIAN: c_int = 85;
-pub const MATOP_IS_STRUCTURALLY_SYMMETRIC: c_int = 86;
-pub const MATOP_SET_VALUES_BLOCKEDLOCAL: c_int = 87;
-pub const MATOP_CREATE_VECS: c_int = 88;
-pub const MATOP_MAT_MULT_SYMBOLIC: c_int = 90;
-pub const MATOP_MAT_MULT_NUMERIC: c_int = 91;
-pub const MATOP_PTAP_SYMBOLIC: c_int = 93;
-pub const MATOP_PTAP_NUMERIC: c_int = 94;
-pub const MATOP_MAT_TRANSPOSE_MULT_SYMBO: c_int = 96;
-pub const MATOP_MAT_TRANSPOSE_MULT_NUMER: c_int = 97;
-pub const MATOP_BIND_TO_CPU: c_int = 98;
-pub const MATOP_PRODUCTSETFROMOPTIONS: c_int = 99;
-pub const MATOP_PRODUCTSYMBOLIC: c_int = 100;
-pub const MATOP_PRODUCTNUMERIC: c_int = 101;
-pub const MATOP_CONJUGATE: c_int = 102;
-pub const MATOP_VIEW_NATIVE: c_int = 103;
-pub const MATOP_SET_VALUES_ROW: c_int = 104;
-pub const MATOP_REAL_PART: c_int = 105;
-pub const MATOP_IMAGINARY_PART: c_int = 106;
-pub const MATOP_GET_ROW_UPPER_TRIANGULAR: c_int = 107;
-pub const MATOP_RESTORE_ROW_UPPER_TRIANG: c_int = 108;
-pub const MATOP_MAT_SOLVE: c_int = 109;
-pub const MATOP_MAT_SOLVE_TRANSPOSE: c_int = 110;
-pub const MATOP_GET_ROW_MIN: c_int = 111;
-pub const MATOP_GET_COLUMN_VECTOR: c_int = 112;
-pub const MATOP_MISSING_DIAGONAL: c_int = 113;
-pub const MATOP_GET_SEQ_NONZERO_STRUCTUR: c_int = 114;
-pub const MATOP_CREATE: c_int = 115;
-pub const MATOP_GET_GHOSTS: c_int = 116;
-pub const MATOP_GET_LOCAL_SUB_MATRIX: c_int = 117;
-pub const MATOP_RESTORE_LOCALSUB_MATRIX: c_int = 118;
-pub const MATOP_MULT_DIAGONAL_BLOCK: c_int = 119;
-pub const MATOP_HERMITIAN_TRANSPOSE: c_int = 120;
-pub const MATOP_MULT_HERMITIAN_TRANSPOSE: c_int = 121;
-pub const MATOP_MULT_HERMITIAN_TRANS_ADD: c_int = 122;
-pub const MATOP_GET_MULTI_PROC_BLOCK: c_int = 123;
-pub const MATOP_FIND_NONZERO_ROWS: c_int = 124;
-pub const MATOP_GET_COLUMN_NORMS: c_int = 125;
-pub const MATOP_INVERT_BLOCK_DIAGONAL: c_int = 126;
-pub const MATOP_INVERT_VBLOCK_DIAGONAL: c_int = 127;
-pub const MATOP_CREATE_SUB_MATRICES_MPI: c_int = 128;
-pub const MATOP_SET_VALUES_BATCH: c_int = 129;
-pub const MATOP_TRANSPOSE_MAT_MULT_SYMBO: c_int = 131;
-pub const MATOP_TRANSPOSE_MAT_MULT_NUMER: c_int = 132;
-pub const MATOP_TRANSPOSE_COLORING_CREAT: c_int = 133;
-pub const MATOP_TRANS_COLORING_APPLY_SPT: c_int = 134;
-pub const MATOP_TRANS_COLORING_APPLY_DEN: c_int = 135;
-pub const MATOP_RART_SYMBOLIC: c_int = 137;
-pub const MATOP_RART_NUMERIC: c_int = 138;
-pub const MATOP_SET_BLOCK_SIZES: c_int = 139;
-pub const MATOP_AYPX: c_int = 140;
-pub const MATOP_RESIDUAL: c_int = 141;
-pub const MATOP_FDCOLORING_SETUP: c_int = 142;
-pub const MATOP_FIND_OFFBLOCK_ENTRIES: c_int = 143;
-pub const MATOP_MPICONCATENATESEQ: c_int = 144;
-pub const MATOP_DESTROYSUBMATRICES: c_int = 145;
-pub const MATOP_MAT_TRANSPOSE_SOLVE: c_int = 146;
-pub const MATOP_GET_VALUES_LOCAL: c_int = 147;
-pub const MATOP_CREATE_GRAPH: c_int = 148;
-pub const MATOP_TRANSPOSE_SYMBOLIC: c_int = 150;
-pub const MATOP_ELIMINATE_ZEROS: c_int = 151;
-pub const MATOP_GET_ROW_SUM_ABS: c_int = 152;
-pub const MATOP_GET_FACTOR: c_int = 153;
-pub const MATOP_GET_BLOCK_DIAGONAL: c_int = 154;
-pub const MATOP_GET_VBLOCK_DIAGONAL: c_int = 155;
+pub const MATOP_MATMAT_MULT_SYMBOLIC: c_int = 63;
+pub const MATOP_MATMAT_MULT_NUMERIC: c_int = 64;
+pub const MATOP_SET_LOCAL_TO_GLOBAL_MAP: c_int = 65;
+pub const MATOP_SET_VALUES_LOCAL: c_int = 66;
+pub const MATOP_ZERO_ROWS_LOCAL: c_int = 67;
+pub const MATOP_GET_ROW_MAX_ABS: c_int = 68;
+pub const MATOP_GET_ROW_MIN_ABS: c_int = 69;
+pub const MATOP_CONVERT: c_int = 70;
+pub const MATOP_HAS_OPERATION: c_int = 71;
+pub const MATOP_FD_COLORING_APPLY: c_int = 72;
+pub const MATOP_SET_FROM_OPTIONS: c_int = 73;
+pub const MATOP_FIND_ZERO_DIAGONALS: c_int = 74;
+pub const MATOP_MULT_MULTIPLE: c_int = 75;
+pub const MATOP_SOLVE_MULTIPLE: c_int = 76;
+pub const MATOP_GET_INERTIA: c_int = 77;
+pub const MATOP_LOAD: c_int = 78;
+pub const MATOP_IS_SYMMETRIC: c_int = 79;
+pub const MATOP_IS_HERMITIAN: c_int = 80;
+pub const MATOP_IS_STRUCTURALLY_SYMMETRIC: c_int = 81;
+pub const MATOP_SET_VALUES_BLOCKEDLOCAL: c_int = 82;
+pub const MATOP_CREATE_VECS: c_int = 83;
+pub const MATOP_MAT_MULT_SYMBOLIC: c_int = 84;
+pub const MATOP_MAT_MULT_NUMERIC: c_int = 85;
+pub const MATOP_PTAP_NUMERIC: c_int = 86;
+pub const MATOP_MAT_TRANSPOSE_MULT_SYMBO: c_int = 87;
+pub const MATOP_MAT_TRANSPOSE_MULT_NUMER: c_int = 88;
+pub const MATOP_BIND_TO_CPU: c_int = 89;
+pub const MATOP_PRODUCTSETFROMOPTIONS: c_int = 90;
+pub const MATOP_PRODUCTSYMBOLIC: c_int = 91;
+pub const MATOP_PRODUCTNUMERIC: c_int = 92;
+pub const MATOP_CONJUGATE: c_int = 93;
+pub const MATOP_VIEW_NATIVE: c_int = 94;
+pub const MATOP_SET_VALUES_ROW: c_int = 95;
+pub const MATOP_REAL_PART: c_int = 96;
+pub const MATOP_IMAGINARY_PART: c_int = 97;
+pub const MATOP_GET_ROW_UPPER_TRIANGULAR: c_int = 98;
+pub const MATOP_RESTORE_ROW_UPPER_TRIANG: c_int = 99;
+pub const MATOP_MAT_SOLVE: c_int = 100;
+pub const MATOP_MAT_SOLVE_TRANSPOSE: c_int = 101;
+pub const MATOP_GET_ROW_MIN: c_int = 102;
+pub const MATOP_GET_COLUMN_VECTOR: c_int = 103;
+pub const MATOP_MISSING_DIAGONAL: c_int = 104;
+pub const MATOP_GET_SEQ_NONZERO_STRUCTUR: c_int = 105;
+pub const MATOP_CREATE: c_int = 106;
+pub const MATOP_GET_GHOSTS: c_int = 107;
+pub const MATOP_GET_LOCAL_SUB_MATRIX: c_int = 108;
+pub const MATOP_RESTORE_LOCALSUB_MATRIX: c_int = 109;
+pub const MATOP_MULT_DIAGONAL_BLOCK: c_int = 110;
+pub const MATOP_HERMITIAN_TRANSPOSE: c_int = 111;
+pub const MATOP_MULT_HERMITIAN_TRANSPOSE: c_int = 112;
+pub const MATOP_MULT_HERMITIAN_TRANS_ADD: c_int = 113;
+pub const MATOP_GET_MULTI_PROC_BLOCK: c_int = 114;
+pub const MATOP_FIND_NONZERO_ROWS: c_int = 115;
+pub const MATOP_GET_COLUMN_NORMS: c_int = 116;
+pub const MATOP_INVERT_BLOCK_DIAGONAL: c_int = 117;
+pub const MATOP_INVERT_VBLOCK_DIAGONAL: c_int = 118;
+pub const MATOP_CREATE_SUB_MATRICES_MPI: c_int = 119;
+pub const MATOP_SET_VALUES_BATCH: c_int = 120;
+pub const MATOP_TRANSPOSE_MAT_MULT_SYMBO: c_int = 121;
+pub const MATOP_TRANSPOSE_MAT_MULT_NUMER: c_int = 122;
+pub const MATOP_TRANSPOSE_COLORING_CREAT: c_int = 123;
+pub const MATOP_TRANS_COLORING_APPLY_SPT: c_int = 124;
+pub const MATOP_TRANS_COLORING_APPLY_DEN: c_int = 125;
+pub const MATOP_RART_NUMERIC: c_int = 126;
+pub const MATOP_SET_BLOCK_SIZES: c_int = 127;
+pub const MATOP_RESIDUAL: c_int = 128;
+pub const MATOP_FDCOLORING_SETUP: c_int = 129;
+pub const MATOP_FIND_OFFBLOCK_ENTRIES: c_int = 130;
+pub const MATOP_MPICONCATENATESEQ: c_int = 131;
+pub const MATOP_DESTROYSUBMATRICES: c_int = 132;
+pub const MATOP_MAT_TRANSPOSE_SOLVE: c_int = 133;
+pub const MATOP_GET_VALUES_LOCAL: c_int = 134;
+pub const MATOP_CREATE_GRAPH: c_int = 135;
+pub const MATOP_TRANSPOSE_SYMBOLIC: c_int = 136;
+pub const MATOP_ELIMINATE_ZEROS: c_int = 137;
+pub const MATOP_GET_ROW_SUM_ABS: c_int = 138;
+pub const MATOP_GET_FACTOR: c_int = 139;
+pub const MATOP_GET_BLOCK_DIAGONAL: c_int = 140;
+pub const MATOP_GET_VBLOCK_DIAGONAL: c_int = 141;
+pub const MATOP_COPY_HASH_TO_XAIJ: c_int = 142;
+pub const MATOP_GET_CURRENT_MEM_TYPE: c_int = 143;
+pub const MATOP_ZERO_ROWS_COLUMNS_LOCAL: c_int = 144;
 pub const MatOperation = c_uint;
-pub extern fn MatSetOperation(Mat, MatOperation, ?*const fn () callconv(.c) void) PetscErrorCode;
-pub extern fn MatGetOperation(Mat, MatOperation, [*c]?*const fn () callconv(.c) void) PetscErrorCode;
+pub extern fn MatSetOperation(Mat, MatOperation, ?*const PetscErrorCodeFn) PetscErrorCode;
+pub extern fn MatGetOperation(Mat, MatOperation, [*c]?*const PetscErrorCodeFn) PetscErrorCode;
 pub extern fn MatHasOperation(Mat, MatOperation, [*c]PetscBool) PetscErrorCode;
 pub extern fn MatHasCongruentLayouts(Mat, [*c]PetscBool) PetscErrorCode;
 pub fn MatFreeIntermediateDataStructures(arg_A: Mat) callconv(.c) PetscErrorCode {
@@ -7906,8 +7951,8 @@ pub fn MatFreeIntermediateDataStructures(arg_A: Mat) callconv(.c) PetscErrorCode
     _ = &A;
     return MatProductClear(A);
 }
-pub extern fn MatShellSetOperation(Mat, MatOperation, ?*const fn () callconv(.c) void) PetscErrorCode;
-pub extern fn MatShellGetOperation(Mat, MatOperation, [*c]?*const fn () callconv(.c) void) PetscErrorCode;
+pub extern fn MatShellSetOperation(Mat, MatOperation, ?*const PetscErrorCodeFn) PetscErrorCode;
+pub extern fn MatShellGetOperation(Mat, MatOperation, [*c]?*const PetscErrorCodeFn) PetscErrorCode;
 pub extern fn MatShellSetContext(Mat, ?*anyopaque) PetscErrorCode;
 pub extern fn MatShellSetContextDestroy(Mat, ?*const PetscCtxDestroyFn) PetscErrorCode;
 pub extern fn MatShellSetVecType(Mat, VecType) PetscErrorCode;
@@ -7929,8 +7974,9 @@ pub extern fn MatISSetLocalMat(Mat, Mat) PetscErrorCode;
 pub extern fn MatISGetLocalToGlobalMapping(Mat, [*c]ISLocalToGlobalMapping, [*c]ISLocalToGlobalMapping) PetscErrorCode;
 pub const struct__p_MatNullSpace = opaque {};
 pub const MatNullSpace = ?*struct__p_MatNullSpace;
+pub const MatNullSpaceRemoveFn = fn (MatNullSpace, Vec, ?*anyopaque) callconv(.c) PetscErrorCode;
 pub extern fn MatNullSpaceCreate(MPI_Comm, PetscBool, PetscInt, [*c]const Vec, [*c]MatNullSpace) PetscErrorCode;
-pub extern fn MatNullSpaceSetFunction(MatNullSpace, ?*const fn (MatNullSpace, Vec, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
+pub extern fn MatNullSpaceSetFunction(MatNullSpace, ?*const MatNullSpaceRemoveFn, ?*anyopaque) PetscErrorCode;
 pub extern fn MatNullSpaceDestroy([*c]MatNullSpace) PetscErrorCode;
 pub extern fn MatNullSpaceRemove(MatNullSpace, Vec) PetscErrorCode;
 pub extern fn MatGetNullSpace(Mat, [*c]MatNullSpace) PetscErrorCode;
@@ -7984,11 +8030,15 @@ pub extern fn MatKAIJGetScaledIdentity(Mat, [*c]PetscBool) PetscErrorCode;
 pub extern fn MatDiagonalScaleLocal(Mat, Vec) PetscErrorCode;
 pub extern fn MatMFFDInitializePackage() PetscErrorCode;
 pub extern fn MatMFFDFinalizePackage() PetscErrorCode;
+pub const MatMFFDFn = fn (?*anyopaque, Vec, Vec) callconv(.c) PetscErrorCode;
+pub const MatMFFDiFn = fn (?*anyopaque, PetscInt, Vec, [*c]PetscScalar) callconv(.c) PetscErrorCode;
+pub const MatMFFDiBaseFn = fn (?*anyopaque, Vec) callconv(.c) PetscErrorCode;
+pub const MatMFFDCheckhFn = fn (?*anyopaque, Vec, Vec, [*c]PetscScalar) callconv(.c) PetscErrorCode;
 pub extern fn MatCreateMFFD(MPI_Comm, PetscInt, PetscInt, PetscInt, PetscInt, [*c]Mat) PetscErrorCode;
 pub extern fn MatMFFDSetBase(Mat, Vec, Vec) PetscErrorCode;
-pub extern fn MatMFFDSetFunction(Mat, ?*const fn (?*anyopaque, Vec, Vec) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
-pub extern fn MatMFFDSetFunctioni(Mat, ?*const fn (?*anyopaque, PetscInt, Vec, [*c]PetscScalar) callconv(.c) PetscErrorCode) PetscErrorCode;
-pub extern fn MatMFFDSetFunctioniBase(Mat, ?*const fn (?*anyopaque, Vec) callconv(.c) PetscErrorCode) PetscErrorCode;
+pub extern fn MatMFFDSetFunction(Mat, ?*const MatMFFDFn, ?*anyopaque) PetscErrorCode;
+pub extern fn MatMFFDSetFunctioni(Mat, ?*const MatMFFDiFn) PetscErrorCode;
+pub extern fn MatMFFDSetFunctioniBase(Mat, ?*const MatMFFDiBaseFn) PetscErrorCode;
 pub extern fn MatMFFDSetHHistory(Mat, [*c]PetscScalar, PetscInt) PetscErrorCode;
 pub extern fn MatMFFDResetHHistory(Mat) PetscErrorCode;
 pub extern fn MatMFFDSetFunctionError(Mat, PetscReal) PetscErrorCode;
@@ -7996,7 +8046,7 @@ pub extern fn MatMFFDSetPeriod(Mat, PetscInt) PetscErrorCode;
 pub extern fn MatMFFDGetH(Mat, [*c]PetscScalar) PetscErrorCode;
 pub extern fn MatMFFDSetOptionsPrefix(Mat, [*c]const u8) PetscErrorCode;
 pub extern fn MatMFFDCheckPositivity(?*anyopaque, Vec, Vec, [*c]PetscScalar) PetscErrorCode;
-pub extern fn MatMFFDSetCheckh(Mat, ?*const fn (?*anyopaque, Vec, Vec, [*c]PetscScalar) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
+pub extern fn MatMFFDSetCheckh(Mat, ?*const MatMFFDCheckhFn, ?*anyopaque) PetscErrorCode;
 pub const struct__p_MatMFFD = opaque {};
 pub const MatMFFD = ?*struct__p_MatMFFD;
 pub const MatMFFDType = [*c]const u8;
@@ -8018,6 +8068,7 @@ pub extern fn MatMumpsGetRinfog(Mat, PetscInt, [*c]PetscReal) PetscErrorCode;
 pub extern fn MatMumpsGetNullPivots(Mat, [*c]PetscInt, [*c][*c]PetscInt) PetscErrorCode;
 pub extern fn MatMumpsGetInverse(Mat, Mat) PetscErrorCode;
 pub extern fn MatMumpsGetInverseTranspose(Mat, Mat) PetscErrorCode;
+pub extern fn MatMumpsSetBlk(Mat, PetscInt, [*c]const PetscInt, [*c]const PetscInt) PetscErrorCode;
 pub extern fn MatSuperluSetILUDropTol(Mat, PetscReal) PetscErrorCode;
 pub extern fn MatBindToCPU(Mat, PetscBool) PetscErrorCode;
 pub extern fn MatBoundToCPU(Mat, [*c]PetscBool) PetscErrorCode;
@@ -8051,7 +8102,7 @@ pub fn MatChop(arg_A: Mat, arg_tol: PetscReal) callconv(.c) PetscErrorCode {
     _ = &A;
     var tol = arg_tol;
     _ = &tol;
-    return MatFilter(A, tol, @as(c_uint, @bitCast(PETSC_FALSE)), @as(c_uint, @bitCast(PETSC_FALSE)));
+    return MatFilter(A, tol, @as(c_int, 0) != 0, @as(c_int, 0) != 0);
 }
 pub extern fn MatComputeBandwidth(Mat, PetscReal, [*c]PetscInt) PetscErrorCode;
 pub extern fn MatSubdomainsCreateCoalesce(Mat, PetscInt, [*c]PetscInt, [*c][*c]IS) PetscErrorCode;
@@ -8078,6 +8129,8 @@ pub const DM_BC_NATURAL: c_int = 2;
 pub const DM_BC_NATURAL_FIELD: c_int = 6;
 pub const DM_BC_ESSENTIAL_BD_FIELD: c_int = 9;
 pub const DM_BC_NATURAL_RIEMANN: c_int = 10;
+pub const DM_BC_LOWER_BOUND: c_int = 4;
+pub const DM_BC_UPPER_BOUND: c_int = 8;
 pub const DMBoundaryConditionType = c_uint;
 pub const DM_POINTLOCATION_NONE: c_int = 0;
 pub const DM_POINTLOCATION_NEAREST: c_int = 1;
@@ -8273,6 +8326,20 @@ pub const PetscWeakFormKind = c_uint;
 pub const PetscWeakFormKinds: [*c]const [*c]const u8 = @extern([*c]const [*c]const u8, .{
     .name = "PetscWeakFormKinds",
 });
+pub const PetscPointFn = fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void;
+pub const PetscPointJacFn = fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void;
+pub const PetscBdPointFn = fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void;
+pub const PetscBdPointJacFn = fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void;
+pub const PetscPointExactSolutionFn = fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode;
+pub const PetscRiemannFn = fn (PetscInt, PetscInt, [*c]const PetscReal, [*c]const PetscReal, [*c]const PetscScalar, [*c]const PetscScalar, PetscInt, [*c]const PetscScalar, [*c]PetscScalar, ?*anyopaque) callconv(.c) void;
+pub const PetscSimplePointFn = fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode;
+pub const PetscSimplePointFunc = ?*const PetscSimplePointFn;
+pub const PetscPointFunc = ?*const PetscPointFn;
+pub const PetscPointJac = ?*const PetscPointJacFn;
+pub const PetscBdPointFunc = ?*const PetscBdPointFn;
+pub const PetscBdPointJac = ?*const PetscBdPointJacFn;
+pub const PetscRiemannFunc = ?*const PetscRiemannFn;
+pub const PetscPointBoundFn = fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode;
 pub extern var PETSCQUADRATURE_CLASSID: PetscClassId;
 pub const struct__p_PetscQuadrature = opaque {};
 pub const PetscQuadrature = ?*struct__p_PetscQuadrature;
@@ -8323,6 +8390,7 @@ pub extern fn PetscDTGaussTensorQuadrature(PetscInt, PetscInt, PetscInt, PetscRe
 pub extern fn PetscDTStroudConicalQuadrature(PetscInt, PetscInt, PetscInt, PetscReal, PetscReal, [*c]PetscQuadrature) PetscErrorCode;
 pub extern fn PetscDTSimplexQuadrature(PetscInt, PetscInt, PetscDTSimplexQuadratureType, [*c]PetscQuadrature) PetscErrorCode;
 pub extern fn PetscDTCreateDefaultQuadrature(DMPolytopeType, PetscInt, [*c]PetscQuadrature, [*c]PetscQuadrature) PetscErrorCode;
+pub extern fn PetscDTCreateQuadratureByCell(DMPolytopeType, PetscInt, PetscDTSimplexQuadratureType, [*c]PetscQuadrature, [*c]PetscQuadrature) PetscErrorCode;
 pub extern fn PetscDTTanhSinhTensorQuadrature(PetscInt, PetscInt, PetscReal, PetscReal, [*c]PetscQuadrature) PetscErrorCode;
 pub extern fn PetscDTTanhSinhIntegrate(?*const fn ([*c]const PetscReal, ?*anyopaque, [*c]PetscReal) callconv(.c) void, PetscReal, PetscReal, PetscInt, ?*anyopaque, [*c]PetscReal) PetscErrorCode;
 pub extern fn PetscDTTanhSinhIntegrateMPFR(?*const fn ([*c]const PetscReal, ?*anyopaque, [*c]PetscReal) callconv(.c) void, PetscReal, PetscReal, PetscInt, ?*anyopaque, [*c]PetscReal) PetscErrorCode;
@@ -8358,7 +8426,8 @@ pub const struct__n_PetscTabulation = extern struct {
     T: [*c][*c]PetscReal = @import("std").mem.zeroes([*c][*c]PetscReal),
 };
 pub const PetscTabulation = [*c]struct__n_PetscTabulation;
-pub const PetscProbFunc = ?*const fn ([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) callconv(.c) PetscErrorCode;
+pub const PetscProbFn = fn ([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) callconv(.c) PetscErrorCode;
+pub const PetscProbFunc = ?*const PetscProbFn;
 pub const DTPROB_DENSITY_CONSTANT: c_int = 0;
 pub const DTPROB_DENSITY_GAUSSIAN: c_int = 1;
 pub const DTPROB_DENSITY_MAXWELL_BOLTZMANN: c_int = 2;
@@ -8367,32 +8436,54 @@ pub const DTProbDensityType = c_uint;
 pub const DTProbDensityTypes: [*c]const [*c]const u8 = @extern([*c]const [*c]const u8, .{
     .name = "DTProbDensityTypes",
 });
-pub extern fn PetscPDFMaxwellBoltzmann1D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscCDFMaxwellBoltzmann1D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscPDFMaxwellBoltzmann2D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscCDFMaxwellBoltzmann2D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscPDFMaxwellBoltzmann3D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscCDFMaxwellBoltzmann3D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscPDFGaussian1D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscCDFGaussian1D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscPDFSampleGaussian1D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscPDFGaussian2D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscPDFSampleGaussian2D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscPDFGaussian3D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscPDFSampleGaussian3D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscPDFConstant1D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscCDFConstant1D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscPDFSampleConstant1D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscPDFConstant2D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscCDFConstant2D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscPDFSampleConstant2D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscPDFConstant3D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscCDFConstant3D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscPDFSampleConstant3D([*c]const PetscReal, [*c]const PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscProbCreateFromOptions(PetscInt, [*c]const u8, [*c]const u8, [*c]PetscProbFunc, [*c]PetscProbFunc, [*c]PetscProbFunc) PetscErrorCode;
-pub extern fn PetscProbComputeKSStatistic(Vec, PetscProbFunc, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscProbComputeKSStatisticWeighted(Vec, Vec, PetscProbFunc, [*c]PetscReal) PetscErrorCode;
-pub extern fn PetscProbComputeKSStatisticMagnitude(Vec, PetscProbFunc, [*c]PetscReal) PetscErrorCode;
+pub const PetscPDFMaxwellBoltzmann1D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:625:29
+pub const PetscCDFMaxwellBoltzmann1D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:626:29
+pub const PetscPDFMaxwellBoltzmann2D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:627:29
+pub const PetscCDFMaxwellBoltzmann2D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:628:29
+pub const PetscPDFMaxwellBoltzmann3D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:629:29
+pub const PetscCDFMaxwellBoltzmann3D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:630:29
+pub const PetscPDFGaussian1D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:631:29
+pub const PetscCDFGaussian1D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:632:29
+pub const PetscPDFSampleGaussian1D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:633:29
+pub const PetscPDFGaussian2D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:634:29
+pub const PetscPDFSampleGaussian2D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:635:29
+pub const PetscPDFGaussian3D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:636:29
+pub const PetscPDFSampleGaussian3D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:637:29
+pub const PetscPDFConstant1D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:638:29
+pub const PetscCDFConstant1D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:639:29
+pub const PetscPDFSampleConstant1D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:640:29
+pub const PetscPDFConstant2D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:641:29
+pub const PetscCDFConstant2D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:642:29
+pub const PetscPDFSampleConstant2D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:643:29
+pub const PetscPDFConstant3D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:644:29
+pub const PetscCDFConstant3D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:645:29
+pub const PetscPDFSampleConstant3D = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscdt.h:646:29
+pub extern fn PetscProbCreateFromOptions(PetscInt, [*c]const u8, [*c]const u8, [*c]?*const PetscProbFn, [*c]?*const PetscProbFn, [*c]?*const PetscProbFn) PetscErrorCode;
+pub extern fn PetscProbComputeKSStatistic(Vec, ?*const PetscProbFn, [*c]PetscReal) PetscErrorCode;
+pub extern fn PetscProbComputeKSStatisticWeighted(Vec, Vec, ?*const PetscProbFn, [*c]PetscReal) PetscErrorCode;
+pub extern fn PetscProbComputeKSStatisticMagnitude(Vec, ?*const PetscProbFn, [*c]PetscReal) PetscErrorCode;
 pub extern fn DMInitializePackage() PetscErrorCode;
 pub extern var DM_CLASSID: PetscClassId;
 pub const DMType = [*c]const u8;
@@ -8448,6 +8539,7 @@ pub extern fn DMCreateRestriction(DM, DM, [*c]Mat) PetscErrorCode;
 pub extern fn DMCreateInjection(DM, DM, [*c]Mat) PetscErrorCode;
 pub extern fn DMCreateMassMatrix(DM, DM, [*c]Mat) PetscErrorCode;
 pub extern fn DMCreateMassMatrixLumped(DM, [*c]Vec, [*c]Vec) PetscErrorCode;
+pub extern fn DMCreateGradientMatrix(DM, DM, [*c]Mat) PetscErrorCode;
 pub extern fn DMGetWorkArray(DM, PetscInt, MPI_Datatype, ?*anyopaque) PetscErrorCode;
 pub extern fn DMRestoreWorkArray(DM, PetscInt, MPI_Datatype, ?*anyopaque) PetscErrorCode;
 pub extern fn DMRefine(DM, MPI_Comm, [*c]DM) PetscErrorCode;
@@ -8522,9 +8614,10 @@ pub extern fn DMGetCellCoordinatesLocalNoncollective(DM, [*c]Vec) PetscErrorCode
 pub extern fn DMSetCellCoordinatesLocal(DM, Vec) PetscErrorCode;
 pub extern fn DMGetCoordinateField(DM, [*c]DMField) PetscErrorCode;
 pub extern fn DMSetCoordinateField(DM, DMField) PetscErrorCode;
+pub extern fn DMSetCellCoordinateField(DM, DMField) PetscErrorCode;
 pub extern fn DMGetLocalBoundingBox(DM, [*c]PetscReal, [*c]PetscReal) PetscErrorCode;
 pub extern fn DMGetBoundingBox(DM, [*c]PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn DMSetCoordinateDisc(DM, PetscFE, PetscBool) PetscErrorCode;
+pub extern fn DMSetCoordinateDisc(DM, PetscFE, PetscBool, PetscBool) PetscErrorCode;
 pub extern fn DMLocatePoints(DM, Vec, DMPointLocationType, [*c]PetscSF) PetscErrorCode;
 pub extern fn DMSnapToGeomModel(DM, PetscInt, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) PetscErrorCode;
 pub extern fn DMSetSnapToGeomModel(DM, [*c]const u8) PetscErrorCode;
@@ -8762,8 +8855,9 @@ pub extern fn DMRemoveLabel(DM, [*c]const u8, [*c]DMLabel) PetscErrorCode;
 pub extern fn DMRemoveLabelBySelf(DM, [*c]DMLabel, PetscBool) PetscErrorCode;
 pub extern fn DMCopyLabels(DM, DM, PetscCopyMode, PetscBool, DMCopyLabelsMode) PetscErrorCode;
 pub extern fn DMCompareLabels(DM, DM, [*c]PetscBool, [*c][*c]u8) PetscErrorCode;
-pub extern fn DMAddBoundary(DM, DMBoundaryConditionType, [*c]const u8, DMLabel, PetscInt, [*c]const PetscInt, PetscInt, PetscInt, [*c]const PetscInt, ?*const fn () callconv(.c) void, ?*const fn () callconv(.c) void, ?*anyopaque, [*c]PetscInt) PetscErrorCode;
+pub extern fn DMAddBoundary(DM, DMBoundaryConditionType, [*c]const u8, DMLabel, PetscInt, [*c]const PetscInt, PetscInt, PetscInt, [*c]const PetscInt, ?*const PetscVoidFn, ?*const PetscVoidFn, ?*anyopaque, [*c]PetscInt) PetscErrorCode;
 pub extern fn DMIsBoundaryPoint(DM, PetscInt, [*c]PetscBool) PetscErrorCode;
+pub extern fn DMHasBound(DM, [*c]PetscBool) PetscErrorCode;
 pub extern fn DMProjectFunction(DM, PetscReal, [*c]?*const fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*anyopaque, InsertMode, Vec) PetscErrorCode;
 pub extern fn DMProjectFunctionLocal(DM, PetscReal, [*c]?*const fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*anyopaque, InsertMode, Vec) PetscErrorCode;
 pub extern fn DMProjectFunctionLabel(DM, PetscReal, DMLabel, PetscInt, [*c]const PetscInt, PetscInt, [*c]const PetscInt, [*c]?*const fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*anyopaque, InsertMode, Vec) PetscErrorCode;
@@ -8788,8 +8882,8 @@ pub fn DMPolytopeTypeIsHybrid(arg_ct: DMPolytopeType) callconv(.c) PetscBool {
     _ = &ct;
     while (true) {
         switch (ct) {
-            @as(c_uint, @bitCast(@as(c_int, 2))), @as(c_uint, @bitCast(@as(c_int, 5))), @as(c_uint, @bitCast(@as(c_int, 9))), @as(c_uint, @bitCast(@as(c_int, 10))) => return @as(c_uint, @bitCast(PETSC_TRUE)),
-            else => return @as(c_uint, @bitCast(PETSC_FALSE)),
+            @as(c_uint, @bitCast(@as(c_int, 2))), @as(c_uint, @bitCast(@as(c_int, 5))), @as(c_uint, @bitCast(@as(c_int, 9))), @as(c_uint, @bitCast(@as(c_int, 10))) => return @as(c_int, 1) != 0,
+            else => return @as(c_int, 0) != 0,
         }
         break;
     }
@@ -8861,7 +8955,7 @@ pub fn DMPolytopeTypeSimpleShape(arg_dim: PetscInt, arg_simplex: PetscBool) call
     _ = &dim;
     var simplex = arg_simplex;
     _ = &simplex;
-    return @as(c_uint, @bitCast(if (dim == @as(c_int, 0)) DM_POLYTOPE_POINT else if (dim == @as(c_int, 1)) DM_POLYTOPE_SEGMENT else if (dim == @as(c_int, 2)) if (simplex != 0) DM_POLYTOPE_TRIANGLE else DM_POLYTOPE_QUADRILATERAL else if (dim == @as(c_int, 3)) if (simplex != 0) DM_POLYTOPE_TETRAHEDRON else DM_POLYTOPE_HEXAHEDRON else DM_POLYTOPE_UNKNOWN));
+    return @as(c_uint, @bitCast(if (dim == @as(c_int, 0)) DM_POLYTOPE_POINT else if (dim == @as(c_int, 1)) DM_POLYTOPE_SEGMENT else if (dim == @as(c_int, 2)) if (@as(c_int, @intFromBool(simplex)) != 0) DM_POLYTOPE_TRIANGLE else DM_POLYTOPE_QUADRILATERAL else if (dim == @as(c_int, 3)) if (@as(c_int, @intFromBool(simplex)) != 0) DM_POLYTOPE_TETRAHEDRON else DM_POLYTOPE_HEXAHEDRON else DM_POLYTOPE_UNKNOWN));
 }
 pub fn DMPolytopeTypeGetNumArrangements(arg_ct: DMPolytopeType) callconv(.c) PetscInt {
     var ct = arg_ct;
@@ -10370,7 +10464,7 @@ pub fn DMPolytopeTypeGetArrangement(arg_ct: DMPolytopeType, arg_o: PetscInt) cal
     _ = &pyrArr;
     while (true) {
         switch (ct) {
-            @as(c_uint, @bitCast(@as(c_int, 0))) => return @as([*c]const PetscInt, @ptrCast(@alignCast(&pntArr.static))),
+            @as(c_uint, @bitCast(@as(c_int, 0))) => return @as([*c]const PetscInt, @ptrCast(@alignCast(&pntArr.static[@as(usize, @intCast(0))]))),
             @as(c_uint, @bitCast(@as(c_int, 1))) => return &segArr.static[@as(c_uint, @intCast(((o + @as(c_int, 1)) * @as(c_int, 2)) * @as(c_int, 2)))],
             @as(c_uint, @bitCast(@as(c_int, 2))) => return &segArr.static[@as(c_uint, @intCast(((o + @as(c_int, 1)) * @as(c_int, 2)) * @as(c_int, 2)))],
             @as(c_uint, @bitCast(@as(c_int, 3))) => return &triArr.static[@as(c_uint, @intCast(((o + @as(c_int, 3)) * @as(c_int, 3)) * @as(c_int, 2)))],
@@ -11313,7 +11407,7 @@ pub fn DMPolytopeTypeGetVertexArrangement(arg_ct: DMPolytopeType, arg_o: PetscIn
     _ = &pyrVerts;
     while (true) {
         switch (ct) {
-            @as(c_uint, @bitCast(@as(c_int, 0))) => return @as([*c]const PetscInt, @ptrCast(@alignCast(&pntVerts.static))),
+            @as(c_uint, @bitCast(@as(c_int, 0))) => return @as([*c]const PetscInt, @ptrCast(@alignCast(&pntVerts.static[@as(usize, @intCast(0))]))),
             @as(c_uint, @bitCast(@as(c_int, 1))) => return &segVerts.static[@as(c_uint, @intCast((o + @as(c_int, 1)) * @as(c_int, 2)))],
             @as(c_uint, @bitCast(@as(c_int, 2))) => return &segVerts.static[@as(c_uint, @intCast((o + @as(c_int, 1)) * @as(c_int, 2)))],
             @as(c_uint, @bitCast(@as(c_int, 3))) => return &triVerts.static[@as(c_uint, @intCast((o + @as(c_int, 3)) * @as(c_int, 3)))],
@@ -15337,7 +15431,7 @@ pub fn PetscSpacePolynomialSetSymmetric(arg_sp: PetscSpace, arg_s: PetscBool) ca
     var s = arg_s;
     _ = &s;
     while (true) {
-        if (__builtin_expect(@as(c_long, @intFromBool(!!!!(s != 0))), @as(c_long, @bitCast(@as(c_long, @as(c_int, 0))))) != 0) while (true) {
+        if (__builtin_expect(@as(c_long, @intFromBool(!!!!s)), @as(c_long, @bitCast(@as(c_long, @as(c_int, 0))))) != 0) while (true) {
             var ierr_seterrq_petsc_: PetscErrorCode = PetscError(PetscObjectComm(@as(PetscObject, @ptrCast(@alignCast(sp)))), @as(c_int, 75), "PetscSpacePolynomialSetSymmetric", "/opt/petsc/linux-c-opt/include/petscspace.h", PETSC_ERR_SUP, @as(c_uint, @bitCast(PETSC_ERROR_INITIAL)), "PETSCSPACEPOLYNOMIAL does not support symmetric polynomials");
             _ = &ierr_seterrq_petsc_;
             return if (ierr_seterrq_petsc_ != 0) ierr_seterrq_petsc_ else PETSC_ERR_RETURN;
@@ -15351,7 +15445,7 @@ pub fn PetscSpacePolynomialGetSymmetric(arg_sp: PetscSpace, arg_s: [*c]PetscBool
     _ = &sp;
     var s = arg_s;
     _ = &s;
-    s.* = @as(c_uint, @bitCast(PETSC_FALSE));
+    s.* = @as(c_int, 0) != 0;
     return @as(PetscErrorCode, @bitCast(@as(c_int, 0)));
 }
 pub extern fn PetscSpacePolynomialSetTensor(PetscSpace, PetscBool) PetscErrorCode;
@@ -15507,6 +15601,7 @@ pub extern fn PetscFECreateLagrange(MPI_Comm, PetscInt, PetscInt, PetscBool, Pet
 pub extern fn PetscFECreateLagrangeByCell(MPI_Comm, PetscInt, PetscInt, DMPolytopeType, PetscInt, PetscInt, [*c]PetscFE) PetscErrorCode;
 pub extern fn PetscFECreateFromSpaces(PetscSpace, PetscDualSpace, PetscQuadrature, PetscQuadrature, [*c]PetscFE) PetscErrorCode;
 pub extern fn PetscFELimitDegree(PetscFE, PetscInt, PetscInt, [*c]PetscFE) PetscErrorCode;
+pub extern fn PetscFECreateBrokenElement(PetscFE, [*c]PetscFE) PetscErrorCode;
 pub extern fn PetscFEGetDimension(PetscFE, [*c]PetscInt) PetscErrorCode;
 pub extern fn PetscFEGetSpatialDimension(PetscFE, [*c]PetscInt) PetscErrorCode;
 pub extern fn PetscFESetNumComponents(PetscFE, PetscInt) PetscErrorCode;
@@ -15521,6 +15616,7 @@ pub extern fn PetscFESetQuadrature(PetscFE, PetscQuadrature) PetscErrorCode;
 pub extern fn PetscFEGetQuadrature(PetscFE, [*c]PetscQuadrature) PetscErrorCode;
 pub extern fn PetscFESetFaceQuadrature(PetscFE, PetscQuadrature) PetscErrorCode;
 pub extern fn PetscFEGetFaceQuadrature(PetscFE, [*c]PetscQuadrature) PetscErrorCode;
+pub extern fn PetscFEExpandFaceQuadrature(PetscFE, PetscQuadrature, [*c]PetscQuadrature) PetscErrorCode;
 pub extern fn PetscFECopyQuadrature(PetscFE, PetscFE) PetscErrorCode;
 pub extern fn PetscFEGetNumDof(PetscFE, [*c][*c]const PetscInt) PetscErrorCode;
 pub extern fn PetscFEGetCellTabulation(PetscFE, PetscInt, [*c]PetscTabulation) PetscErrorCode;
@@ -15540,10 +15636,10 @@ pub extern fn PetscFEIntegrate(PetscDS, PetscInt, PetscInt, [*c]PetscFEGeom, [*c
 pub extern fn PetscFEIntegrateBd(PetscDS, PetscInt, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, PetscInt, [*c]PetscFEGeom, [*c]const PetscScalar, PetscDS, [*c]const PetscScalar, [*c]PetscScalar) PetscErrorCode;
 pub extern fn PetscFEIntegrateResidual(PetscDS, PetscFormKey, PetscInt, [*c]PetscFEGeom, [*c]const PetscScalar, [*c]const PetscScalar, PetscDS, [*c]const PetscScalar, PetscReal, [*c]PetscScalar) PetscErrorCode;
 pub extern fn PetscFEIntegrateBdResidual(PetscDS, PetscWeakForm, PetscFormKey, PetscInt, [*c]PetscFEGeom, [*c]const PetscScalar, [*c]const PetscScalar, PetscDS, [*c]const PetscScalar, PetscReal, [*c]PetscScalar) PetscErrorCode;
-pub extern fn PetscFEIntegrateHybridResidual(PetscDS, PetscDS, PetscFormKey, PetscInt, PetscInt, [*c]PetscFEGeom, [*c]const PetscScalar, [*c]const PetscScalar, PetscDS, [*c]const PetscScalar, PetscReal, [*c]PetscScalar) PetscErrorCode;
-pub extern fn PetscFEIntegrateJacobian(PetscDS, PetscFEJacobianType, PetscFormKey, PetscInt, [*c]PetscFEGeom, [*c]const PetscScalar, [*c]const PetscScalar, PetscDS, [*c]const PetscScalar, PetscReal, PetscReal, [*c]PetscScalar) PetscErrorCode;
+pub extern fn PetscFEIntegrateHybridResidual(PetscDS, PetscDS, PetscFormKey, PetscInt, PetscInt, [*c]PetscFEGeom, [*c]PetscFEGeom, [*c]const PetscScalar, [*c]const PetscScalar, PetscDS, [*c]const PetscScalar, PetscReal, [*c]PetscScalar) PetscErrorCode;
+pub extern fn PetscFEIntegrateJacobian(PetscDS, PetscDS, PetscFEJacobianType, PetscFormKey, PetscInt, [*c]PetscFEGeom, [*c]const PetscScalar, [*c]const PetscScalar, PetscDS, [*c]const PetscScalar, PetscReal, PetscReal, [*c]PetscScalar) PetscErrorCode;
 pub extern fn PetscFEIntegrateBdJacobian(PetscDS, PetscWeakForm, PetscFEJacobianType, PetscFormKey, PetscInt, [*c]PetscFEGeom, [*c]const PetscScalar, [*c]const PetscScalar, PetscDS, [*c]const PetscScalar, PetscReal, PetscReal, [*c]PetscScalar) PetscErrorCode;
-pub extern fn PetscFEIntegrateHybridJacobian(PetscDS, PetscDS, PetscFEJacobianType, PetscFormKey, PetscInt, PetscInt, [*c]PetscFEGeom, [*c]const PetscScalar, [*c]const PetscScalar, PetscDS, [*c]const PetscScalar, PetscReal, PetscReal, [*c]PetscScalar) PetscErrorCode;
+pub extern fn PetscFEIntegrateHybridJacobian(PetscDS, PetscDS, PetscFEJacobianType, PetscFormKey, PetscInt, PetscInt, [*c]PetscFEGeom, [*c]PetscFEGeom, [*c]const PetscScalar, [*c]const PetscScalar, PetscDS, [*c]const PetscScalar, PetscReal, PetscReal, [*c]PetscScalar) PetscErrorCode;
 pub extern fn PetscFECompositeGetMapping(PetscFE, [*c]PetscInt, [*c][*c]const PetscReal, [*c][*c]const PetscReal, [*c][*c]const PetscReal) PetscErrorCode;
 pub extern fn PetscFECreateHeightTrace(PetscFE, PetscInt, [*c]PetscFE) PetscErrorCode;
 pub extern fn PetscFECreatePointTrace(PetscFE, PetscInt, [*c]PetscFE) PetscErrorCode;
@@ -15734,6 +15830,13 @@ pub extern fn PetscPartitionerPartition(PetscPartitioner, PetscInt, PetscInt, [*
 pub extern fn PetscPartitionerShellSetPartition(PetscPartitioner, PetscInt, [*c]const PetscInt, [*c]const PetscInt) PetscErrorCode;
 pub extern fn PetscPartitionerShellSetRandom(PetscPartitioner, PetscBool) PetscErrorCode;
 pub extern fn PetscPartitionerShellGetRandom(PetscPartitioner, [*c]PetscBool) PetscErrorCode;
+pub const PETSCPARTITIONER_MS_STRATEGY_NODE: c_int = 0;
+pub const PETSCPARTITIONER_MS_STRATEGY_MSECTION: c_int = 1;
+pub const PetscPartitionerMultistageStrategy = c_uint;
+pub const PetscPartitionerMultistageStrategyList: [*c]const [*c]const u8 = @extern([*c]const [*c]const u8, .{
+    .name = "PetscPartitionerMultistageStrategyList",
+});
+pub extern fn PetscPartitionerMultistageSetStages(PetscPartitioner, PetscInt, [*c]MPI_Group) PetscErrorCode;
 pub extern fn PetscPartitionerMatPartitioningGetMatPartitioning(PetscPartitioner, [*c]MatPartitioning) PetscErrorCode;
 pub const DM_SHAPE_BOX: c_int = 0;
 pub const DM_SHAPE_BOX_SURFACE: c_int = 1;
@@ -15867,6 +15970,7 @@ pub extern fn DMFieldEvaluateFE(DMField, IS, PetscQuadrature, PetscDataType, ?*a
 pub extern fn DMFieldEvaluateFV(DMField, IS, PetscDataType, ?*anyopaque, ?*anyopaque, ?*anyopaque) PetscErrorCode;
 pub extern fn DMFieldCreateFEGeom(DMField, IS, PetscQuadrature, PetscFEGeomMode, [*c][*c]PetscFEGeom) PetscErrorCode;
 pub extern fn DMFieldCreateDefaultQuadrature(DMField, IS, [*c]PetscQuadrature) PetscErrorCode;
+pub extern fn DMFieldCreateDefaultFaceQuadrature(DMField, IS, [*c]PetscQuadrature) PetscErrorCode;
 pub extern fn DMFieldGetDegree(DMField, IS, [*c]PetscInt, [*c]PetscInt) PetscErrorCode;
 pub extern fn DMFieldCreateDA(DM, PetscInt, [*c]const PetscScalar, [*c]DMField) PetscErrorCode;
 pub extern fn DMFieldCreateDS(DM, PetscInt, Vec, [*c]DMField) PetscErrorCode;
@@ -15882,7 +15986,6 @@ pub extern fn DMFieldShellEvaluateFVDefault(DMField, IS, PetscDataType, ?*anyopa
 pub extern fn DMFieldShellSetGetDegree(DMField, ?*const fn (DMField, IS, [*c]PetscInt, [*c]PetscInt) callconv(.c) PetscErrorCode) PetscErrorCode;
 pub extern fn DMFieldShellSetCreateDefaultQuadrature(DMField, ?*const fn (DMField, IS, [*c]PetscQuadrature) callconv(.c) PetscErrorCode) PetscErrorCode;
 pub extern fn PetscStackSetCheck(PetscBool) PetscErrorCode;
-pub extern fn PetscStackView(?*FILE) PetscErrorCode;
 pub extern fn PetscStackReset() PetscErrorCode;
 pub extern fn PetscStackCopy([*c]PetscStack, [*c]PetscStack) PetscErrorCode;
 pub extern fn PetscStackPrint([*c]PetscStack, ?*FILE) PetscErrorCode;
@@ -15898,7 +16001,7 @@ pub const PetscFortranCallbackType = c_uint;
 pub extern fn PetscFortranCallbackRegister(PetscClassId, [*c]const u8, [*c]PetscFortranCallbackId) PetscErrorCode;
 pub extern fn PetscFortranCallbackGetSizes(PetscClassId, [*c]PetscFortranCallbackId, [*c]PetscFortranCallbackId) PetscErrorCode;
 pub const PetscFortranCallback = extern struct {
-    func: ?*const fn () callconv(.c) void = @import("std").mem.zeroes(?*const fn () callconv(.c) void),
+    func: ?*const PetscFortranCallbackFn = @import("std").mem.zeroes(?*const PetscFortranCallbackFn),
     ctx: ?*anyopaque = @import("std").mem.zeroes(?*anyopaque),
 };
 pub const _p_PetscObject = struct__p_PetscObject;
@@ -15915,8 +16018,8 @@ pub extern fn PetscHeaderDestroy_Private(PetscObject, PetscBool) PetscErrorCode;
 pub extern fn PetscHeaderDestroy_Private_Unlogged(PetscObject, PetscBool) PetscErrorCode;
 pub extern fn PetscHeaderReset_Internal(PetscObject) PetscErrorCode;
 pub extern fn PetscObjectCopyFortranFunctionPointers(PetscObject, PetscObject) PetscErrorCode;
-pub extern fn PetscObjectSetFortranCallback(PetscObject, PetscFortranCallbackType, [*c]PetscFortranCallbackId, ?*const fn () callconv(.c) void, ctx: ?*anyopaque) PetscErrorCode;
-pub extern fn PetscObjectGetFortranCallback(PetscObject, PetscFortranCallbackType, PetscFortranCallbackId, [*c]?*const fn () callconv(.c) void, ctx: [*c]?*anyopaque) PetscErrorCode;
+pub extern fn PetscObjectSetFortranCallback(PetscObject, PetscFortranCallbackType, [*c]PetscFortranCallbackId, ?*const PetscFortranCallbackFn, ctx: ?*anyopaque) PetscErrorCode;
+pub extern fn PetscObjectGetFortranCallback(PetscObject, PetscFortranCallbackType, PetscFortranCallbackId, [*c]?*const PetscFortranCallbackFn, ctx: [*c]?*anyopaque) PetscErrorCode;
 pub extern fn PetscCitationsInitialize() PetscErrorCode;
 pub extern fn PetscFreeMPIResources() PetscErrorCode;
 pub extern fn PetscOptionsHasHelpIntro_Internal(PetscOptions, [*c]PetscBool) PetscErrorCode;
@@ -15968,7 +16071,7 @@ pub const PetscSplitReduction = extern struct {
     comm: MPI_Comm = @import("std").mem.zeroes(MPI_Comm),
     request: MPI_Request = @import("std").mem.zeroes(MPI_Request),
     mix: PetscBool = @import("std").mem.zeroes(PetscBool),
-    @"async": PetscBool = @import("std").mem.zeroes(PetscBool),
+    async: PetscBool = @import("std").mem.zeroes(PetscBool),
     lvalues: [*c]PetscScalar = @import("std").mem.zeroes([*c]PetscScalar),
     gvalues: [*c]PetscScalar = @import("std").mem.zeroes([*c]PetscScalar),
     invecs: [*c]?*anyopaque = @import("std").mem.zeroes([*c]?*anyopaque),
@@ -16104,7 +16207,7 @@ pub const DMPlexTPSTypes: [*c]const [*c]const u8 = @extern([*c]const [*c]const u
 });
 pub extern fn DMPlexGenerate(DM, [*c]const u8, PetscBool, [*c]DM) PetscErrorCode;
 pub extern fn DMPlexCopyCoordinates(DM, DM) PetscErrorCode;
-pub extern fn DMPlexCreateCoordinateSpace(DM, PetscInt, PetscBool, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
+pub extern fn DMPlexCreateCoordinateSpace(DM, PetscInt, PetscBool, PetscBool) PetscErrorCode;
 pub extern fn DMPlexCreateDoublet(MPI_Comm, PetscInt, PetscBool, PetscBool, PetscReal, [*c]DM) PetscErrorCode;
 pub extern fn DMPlexCreateBoxMesh(MPI_Comm, PetscInt, PetscBool, [*c]const PetscInt, [*c]const PetscReal, [*c]const PetscReal, [*c]const DMBoundaryType, PetscBool, PetscInt, PetscBool, [*c]DM) PetscErrorCode;
 pub extern fn DMPlexCreateBoxSurfaceMesh(MPI_Comm, PetscInt, [*c]const PetscInt, [*c]const PetscReal, [*c]const PetscReal, PetscBool, [*c]DM) PetscErrorCode;
@@ -16115,7 +16218,7 @@ pub extern fn DMPlexCreateTPSMesh(MPI_Comm, DMPlexTPSType, [*c]const PetscInt, [
 pub extern fn DMPlexCreateWedgeCylinderMesh(MPI_Comm, PetscInt, PetscBool, [*c]DM) PetscErrorCode;
 pub extern fn DMPlexCreateWedgeBoxMesh(MPI_Comm, [*c]const PetscInt, [*c]const PetscReal, [*c]const PetscReal, [*c]const DMBoundaryType, PetscBool, PetscBool, [*c]DM) PetscErrorCode;
 pub extern fn DMPlexCreateHypercubicMesh(MPI_Comm, PetscInt, [*c]const PetscInt, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]DM) PetscErrorCode;
-pub extern fn DMPlexExtrude(DM, PetscInt, PetscReal, PetscBool, PetscBool, PetscBool, [*c]const PetscReal, [*c]const PetscReal, [*c]DM) PetscErrorCode;
+pub extern fn DMPlexExtrude(DM, PetscInt, PetscReal, PetscBool, PetscBool, PetscBool, [*c]const PetscReal, [*c]const PetscReal, DMLabel, [*c]DM) PetscErrorCode;
 pub extern fn DMPlexSetIsoperiodicFaceSF(DM, PetscInt, [*c]PetscSF) PetscErrorCode;
 pub extern fn DMPlexGetIsoperiodicFaceSF(DM, [*c]PetscInt, [*c][*c]const PetscSF) PetscErrorCode;
 pub extern fn DMPlexSetIsoperiodicFaceTransform(DM, PetscInt, [*c]const PetscScalar) PetscErrorCode;
@@ -16238,6 +16341,8 @@ pub extern fn DMPlexGetNumFaceVertices(DM, PetscInt, PetscInt, [*c]PetscInt) Pet
 pub extern fn DMPlexGetOrientedFace(DM, PetscInt, PetscInt, [*c]const PetscInt, PetscInt, [*c]PetscInt, [*c]PetscInt, [*c]PetscInt, [*c]PetscBool) PetscErrorCode;
 pub extern fn DMPlexGetMinRadius(DM, [*c]PetscReal) PetscErrorCode;
 pub extern fn DMPlexSetMinRadius(DM, PetscReal) PetscErrorCode;
+pub extern fn DMPlexGetCoordinateMap(DM, [*c]?*const PetscPointFn) PetscErrorCode;
+pub extern fn DMPlexSetCoordinateMap(DM, ?*const PetscPointFn) PetscErrorCode;
 pub extern fn DMPlexComputeProjection2Dto1D([*c]PetscScalar, [*c]PetscReal) PetscErrorCode;
 pub extern fn DMPlexComputeProjection3Dto1D([*c]PetscScalar, [*c]PetscReal) PetscErrorCode;
 pub extern fn DMPlexComputeProjection3Dto2D(PetscInt, [*c]PetscScalar, [*c]PetscReal) PetscErrorCode;
@@ -16253,6 +16358,12 @@ pub extern fn DMPlexComputeCellGeometryFVM(DM, PetscInt, [*c]PetscReal, [*c]Pets
 pub extern fn DMPlexComputeGeometryFVM(DM, [*c]Vec, [*c]Vec) PetscErrorCode;
 pub extern fn DMPlexComputeGradientFVM(DM, PetscFV, Vec, Vec, [*c]DM) PetscErrorCode;
 pub extern fn DMPlexGetDataFVM(DM, PetscFV, [*c]Vec, [*c]Vec, [*c]DM) PetscErrorCode;
+pub extern fn DMPlexComputeResidualByKey(DM, PetscFormKey, IS, PetscReal, Vec, Vec, PetscReal, Vec, ?*anyopaque) PetscErrorCode;
+pub extern fn DMPlexComputeJacobianByKey(DM, PetscFormKey, IS, PetscReal, PetscReal, Vec, Vec, Mat, Mat, ?*anyopaque) PetscErrorCode;
+pub extern fn DMPlexComputeResidualHybridByKey(DM, [*c]PetscFormKey, IS, PetscReal, Vec, Vec, PetscReal, Vec, ?*anyopaque) PetscErrorCode;
+pub extern fn DMPlexComputeJacobianHybridByKey(DM, [*c]PetscFormKey, IS, PetscReal, PetscReal, Vec, Vec, Mat, Mat, ?*anyopaque) PetscErrorCode;
+pub extern fn DMPlexComputeJacobianActionByKey(DM, PetscFormKey, IS, PetscReal, PetscReal, Vec, Vec, Vec, Vec, ?*anyopaque) PetscErrorCode;
+pub extern fn DMPlexComputeJacobianByKeyGeneral(DM, DM, PetscFormKey, IS, PetscReal, PetscReal, Vec, Vec, Mat, Mat, ?*anyopaque) PetscErrorCode;
 pub extern fn DMPlexGetGeometryFVM(DM, [*c]Vec, [*c]Vec, [*c]PetscReal) PetscErrorCode;
 pub extern fn DMPlexGetGradientDM(DM, PetscFV, [*c]DM) PetscErrorCode;
 pub extern fn DMPlexInsertBoundaryValues(DM, PetscBool, Vec, PetscReal, Vec, Vec, Vec) PetscErrorCode;
@@ -16262,6 +16373,7 @@ pub extern fn DMPlexInsertBoundaryValuesEssential(DM, PetscReal, PetscInt, Petsc
 pub extern fn DMPlexInsertBoundaryValuesEssentialField(DM, PetscReal, Vec, PetscInt, PetscInt, [*c]const PetscInt, DMLabel, PetscInt, [*c]const PetscInt, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*anyopaque, Vec) PetscErrorCode;
 pub extern fn DMPlexInsertBoundaryValuesEssentialBdField(DM, PetscReal, Vec, PetscInt, PetscInt, [*c]const PetscInt, DMLabel, PetscInt, [*c]const PetscInt, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*anyopaque, Vec) PetscErrorCode;
 pub extern fn DMPlexInsertBoundaryValuesRiemann(DM, PetscReal, Vec, Vec, Vec, PetscInt, PetscInt, [*c]const PetscInt, DMLabel, PetscInt, [*c]const PetscInt, ?*const fn (PetscReal, [*c]const PetscReal, [*c]const PetscReal, [*c]const PetscScalar, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque, Vec) PetscErrorCode;
+pub extern fn DMPlexInsertBounds(DM, PetscBool, PetscReal, Vec) PetscErrorCode;
 pub extern fn DMPlexMarkBoundaryFaces(DM, PetscInt, DMLabel) PetscErrorCode;
 pub extern fn DMPlexCreateSection(DM, [*c]DMLabel, [*c]const PetscInt, [*c]const PetscInt, PetscInt, [*c]const PetscInt, [*c]const IS, [*c]const IS, IS, [*c]PetscSection) PetscErrorCode;
 pub extern fn DMPlexGetSubdomainSection(DM, [*c]PetscSection) PetscErrorCode;
@@ -16274,6 +16386,7 @@ pub extern fn DMPlexReferenceToCoordinates(DM, PetscInt, PetscInt, [*c]const Pet
 pub extern fn DMPlexShearGeometry(DM, DMDirection, [*c]PetscReal) PetscErrorCode;
 pub extern fn DMPlexRemapGeometry(DM, PetscReal, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
 pub extern fn DMPlexVecGetClosure(DM, PetscSection, Vec, PetscInt, [*c]PetscInt, [*c][*c]PetscScalar) PetscErrorCode;
+pub extern fn DMPlexVecGetOrientedClosure(DM, PetscSection, PetscBool, Vec, PetscInt, PetscInt, [*c]PetscInt, [*c][*c]PetscScalar) PetscErrorCode;
 pub extern fn DMPlexVecRestoreClosure(DM, PetscSection, Vec, PetscInt, [*c]PetscInt, [*c][*c]PetscScalar) PetscErrorCode;
 pub extern fn DMPlexVecSetClosure(DM, PetscSection, Vec, PetscInt, [*c]const PetscScalar, InsertMode) PetscErrorCode;
 pub extern fn DMPlexMatSetClosure(DM, PetscSection, PetscSection, Mat, PetscInt, [*c]const PetscScalar, InsertMode) PetscErrorCode;
@@ -16325,6 +16438,7 @@ pub extern fn DMPlexComputeGradientClementInterpolant(DM, Vec, Vec) PetscErrorCo
 pub extern fn DMPlexComputeInjectorFEM(DM, DM, [*c]VecScatter, ?*anyopaque) PetscErrorCode;
 pub extern fn DMPlexComputeMassMatrixNested(DM, DM, Mat, ?*anyopaque) PetscErrorCode;
 pub extern fn DMPlexComputeMassMatrixGeneral(DM, DM, Mat, ?*anyopaque) PetscErrorCode;
+pub extern fn DMPlexComputeGradientMatrixNested(DM, DM, Mat, ?*anyopaque) PetscErrorCode;
 pub extern fn DMPlexCreateRigidBody(DM, PetscInt, [*c]MatNullSpace) PetscErrorCode;
 pub extern fn DMPlexCreateRigidBodies(DM, PetscInt, DMLabel, [*c]const PetscInt, [*c]const PetscInt, [*c]MatNullSpace) PetscErrorCode;
 pub extern fn DMPlexComputeMoments(DM, Vec, [*c]PetscReal) PetscErrorCode;
@@ -16335,8 +16449,10 @@ pub extern fn DMPlexSNESComputeResidualFEM(DM, Vec, Vec, ?*anyopaque) PetscError
 pub extern fn DMPlexSNESComputeResidualCEED(DM, Vec, Vec, ?*anyopaque) PetscErrorCode;
 pub extern fn DMPlexSNESComputeResidualDS(DM, Vec, Vec, ?*anyopaque) PetscErrorCode;
 pub extern fn DMPlexSNESComputeJacobianFEM(DM, Vec, Mat, Mat, ?*anyopaque) PetscErrorCode;
-pub extern fn DMPlexComputeBdResidualSingle(DM, PetscReal, PetscWeakForm, PetscFormKey, Vec, Vec, Vec) PetscErrorCode;
-pub extern fn DMPlexComputeBdJacobianSingle(DM, PetscReal, PetscWeakForm, DMLabel, PetscInt, [*c]const PetscInt, PetscInt, Vec, Vec, PetscReal, Mat, Mat) PetscErrorCode;
+pub extern fn DMPlexComputeBdResidualSingle(DM, PetscWeakForm, PetscFormKey, Vec, Vec, PetscReal, Vec) PetscErrorCode;
+pub extern fn DMPlexComputeBdJacobianSingle(DM, PetscWeakForm, DMLabel, PetscInt, [*c]const PetscInt, PetscInt, Vec, Vec, PetscReal, PetscReal, Mat, Mat) PetscErrorCode;
+pub extern fn DMPlexComputeBdResidualSingleByKey(DM, PetscWeakForm, PetscFormKey, IS, Vec, Vec, PetscReal, DMField, Vec) PetscErrorCode;
+pub extern fn DMPlexComputeBdJacobianSingleByLabel(DM, PetscWeakForm, DMLabel, PetscInt, [*c]const PetscInt, PetscInt, IS, Vec, Vec, PetscReal, DMField, PetscReal, Mat, Mat) PetscErrorCode;
 pub extern fn DMPlexTSComputeBoundary(DM, PetscReal, Vec, Vec, ?*anyopaque) PetscErrorCode;
 pub extern fn DMPlexTSComputeRHSFunctionFVM(DM, PetscReal, Vec, Vec, ?*anyopaque) PetscErrorCode;
 pub extern fn DMPlexTSComputeRHSFunctionFVMCEED(DM, PetscReal, Vec, Vec, ?*anyopaque) PetscErrorCode;
@@ -16470,6 +16586,10 @@ pub extern fn DMPlexTransformView(DMPlexTransform, PetscViewer) PetscErrorCode;
 pub extern fn DMPlexTransformDestroy([*c]DMPlexTransform) PetscErrorCode;
 pub extern fn DMPlexGetTransformType(DM, [*c]DMPlexTransformType) PetscErrorCode;
 pub extern fn DMPlexSetTransformType(DM, DMPlexTransformType) PetscErrorCode;
+pub extern fn DMPlexGetTransform(DM, [*c]DMPlexTransform) PetscErrorCode;
+pub extern fn DMPlexSetTransform(DM, DMPlexTransform) PetscErrorCode;
+pub extern fn DMPlexGetSaveTransform(DM, [*c]PetscBool) PetscErrorCode;
+pub extern fn DMPlexSetSaveTransform(DM, PetscBool) PetscErrorCode;
 pub extern fn DMPlexTransformGetDM(DMPlexTransform, [*c]DM) PetscErrorCode;
 pub extern fn DMPlexTransformSetDM(DMPlexTransform, DM) PetscErrorCode;
 pub extern fn DMPlexTransformSetDimensions(DMPlexTransform, DM, DM) PetscErrorCode;
@@ -16520,6 +16640,7 @@ pub extern fn DMPlexTransformCohesiveExtrudeGetTensor(DMPlexTransform, [*c]Petsc
 pub extern fn DMPlexTransformCohesiveExtrudeSetTensor(DMPlexTransform, PetscBool) PetscErrorCode;
 pub extern fn DMPlexTransformCohesiveExtrudeGetWidth(DMPlexTransform, [*c]PetscReal) PetscErrorCode;
 pub extern fn DMPlexTransformCohesiveExtrudeSetWidth(DMPlexTransform, PetscReal) PetscErrorCode;
+pub extern fn DMPlexTransformCohesiveExtrudeGetUnsplit(DMPlexTransform, [*c]DMLabel) PetscErrorCode;
 pub extern fn DMPlexCreateEphemeral(DMPlexTransform, [*c]const u8, [*c]DM) PetscErrorCode;
 pub extern fn DMRedundantCreate(MPI_Comm, PetscMPIInt, PetscInt, [*c]DM) PetscErrorCode;
 pub extern fn DMRedundantSetSize(DM, PetscMPIInt, PetscInt) PetscErrorCode;
@@ -16682,10 +16803,10 @@ pub extern fn DMSwarmGetCoordinateFunction(DM, [*c]?*const fn (PetscInt, PetscRe
 pub extern fn DMSwarmSetCoordinateFunction(DM, ?*const fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode) PetscErrorCode;
 pub extern fn DMSwarmGetVelocityFunction(DM, [*c]?*const fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode) PetscErrorCode;
 pub extern fn DMSwarmSetVelocityFunction(DM, ?*const fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode) PetscErrorCode;
-pub extern fn DMSwarmComputeLocalSize(DM, PetscInt, PetscProbFunc) PetscErrorCode;
+pub extern fn DMSwarmComputeLocalSize(DM, PetscInt, ?*const PetscProbFn) PetscErrorCode;
 pub extern fn DMSwarmComputeLocalSizeFromOptions(DM) PetscErrorCode;
 pub extern fn DMSwarmInitializeCoordinates(DM) PetscErrorCode;
-pub extern fn DMSwarmInitializeVelocities(DM, PetscProbFunc, [*c]const PetscReal) PetscErrorCode;
+pub extern fn DMSwarmInitializeVelocities(DM, ?*const PetscProbFn, [*c]const PetscReal) PetscErrorCode;
 pub extern fn DMSwarmInitializeVelocitiesFromOptions(DM, [*c]const PetscReal) PetscErrorCode;
 pub extern fn DMSwarmCreatePointPerCellCount(DM, [*c]PetscInt, [*c][*c]PetscInt) PetscErrorCode;
 pub extern fn DMSwarmDataFieldGetEntries(DMSwarmDataField, [*c]?*anyopaque) PetscErrorCode;
@@ -17253,6 +17374,7 @@ pub extern fn PCApplySymmetricLeft(PC, Vec, Vec) PetscErrorCode;
 pub extern fn PCApplySymmetricRight(PC, Vec, Vec) PetscErrorCode;
 pub extern fn PCApplyBAorAB(PC, PCSide, Vec, Vec, Vec) PetscErrorCode;
 pub extern fn PCApplyTranspose(PC, Vec, Vec) PetscErrorCode;
+pub extern fn PCMatApplyTranspose(PC, Mat, Mat) PetscErrorCode;
 pub extern fn PCApplyTransposeExists(PC, [*c]PetscBool) PetscErrorCode;
 pub extern fn PCApplyBAorABTranspose(PC, PCSide, Vec, Vec, Vec) PetscErrorCode;
 pub extern fn PCSetReusePreconditioner(PC, PetscBool) PetscErrorCode;
@@ -17267,8 +17389,10 @@ pub extern fn PCReset(PC) PetscErrorCode;
 pub extern fn PCDestroy([*c]PC) PetscErrorCode;
 pub extern fn PCSetFromOptions(PC) PetscErrorCode;
 pub extern fn PCFactorGetMatrix(PC, [*c]Mat) PetscErrorCode;
-pub extern fn PCSetModifySubMatrices(PC, ?*const fn (PC, PetscInt, [*c]const IS, [*c]const IS, [*c]Mat, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
-pub extern fn PCModifySubMatrices(PC, PetscInt, [*c]const IS, [*c]const IS, [*c]Mat, ?*anyopaque) PetscErrorCode;
+pub const PCModifySubMatricesFn = fn (PC, PetscInt, [*c]const IS, [*c]const IS, [*c]Mat, ?*anyopaque) callconv(.c) PetscErrorCode;
+pub extern fn PCSetModifySubMatrices(PC, ?*const PCModifySubMatricesFn, ?*anyopaque) PetscErrorCode;
+pub const PCModifySubMatrices = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscpc.h:109:36
 pub extern fn PCSetOperators(PC, Mat, Mat) PetscErrorCode;
 pub extern fn PCGetOperators(PC, [*c]Mat, [*c]Mat) PetscErrorCode;
 pub extern fn PCGetOperatorsSet(PC, [*c]PetscBool, [*c]PetscBool) PetscErrorCode;
@@ -17286,6 +17410,7 @@ pub fn PCComputeExplicitOperator(arg_A: PC, arg_B: [*c]Mat) callconv(.c) PetscEr
     _ = &B;
     return PCComputeOperator(A, null, B);
 }
+pub extern fn PCSetPostSetUp(PC, ?*const fn (PC) callconv(.c) PetscErrorCode) PetscErrorCode;
 pub extern fn PCGetDiagonalScale(PC, [*c]PetscBool) PetscErrorCode;
 pub extern fn PCDiagonalScaleLeft(PC, Vec, Vec) PetscErrorCode;
 pub extern fn PCDiagonalScaleRight(PC, Vec, Vec) PetscErrorCode;
@@ -17326,6 +17451,7 @@ pub extern fn PCShellSetApplySymmetricLeft(PC, ?*const fn (PC, Vec, Vec) callcon
 pub extern fn PCShellSetApplySymmetricRight(PC, ?*const fn (PC, Vec, Vec) callconv(.c) PetscErrorCode) PetscErrorCode;
 pub extern fn PCShellSetApplyBA(PC, ?*const fn (PC, PCSide, Vec, Vec, Vec) callconv(.c) PetscErrorCode) PetscErrorCode;
 pub extern fn PCShellSetApplyTranspose(PC, ?*const fn (PC, Vec, Vec) callconv(.c) PetscErrorCode) PetscErrorCode;
+pub extern fn PCShellSetMatApplyTranspose(PC, ?*const fn (PC, Mat, Mat) callconv(.c) PetscErrorCode) PetscErrorCode;
 pub extern fn PCShellSetSetUp(PC, ?*const fn (PC) callconv(.c) PetscErrorCode) PetscErrorCode;
 pub extern fn PCShellSetApplyRichardson(PC, ?*const fn (PC, Vec, Vec, Vec, PetscReal, PetscReal, PetscReal, PetscInt, PetscBool, [*c]PetscInt, [*c]PCRichardsonConvergedReason) callconv(.c) PetscErrorCode) PetscErrorCode;
 pub extern fn PCShellSetView(PC, ?*const fn (PC, PetscViewer) callconv(.c) PetscErrorCode) PetscErrorCode;
@@ -17618,9 +17744,9 @@ pub extern fn PCPatchSetConstructType(PC, PCPatchConstructType, ?*const fn (PC, 
 pub extern fn PCPatchGetConstructType(PC, [*c]PCPatchConstructType, [*c]?*const fn (PC, [*c]PetscInt, [*c][*c]IS, [*c]IS, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*anyopaque) PetscErrorCode;
 pub extern fn PCPatchSetDiscretisationInfo(PC, PetscInt, [*c]DM, [*c]PetscInt, [*c]PetscInt, [*c][*c]const PetscInt, [*c]const PetscInt, PetscInt, [*c]const PetscInt, PetscInt, [*c]const PetscInt) PetscErrorCode;
 pub extern fn PCPatchSetComputeOperator(PC, ?*const fn (PC, PetscInt, Vec, Mat, IS, PetscInt, [*c]const PetscInt, [*c]const PetscInt, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
-pub extern fn PCPatchSetComputeFunction(pc: PC, func: ?*const fn (PC, PetscInt, Vec, Vec, IS, PetscInt, [*c]const PetscInt, [*c]const PetscInt, ?*anyopaque) callconv(.c) PetscErrorCode, ctx: ?*anyopaque) PetscErrorCode;
+pub extern fn PCPatchSetComputeFunction(pc: PC, ?*const fn (PC, PetscInt, Vec, Vec, IS, PetscInt, [*c]const PetscInt, [*c]const PetscInt, ?*anyopaque) callconv(.c) PetscErrorCode, ctx: ?*anyopaque) PetscErrorCode;
 pub extern fn PCPatchSetComputeOperatorInteriorFacets(PC, ?*const fn (PC, PetscInt, Vec, Mat, IS, PetscInt, [*c]const PetscInt, [*c]const PetscInt, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
-pub extern fn PCPatchSetComputeFunctionInteriorFacets(pc: PC, func: ?*const fn (PC, PetscInt, Vec, Vec, IS, PetscInt, [*c]const PetscInt, [*c]const PetscInt, ?*anyopaque) callconv(.c) PetscErrorCode, ctx: ?*anyopaque) PetscErrorCode;
+pub extern fn PCPatchSetComputeFunctionInteriorFacets(pc: PC, ?*const fn (PC, PetscInt, Vec, Vec, IS, PetscInt, [*c]const PetscInt, [*c]const PetscInt, ?*anyopaque) callconv(.c) PetscErrorCode, ctx: ?*anyopaque) PetscErrorCode;
 pub extern fn PCLMVMSetMatLMVM(PC, Mat) PetscErrorCode;
 pub extern fn PCLMVMGetMatLMVM(PC, [*c]Mat) PetscErrorCode;
 pub extern fn PCLMVMSetIS(PC, IS) PetscErrorCode;
@@ -17697,7 +17823,10 @@ pub extern var KSPMonitorList: PetscFunctionList;
 pub extern var KSPMonitorCreateList: PetscFunctionList;
 pub extern var KSPMonitorDestroyList: PetscFunctionList;
 pub extern fn KSPRegister([*c]const u8, ?*const fn (KSP) callconv(.c) PetscErrorCode) PetscErrorCode;
-pub extern fn KSPMonitorRegister([*c]const u8, PetscViewerType, PetscViewerFormat, ?*const fn (KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) callconv(.c) PetscErrorCode, ?*const fn (PetscViewer, PetscViewerFormat, ?*anyopaque, [*c][*c]PetscViewerAndFormat) callconv(.c) PetscErrorCode, ?*const fn ([*c][*c]PetscViewerAndFormat) callconv(.c) PetscErrorCode) PetscErrorCode;
+pub const KSPMonitorRegisterFn = fn (KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) callconv(.c) PetscErrorCode;
+pub const KSPMonitorRegisterCreateFn = fn (PetscViewer, PetscViewerFormat, ?*anyopaque, [*c][*c]PetscViewerAndFormat) callconv(.c) PetscErrorCode;
+pub const KSPMonitorRegisterDestroyFn = fn ([*c][*c]PetscViewerAndFormat) callconv(.c) PetscErrorCode;
+pub extern fn KSPMonitorRegister([*c]const u8, PetscViewerType, PetscViewerFormat, ?*const KSPMonitorRegisterFn, ?*const KSPMonitorRegisterCreateFn, ?*const KSPMonitorRegisterDestroyFn) PetscErrorCode;
 pub extern fn KSPSetPCSide(KSP, PCSide) PetscErrorCode;
 pub extern fn KSPGetPCSide(KSP, [*c]PCSide) PetscErrorCode;
 pub extern fn KSPSetTolerances(KSP, PetscReal, PetscReal, PetscReal, PetscInt) PetscErrorCode;
@@ -17732,14 +17861,16 @@ pub fn KSPGetVecs(arg_ksp: KSP, arg_n: PetscInt, arg_x: [*c][*c]Vec, arg_m: Pets
     _ = &y;
     return KSPCreateVecs(ksp, n, x, m, y);
 }
-pub extern fn KSPSetPreSolve(KSP, ?*const fn (KSP, Vec, Vec, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
-pub extern fn KSPSetPostSolve(KSP, ?*const fn (KSP, Vec, Vec, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
+pub const KSPPSolveFn = fn (KSP, Vec, Vec, ?*anyopaque) callconv(.c) PetscErrorCode;
+pub extern fn KSPSetPreSolve(KSP, ?*const KSPPSolveFn, ?*anyopaque) PetscErrorCode;
+pub extern fn KSPSetPostSolve(KSP, ?*const KSPPSolveFn, ?*anyopaque) PetscErrorCode;
 pub extern fn KSPSetPC(KSP, PC) PetscErrorCode;
 pub extern fn KSPGetPC(KSP, [*c]PC) PetscErrorCode;
 pub extern fn KSPSetNestLevel(KSP, PetscInt) PetscErrorCode;
 pub extern fn KSPGetNestLevel(KSP, [*c]PetscInt) PetscErrorCode;
+pub const KSPMonitorFn = fn (KSP, PetscInt, PetscReal, ?*anyopaque) callconv(.c) PetscErrorCode;
 pub extern fn KSPMonitor(KSP, PetscInt, PetscReal) PetscErrorCode;
-pub extern fn KSPMonitorSet(KSP, ?*const fn (KSP, PetscInt, PetscReal, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque, ?*const PetscCtxDestroyFn) PetscErrorCode;
+pub extern fn KSPMonitorSet(KSP, ?*const KSPMonitorFn, ?*anyopaque, ?*const PetscCtxDestroyFn) PetscErrorCode;
 pub extern fn KSPMonitorCancel(KSP) PetscErrorCode;
 pub extern fn KSPGetMonitorContext(KSP, ?*anyopaque) PetscErrorCode;
 pub extern fn KSPGetResidualHistory(KSP, [*c][*c]const PetscReal, [*c]PetscInt) PetscErrorCode;
@@ -17764,9 +17895,10 @@ pub extern fn PCMGGetSmootherUp(PC, PetscInt, [*c]KSP) PetscErrorCode;
 pub extern fn PCMGGetCoarseSolve(PC, [*c]KSP) PetscErrorCode;
 pub extern fn PCGalerkinGetKSP(PC, [*c]KSP) PetscErrorCode;
 pub extern fn PCDeflationGetCoarseKSP(PC, [*c]KSP) PetscErrorCode;
+pub const PCMGCoarseSpaceConstructorFn = fn (PC, PetscInt, DM, KSP, PetscInt, Mat, [*c]Mat) callconv(.c) PetscErrorCode;
 pub extern var PCMGCoarseList: PetscFunctionList;
-pub extern fn PCMGRegisterCoarseSpaceConstructor([*c]const u8, ?*const fn (PC, PetscInt, DM, KSP, PetscInt, Mat, [*c]Mat) callconv(.c) PetscErrorCode) PetscErrorCode;
-pub extern fn PCMGGetCoarseSpaceConstructor([*c]const u8, [*c]?*const fn (PC, PetscInt, DM, KSP, PetscInt, Mat, [*c]Mat) callconv(.c) PetscErrorCode) PetscErrorCode;
+pub extern fn PCMGRegisterCoarseSpaceConstructor([*c]const u8, ?*const PCMGCoarseSpaceConstructorFn) PetscErrorCode;
+pub extern fn PCMGGetCoarseSpaceConstructor([*c]const u8, [*c]?*const PCMGCoarseSpaceConstructorFn) PetscErrorCode;
 pub extern fn KSPBuildSolution(KSP, Vec, [*c]Vec) PetscErrorCode;
 pub extern fn KSPBuildResidual(KSP, Vec, Vec, [*c]Vec) PetscErrorCode;
 pub const KSP_CHEBYSHEV_FIRST: c_int = 0;
@@ -17811,7 +17943,9 @@ pub extern fn KSPPIPEGCRSetTruncationType(KSP, KSPFCDTruncationType) PetscErrorC
 pub extern fn KSPPIPEGCRGetTruncationType(KSP, [*c]KSPFCDTruncationType) PetscErrorCode;
 pub extern fn KSPPIPEGCRSetUnrollW(KSP, PetscBool) PetscErrorCode;
 pub extern fn KSPPIPEGCRGetUnrollW(KSP, [*c]PetscBool) PetscErrorCode;
-pub extern fn KSPPIPEGCRSetModifyPC(KSP, ?*const fn (KSP, PetscInt, PetscReal, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque, ?*const fn (?*anyopaque) callconv(.c) PetscErrorCode) PetscErrorCode;
+pub const KSPFlexibleModifyPCFn = fn (KSP, PetscInt, PetscInt, PetscReal, ?*anyopaque) callconv(.c) PetscErrorCode;
+pub extern fn KSPFlexibleSetModifyPC(KSP, ?*const KSPFlexibleModifyPCFn, ?*anyopaque, ?*const PetscCtxDestroyFn) PetscErrorCode;
+pub extern fn KSPPIPEGCRSetModifyPC(KSP, ?*const KSPFlexibleModifyPCFn, ?*anyopaque, ?*const PetscCtxDestroyFn) PetscErrorCode;
 pub extern fn KSPGMRESSetRestart(KSP, PetscInt) PetscErrorCode;
 pub extern fn KSPGMRESGetRestart(KSP, [*c]PetscInt) PetscErrorCode;
 pub extern fn KSPGMRESSetHapTol(KSP, PetscReal) PetscErrorCode;
@@ -17826,7 +17960,7 @@ pub extern fn KSPLGMRESSetConstant(KSP) PetscErrorCode;
 pub extern fn KSPPIPEFGMRESSetShift(KSP, PetscScalar) PetscErrorCode;
 pub extern fn KSPGCRSetRestart(KSP, PetscInt) PetscErrorCode;
 pub extern fn KSPGCRGetRestart(KSP, [*c]PetscInt) PetscErrorCode;
-pub extern fn KSPGCRSetModifyPC(KSP, ?*const fn (KSP, PetscInt, PetscReal, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque, ?*const fn (?*anyopaque) callconv(.c) PetscErrorCode) PetscErrorCode;
+pub extern fn KSPGCRSetModifyPC(KSP, ?*const KSPFlexibleModifyPCFn, ?*anyopaque, ?*const PetscCtxDestroyFn) PetscErrorCode;
 pub extern fn KSPMINRESSetRadius(KSP, PetscReal) PetscErrorCode;
 pub extern fn KSPMINRESGetUseQLP(KSP, [*c]PetscBool) PetscErrorCode;
 pub extern fn KSPMINRESSetUseQLP(KSP, PetscBool) PetscErrorCode;
@@ -17873,9 +18007,11 @@ pub const KSPGMRESCGSRefinementTypes: [*c]const [*c]const u8 = @extern([*c]const
 });
 pub extern fn KSPGMRESSetCGSRefinementType(KSP, KSPGMRESCGSRefinementType) PetscErrorCode;
 pub extern fn KSPGMRESGetCGSRefinementType(KSP, [*c]KSPGMRESCGSRefinementType) PetscErrorCode;
-pub extern fn KSPFGMRESModifyPCNoChange(KSP, PetscInt, PetscInt, PetscReal, ?*anyopaque) PetscErrorCode;
-pub extern fn KSPFGMRESModifyPCKSP(KSP, PetscInt, PetscInt, PetscReal, ?*anyopaque) PetscErrorCode;
-pub extern fn KSPFGMRESSetModifyPC(KSP, ?*const fn (KSP, PetscInt, PetscInt, PetscReal, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque, ?*const fn (?*anyopaque) callconv(.c) PetscErrorCode) PetscErrorCode;
+pub const KSPFGMRESModifyPCNoChange = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:558:36
+pub const KSPFGMRESModifyPCKSP = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:559:36
+pub extern fn KSPFGMRESSetModifyPC(KSP, ?*const KSPFlexibleModifyPCFn, ?*anyopaque, ?*const PetscCtxDestroyFn) PetscErrorCode;
 pub extern fn KSPQCGSetTrustRegionRadius(KSP, PetscReal) PetscErrorCode;
 pub extern fn KSPQCGGetQuadratic(KSP, [*c]PetscReal) PetscErrorCode;
 pub extern fn KSPQCGGetTrialStepNorm(KSP, [*c]PetscReal) PetscErrorCode;
@@ -17886,26 +18022,64 @@ pub extern fn KSPBCGSLSetUsePseudoinverse(KSP, PetscBool) PetscErrorCode;
 pub extern fn KSPSetFromOptions(KSP) PetscErrorCode;
 pub extern fn KSPResetFromOptions(KSP) PetscErrorCode;
 pub extern fn KSPMonitorSetFromOptions(KSP, [*c]const u8, [*c]const u8, ?*anyopaque) PetscErrorCode;
-pub extern fn KSPMonitorResidual(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorResidualDraw(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorResidualDrawLG(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
+pub const KSPMonitorResidual = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:575:35
+pub const KSPMonitorResidualView = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:576:35
+pub fn KSPMonitorResidualDraw(arg_ksp: KSP, arg_n: PetscInt, arg_rnorm: PetscReal, arg_vf: [*c]PetscViewerAndFormat) callconv(.c) PetscErrorCode {
+    var ksp = arg_ksp;
+    _ = &ksp;
+    var n = arg_n;
+    _ = &n;
+    var rnorm = arg_rnorm;
+    _ = &rnorm;
+    var vf = arg_vf;
+    _ = &vf;
+    return KSPMonitorResidualView(ksp, n, rnorm, vf);
+}
+pub const KSPMonitorResidualDrawLG = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:581:35
 pub extern fn KSPMonitorResidualDrawLGCreate(PetscViewer, PetscViewerFormat, ?*anyopaque, [*c][*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorResidualShort(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorResidualRange(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorTrueResidual(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorTrueResidualDraw(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorTrueResidualDrawLG(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
+pub const KSPMonitorResidualShort = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:583:35
+pub const KSPMonitorResidualRange = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:584:35
+pub const KSPMonitorTrueResidual = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:585:35
+pub const KSPMonitorTrueResidualView = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:586:35
+pub fn KSPMonitorTrueResidualDraw(arg_ksp: KSP, arg_n: PetscInt, arg_rnorm: PetscReal, arg_vf: [*c]PetscViewerAndFormat) callconv(.c) PetscErrorCode {
+    var ksp = arg_ksp;
+    _ = &ksp;
+    var n = arg_n;
+    _ = &n;
+    var rnorm = arg_rnorm;
+    _ = &rnorm;
+    var vf = arg_vf;
+    _ = &vf;
+    return KSPMonitorTrueResidualView(ksp, n, rnorm, vf);
+}
+pub const KSPMonitorTrueResidualDrawLG = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:591:35
 pub extern fn KSPMonitorTrueResidualDrawLGCreate(PetscViewer, PetscViewerFormat, ?*anyopaque, [*c][*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorTrueResidualMax(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorError(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorErrorDraw(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorErrorDrawLG(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
+pub const KSPMonitorTrueResidualMax = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:593:35
+pub const KSPMonitorError = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:594:35
+pub const KSPMonitorErrorDraw = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:595:35
+pub const KSPMonitorErrorDrawLG = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:596:35
 pub extern fn KSPMonitorErrorDrawLGCreate(PetscViewer, PetscViewerFormat, ?*anyopaque, [*c][*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorSolution(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorSolutionDraw(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorSolutionDrawLG(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
+pub const KSPMonitorSolution = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:598:35
+pub const KSPMonitorSolutionDraw = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:599:35
+pub const KSPMonitorSolutionDrawLG = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:600:35
 pub extern fn KSPMonitorSolutionDrawLGCreate(PetscViewer, PetscViewerFormat, ?*anyopaque, [*c][*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPMonitorSingularValue(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
+pub const KSPMonitorSingularValue = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:602:35
 pub extern fn KSPMonitorSingularValueCreate(PetscViewer, PetscViewerFormat, ?*anyopaque, [*c][*c]PetscViewerAndFormat) PetscErrorCode;
 pub fn KSPMonitorDefault(arg_ksp: KSP, arg_n: PetscInt, arg_rnorm: PetscReal, arg_vf: [*c]PetscViewerAndFormat) callconv(.c) PetscErrorCode {
     var ksp = arg_ksp;
@@ -17960,11 +18134,12 @@ pub extern fn KSPSetDiagonalScale(KSP, PetscBool) PetscErrorCode;
 pub extern fn KSPGetDiagonalScale(KSP, [*c]PetscBool) PetscErrorCode;
 pub extern fn KSPSetDiagonalScaleFix(KSP, PetscBool) PetscErrorCode;
 pub extern fn KSPGetDiagonalScaleFix(KSP, [*c]PetscBool) PetscErrorCode;
+pub const KSPConvergedReasonViewFn = fn (KSP, ?*anyopaque) callconv(.c) PetscErrorCode;
 pub extern fn KSPView(KSP, PetscViewer) PetscErrorCode;
 pub extern fn KSPLoad(KSP, PetscViewer) PetscErrorCode;
 pub extern fn KSPViewFromOptions(KSP, PetscObject, [*c]const u8) PetscErrorCode;
 pub extern fn KSPConvergedReasonView(KSP, PetscViewer) PetscErrorCode;
-pub extern fn KSPConvergedReasonViewSet(KSP, ?*const fn (KSP, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque, ?*const PetscCtxDestroyFn) PetscErrorCode;
+pub extern fn KSPConvergedReasonViewSet(KSP, ?*const KSPConvergedReasonViewFn, ?*anyopaque, ?*const PetscCtxDestroyFn) PetscErrorCode;
 pub extern fn KSPConvergedReasonViewFromOptions(KSP) PetscErrorCode;
 pub extern fn KSPConvergedReasonViewCancel(KSP) PetscErrorCode;
 pub extern fn KSPConvergedRateView(KSP, PetscViewer) PetscErrorCode;
@@ -17984,8 +18159,10 @@ pub extern fn KSPLSQRSetExactMatNorm(KSP, PetscBool) PetscErrorCode;
 pub extern fn KSPLSQRSetComputeStandardErrorVec(KSP, PetscBool) PetscErrorCode;
 pub extern fn KSPLSQRGetStandardErrorVec(KSP, [*c]Vec) PetscErrorCode;
 pub extern fn KSPLSQRGetNorms(KSP, [*c]PetscReal, [*c]PetscReal) PetscErrorCode;
-pub extern fn KSPLSQRMonitorResidual(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
-pub extern fn KSPLSQRMonitorResidualDrawLG(KSP, PetscInt, PetscReal, [*c]PetscViewerAndFormat) PetscErrorCode;
+pub const KSPLSQRMonitorResidual = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:678:35
+pub const KSPLSQRMonitorResidualDrawLG = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:679:35
 pub extern fn KSPLSQRMonitorResidualDrawLGCreate(PetscViewer, PetscViewerFormat, ?*anyopaque, [*c][*c]PetscViewerAndFormat) PetscErrorCode;
 pub extern fn PCRedundantGetKSP(PC, [*c]KSP) PetscErrorCode;
 pub extern fn PCRedistributeGetKSP(PC, [*c]KSP) PetscErrorCode;
@@ -18004,7 +18181,9 @@ pub extern fn KSPSetSupportedNorm(KSP, KSPNormType, PCSide, PetscInt) PetscError
 pub extern fn KSPSetCheckNormIteration(KSP, PetscInt) PetscErrorCode;
 pub extern fn KSPSetLagNorm(KSP, PetscBool) PetscErrorCode;
 pub const KSP_CONVERGED_RTOL_NORMAL: c_int = 1;
+pub const KSP_CONVERGED_RTOL_NORMAL_EQUATIONS: c_int = 1;
 pub const KSP_CONVERGED_ATOL_NORMAL: c_int = 9;
+pub const KSP_CONVERGED_ATOL_NORMAL_EQUATIONS: c_int = 9;
 pub const KSP_CONVERGED_RTOL: c_int = 2;
 pub const KSP_CONVERGED_ATOL: c_int = 3;
 pub const KSP_CONVERGED_ITS: c_int = 4;
@@ -18013,6 +18192,7 @@ pub const KSP_CONVERGED_CG_NEG_CURVE: c_int = 5;
 pub const KSP_CONVERGED_CG_CONSTRAINED: c_int = 6;
 pub const KSP_CONVERGED_STEP_LENGTH: c_int = 6;
 pub const KSP_CONVERGED_HAPPY_BREAKDOWN: c_int = 7;
+pub const KSP_CONVERGED_USER: c_int = 8;
 pub const KSP_DIVERGED_NULL: c_int = -2;
 pub const KSP_DIVERGED_ITS: c_int = -3;
 pub const KSP_DIVERGED_DTOL: c_int = -4;
@@ -18023,17 +18203,22 @@ pub const KSP_DIVERGED_INDEFINITE_PC: c_int = -8;
 pub const KSP_DIVERGED_NANORINF: c_int = -9;
 pub const KSP_DIVERGED_INDEFINITE_MAT: c_int = -10;
 pub const KSP_DIVERGED_PC_FAILED: c_int = -11;
-pub const KSP_DIVERGED_PCSETUP_FAILED: c_int = -11;
+pub const KSP_DIVERGED_PCSETUP_FAILED_DEPRECATED: c_int = -11;
+pub const KSP_DIVERGED_USER: c_int = -12;
 pub const KSP_CONVERGED_ITERATING: c_int = 0;
 pub const KSPConvergedReason = c_int;
 pub extern var KSPConvergedReasons: [*c]const [*c]const u8;
-pub extern fn KSPSetConvergenceTest(KSP, ?*const fn (KSP, PetscInt, PetscReal, [*c]KSPConvergedReason, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque, ?*const fn (?*anyopaque) callconv(.c) PetscErrorCode) PetscErrorCode;
-pub extern fn KSPGetConvergenceTest(KSP, [*c]?*const fn (KSP, PetscInt, PetscReal, [*c]KSPConvergedReason, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*anyopaque, [*c]?*const fn (?*anyopaque) callconv(.c) PetscErrorCode) PetscErrorCode;
-pub extern fn KSPGetAndClearConvergenceTest(KSP, [*c]?*const fn (KSP, PetscInt, PetscReal, [*c]KSPConvergedReason, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*anyopaque, [*c]?*const fn (?*anyopaque) callconv(.c) PetscErrorCode) PetscErrorCode;
+pub const KSPConvergenceTestFn = fn (KSP, PetscInt, PetscReal, [*c]KSPConvergedReason, ?*anyopaque) callconv(.c) PetscErrorCode;
+pub extern fn KSPSetConvergenceTest(KSP, ?*const KSPConvergenceTestFn, ?*anyopaque, ?*const PetscCtxDestroyFn) PetscErrorCode;
+pub extern fn KSPGetConvergenceTest(KSP, [*c]?*const KSPConvergenceTestFn, [*c]?*anyopaque, [*c]?*const PetscCtxDestroyFn) PetscErrorCode;
+pub extern fn KSPGetAndClearConvergenceTest(KSP, [*c]?*const KSPConvergenceTestFn, [*c]?*anyopaque, [*c]?*const PetscCtxDestroyFn) PetscErrorCode;
 pub extern fn KSPGetConvergenceContext(KSP, ?*anyopaque) PetscErrorCode;
-pub extern fn KSPConvergedDefault(KSP, PetscInt, PetscReal, [*c]KSPConvergedReason, ?*anyopaque) PetscErrorCode;
-pub extern fn KSPLSQRConvergedDefault(KSP, PetscInt, PetscReal, [*c]KSPConvergedReason, ?*anyopaque) PetscErrorCode;
-pub extern fn KSPConvergedDefaultDestroy(?*anyopaque) PetscErrorCode;
+pub const KSPConvergedDefault = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:983:35
+pub const KSPLSQRConvergedDefault = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:984:35
+pub const KSPConvergedDefaultDestroy = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscksp.h:985:35
 pub extern fn KSPConvergedDefaultCreate([*c]?*anyopaque) PetscErrorCode;
 pub extern fn KSPConvergedDefaultSetUIRNorm(KSP) PetscErrorCode;
 pub extern fn KSPConvergedDefaultSetUMIRNorm(KSP) PetscErrorCode;
@@ -18088,12 +18273,12 @@ pub fn KSPCGGLTRGetLambda(arg_ksp: KSP, arg_x: [*c]PetscReal) callconv(.c) Petsc
 }
 pub extern fn KSPPythonSetType(KSP, [*c]const u8) PetscErrorCode;
 pub extern fn KSPPythonGetType(KSP, [*c][*c]const u8) PetscErrorCode;
-pub extern fn PCSetPreSolve(PC, ?*const fn (PC, KSP) callconv(.c) PetscErrorCode) PetscErrorCode;
 pub extern fn PCPreSolve(PC, KSP) PetscErrorCode;
 pub extern fn PCPostSolve(PC, KSP) PetscErrorCode;
 pub extern fn KSPMonitorLGRange(KSP, PetscInt, PetscReal, ?*anyopaque) PetscErrorCode;
-pub extern fn PCShellSetPreSolve(PC, ?*const fn (PC, KSP, Vec, Vec) callconv(.c) PetscErrorCode) PetscErrorCode;
-pub extern fn PCShellSetPostSolve(PC, ?*const fn (PC, KSP, Vec, Vec) callconv(.c) PetscErrorCode) PetscErrorCode;
+pub const PCShellPSolveFn = fn (PC, KSP, Vec, Vec) callconv(.c) PetscErrorCode;
+pub extern fn PCShellSetPreSolve(PC, ?*const PCShellPSolveFn) PetscErrorCode;
+pub extern fn PCShellSetPostSolve(PC, ?*const PCShellPSolveFn) PetscErrorCode;
 pub const struct__p_KSPGuess = opaque {};
 pub const KSPGuess = ?*struct__p_KSPGuess;
 pub const KSPGuessType = [*c]const u8;
@@ -18158,6 +18343,7 @@ pub extern fn MatLMVMSetJ0PC(Mat, PC) PetscErrorCode;
 pub extern fn MatLMVMSetJ0KSP(Mat, KSP) PetscErrorCode;
 pub extern fn MatLMVMApplyJ0Fwd(Mat, Vec, Vec) PetscErrorCode;
 pub extern fn MatLMVMApplyJ0Inv(Mat, Vec, Vec) PetscErrorCode;
+pub extern fn MatLMVMGetLastUpdate(Mat, [*c]Vec, [*c]Vec) PetscErrorCode;
 pub extern fn MatLMVMGetJ0(Mat, [*c]Mat) PetscErrorCode;
 pub extern fn MatLMVMGetJ0PC(Mat, [*c]PC) PetscErrorCode;
 pub extern fn MatLMVMGetJ0KSP(Mat, [*c]KSP) PetscErrorCode;
@@ -18166,15 +18352,29 @@ pub extern fn MatLMVMGetHistorySize(Mat, [*c]PetscInt) PetscErrorCode;
 pub extern fn MatLMVMGetUpdateCount(Mat, [*c]PetscInt) PetscErrorCode;
 pub extern fn MatLMVMGetRejectCount(Mat, [*c]PetscInt) PetscErrorCode;
 pub extern fn MatLMVMSymBroydenSetDelta(Mat, PetscScalar) PetscErrorCode;
+pub const MAT_LMVM_MULT_RECURSIVE: c_int = 0;
+pub const MAT_LMVM_MULT_DENSE: c_int = 1;
+pub const MAT_LMVM_MULT_COMPACT_DENSE: c_int = 2;
+pub const MatLMVMMultAlgorithm = c_uint;
+pub const MatLMVMMultAlgorithms: [*c]const [*c]const u8 = @extern([*c]const [*c]const u8, .{
+    .name = "MatLMVMMultAlgorithms",
+});
+pub extern fn MatLMVMSetMultAlgorithm(Mat, MatLMVMMultAlgorithm) PetscErrorCode;
+pub extern fn MatLMVMGetMultAlgorithm(Mat, [*c]MatLMVMMultAlgorithm) PetscErrorCode;
 pub const MAT_LMVM_SYMBROYDEN_SCALE_NONE: c_int = 0;
 pub const MAT_LMVM_SYMBROYDEN_SCALE_SCALAR: c_int = 1;
 pub const MAT_LMVM_SYMBROYDEN_SCALE_DIAGONAL: c_int = 2;
 pub const MAT_LMVM_SYMBROYDEN_SCALE_USER: c_int = 3;
+pub const MAT_LMVM_SYMBROYDEN_SCALE_DECIDE: c_int = 4;
 pub const MatLMVMSymBroydenScaleType = c_uint;
 pub const MatLMVMSymBroydenScaleTypes: [*c]const [*c]const u8 = @extern([*c]const [*c]const u8, .{
     .name = "MatLMVMSymBroydenScaleTypes",
 });
 pub extern fn MatLMVMSymBroydenSetScaleType(Mat, MatLMVMSymBroydenScaleType) PetscErrorCode;
+pub extern fn MatLMVMSymBroydenGetPhi(Mat, [*c]PetscReal) PetscErrorCode;
+pub extern fn MatLMVMSymBroydenSetPhi(Mat, PetscReal) PetscErrorCode;
+pub extern fn MatLMVMSymBadBroydenGetPsi(Mat, [*c]PetscReal) PetscErrorCode;
+pub extern fn MatLMVMSymBadBroydenSetPsi(Mat, PetscReal) PetscErrorCode;
 pub const MAT_LMVM_DENSE_REORDER: c_int = 0;
 pub const MAT_LMVM_DENSE_INPLACE: c_int = 1;
 pub const MatLMVMDenseType = c_uint;
@@ -18200,13 +18400,14 @@ pub extern fn DMKSPGetComputeRHS(DM, [*c]?*const KSPComputeRHSFn, ?*anyopaque) P
 pub extern fn DMKSPSetComputeInitialGuess(DM, ?*const KSPComputeInitialGuessFn, ?*anyopaque) PetscErrorCode;
 pub extern fn DMKSPGetComputeInitialGuess(DM, [*c]?*const KSPComputeInitialGuessFn, ?*anyopaque) PetscErrorCode;
 pub extern fn DMGlobalToLocalSolve(DM, Vec, Vec) PetscErrorCode;
-pub extern fn DMProjectField(DM, PetscReal, Vec, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, InsertMode, Vec) PetscErrorCode;
-pub extern fn DMSwarmProjectFields(DM, DM, PetscInt, [*c][*c]const u8, [*c]Vec, mode: ScatterMode) PetscErrorCode;
+pub extern fn DMSwarmProjectFields(DM, DM, PetscInt, [*c][*c]const u8, [*c]Vec, ScatterMode) PetscErrorCode;
+pub extern fn DMSwarmProjectGradientFields(DM, DM, PetscInt, [*c][*c]const u8, [*c]Vec, ScatterMode) PetscErrorCode;
 pub extern fn DMAdaptInterpolator(DM, DM, Mat, KSP, Mat, Mat, [*c]Mat, ?*anyopaque) PetscErrorCode;
 pub extern fn DMCheckInterpolator(DM, Mat, Mat, Mat, PetscReal) PetscErrorCode;
 pub extern fn PCBJKOKKOSSetKSP(PC, KSP) PetscErrorCode;
 pub extern fn PCBJKOKKOSGetKSP(PC, [*c]KSP) PetscErrorCode;
 pub extern fn DMCopyDMKSP(DM, DM) PetscErrorCode;
+pub extern fn DMProjectField(DM, PetscReal, Vec, [*c]?*const PetscPointFn, InsertMode, Vec) PetscErrorCode;
 pub const SNESType = [*c]const u8;
 pub extern var SNES_CLASSID: PetscClassId;
 pub extern var DMSNES_CLASSID: PetscClassId;
@@ -18408,21 +18609,21 @@ pub extern fn SNESComputeMFFunction(SNES, Vec, Vec) PetscErrorCode;
 pub extern fn SNESSetInitialFunction(SNES, Vec) PetscErrorCode;
 pub extern fn SNESSetJacobian(SNES, Mat, Mat, ?*const SNESJacobianFn, ?*anyopaque) PetscErrorCode;
 pub extern fn SNESGetJacobian(SNES, [*c]Mat, [*c]Mat, [*c]?*const SNESJacobianFn, [*c]?*anyopaque) PetscErrorCode;
-pub const SNESObjectiveComputeFunctionDefaultFD = @compileError("unable to resolve function type clang.TypeClass.Elaborated");
+pub const SNESObjectiveComputeFunctionDefaultFD = @compileError("unable to resolve function type .Elaborated");
 // /opt/petsc/linux-c-opt/include/petscsnes.h:533:29
-pub const SNESComputeJacobianDefault = @compileError("unable to resolve function type clang.TypeClass.Elaborated");
+pub const SNESComputeJacobianDefault = @compileError("unable to resolve function type .Elaborated");
 // /opt/petsc/linux-c-opt/include/petscsnes.h:534:29
-pub const SNESComputeJacobianDefaultColor = @compileError("unable to resolve function type clang.TypeClass.Elaborated");
+pub const SNESComputeJacobianDefaultColor = @compileError("unable to resolve function type .Elaborated");
 // /opt/petsc/linux-c-opt/include/petscsnes.h:535:29
 pub extern fn SNESPruneJacobianColor(SNES, Mat, Mat) PetscErrorCode;
 pub extern fn SNESSetComputeInitialGuess(SNES, ?*const SNESInitialGuessFn, ?*anyopaque) PetscErrorCode;
 pub extern fn SNESSetPicard(SNES, Vec, ?*const SNESFunctionFn, Mat, Mat, ?*const SNESJacobianFn, ?*anyopaque) PetscErrorCode;
 pub extern fn SNESGetPicard(SNES, [*c]Vec, [*c]?*const SNESFunctionFn, [*c]Mat, [*c]Mat, [*c]?*const SNESJacobianFn, [*c]?*anyopaque) PetscErrorCode;
-pub const SNESPicardComputeFunction = @compileError("unable to resolve function type clang.TypeClass.Elaborated");
+pub const SNESPicardComputeFunction = @compileError("unable to resolve function type .Elaborated");
 // /opt/petsc/linux-c-opt/include/petscsnes.h:540:29
-pub const SNESPicardComputeMFFunction = @compileError("unable to resolve function type clang.TypeClass.Elaborated");
+pub const SNESPicardComputeMFFunction = @compileError("unable to resolve function type .Elaborated");
 // /opt/petsc/linux-c-opt/include/petscsnes.h:541:29
-pub const SNESPicardComputeJacobian = @compileError("unable to resolve function type clang.TypeClass.Elaborated");
+pub const SNESPicardComputeJacobian = @compileError("unable to resolve function type .Elaborated");
 // /opt/petsc/linux-c-opt/include/petscsnes.h:542:29
 pub extern fn SNESSetObjective(SNES, ?*const SNESObjectiveFn, ?*anyopaque) PetscErrorCode;
 pub extern fn SNESGetObjective(SNES, [*c]?*const SNESObjectiveFn, [*c]?*anyopaque) PetscErrorCode;
@@ -18532,7 +18733,7 @@ pub extern fn SNESLineSearchAppendOptionsPrefix(SNESLineSearch, [*c]const u8) Pe
 pub extern fn SNESLineSearchGetOptionsPrefix(SNESLineSearch, [*c][*c]const u8) PetscErrorCode;
 pub extern fn SNESLineSearchShellSetApply(SNESLineSearch, ?*const SNESLineSearchShellApplyFn, ?*anyopaque) PetscErrorCode;
 pub extern fn SNESLineSearchShellGetApply(SNESLineSearch, [*c]?*const SNESLineSearchShellApplyFn, [*c]?*anyopaque) PetscErrorCode;
-pub fn SNESLineSearchShellSetUserFunc(arg_ls: SNESLineSearch, arg_f: SNESLineSearchUserFunc, arg_ctx: ?*anyopaque) callconv(.c) PetscErrorCode {
+pub fn SNESLineSearchShellSetUserFunc(arg_ls: SNESLineSearch, arg_f: ?*const SNESLineSearchShellApplyFn, arg_ctx: ?*anyopaque) callconv(.c) PetscErrorCode {
     var ls = arg_ls;
     _ = &ls;
     var f = arg_f;
@@ -18541,7 +18742,7 @@ pub fn SNESLineSearchShellSetUserFunc(arg_ls: SNESLineSearch, arg_f: SNESLineSea
     _ = &ctx;
     return SNESLineSearchShellSetApply(ls, f, ctx);
 }
-pub fn SNESLineSearchShellGetUserFunc(arg_ls: SNESLineSearch, arg_f: [*c]SNESLineSearchUserFunc, arg_ctx: [*c]?*anyopaque) callconv(.c) PetscErrorCode {
+pub fn SNESLineSearchShellGetUserFunc(arg_ls: SNESLineSearch, arg_f: [*c]?*const SNESLineSearchShellApplyFn, arg_ctx: [*c]?*anyopaque) callconv(.c) PetscErrorCode {
     var ls = arg_ls;
     _ = &ls;
     var f = arg_f;
@@ -18567,7 +18768,7 @@ pub extern fn DMSetVI(DM, IS) PetscErrorCode;
 pub extern fn DMDestroyVI(DM) PetscErrorCode;
 pub extern fn SNESTestLocalMin(SNES) PetscErrorCode;
 pub extern fn SNESComputeJacobian(SNES, Vec, Mat, Mat) PetscErrorCode;
-pub extern fn SNESTestJacobian(SNES) PetscErrorCode;
+pub extern fn SNESTestJacobian(SNES, [*c]PetscReal, [*c]PetscReal) PetscErrorCode;
 pub extern fn SNESTestFunction(SNES) PetscErrorCode;
 pub extern fn SNESSetDM(SNES, DM) PetscErrorCode;
 pub extern fn SNESGetDM(SNES, [*c]DM) PetscErrorCode;
@@ -18984,6 +19185,8 @@ pub extern fn TSForwardSetInitialSensitivities(TS, Mat) PetscErrorCode;
 pub extern fn TSForwardGetStages(TS, [*c]PetscInt, [*c][*c]Mat) PetscErrorCode;
 pub extern fn TSSetMaxSteps(TS, PetscInt) PetscErrorCode;
 pub extern fn TSGetMaxSteps(TS, [*c]PetscInt) PetscErrorCode;
+pub extern fn TSSetRunSteps(TS, PetscInt) PetscErrorCode;
+pub extern fn TSGetRunSteps(TS, [*c]PetscInt) PetscErrorCode;
 pub extern fn TSSetMaxTime(TS, PetscReal) PetscErrorCode;
 pub extern fn TSGetMaxTime(TS, [*c]PetscReal) PetscErrorCode;
 pub extern fn TSSetExactFinalTime(TS, TSExactFinalTimeOption) PetscErrorCode;
@@ -19016,6 +19219,8 @@ pub extern fn TSGetDuration(TS, [*c]PetscInt, [*c]PetscReal) PetscErrorCode;
 pub extern fn TSGetTimeStepNumber(TS, [*c]PetscInt) PetscErrorCode;
 pub extern fn TSGetTotalSteps(TS, [*c]PetscInt) PetscErrorCode;
 pub extern fn TSMonitorDefault(TS, PetscInt, PetscReal, Vec, [*c]PetscViewerAndFormat) PetscErrorCode;
+pub extern fn TSMonitorWallClockTime(TS, PetscInt, PetscReal, Vec, [*c]PetscViewerAndFormat) PetscErrorCode;
+pub extern fn TSMonitorWallClockTimeSetUp(TS, [*c]PetscViewerAndFormat) PetscErrorCode;
 pub extern fn TSMonitorExtreme(TS, PetscInt, PetscReal, Vec, [*c]PetscViewerAndFormat) PetscErrorCode;
 pub const struct__n_TSMonitorDrawCtx = opaque {};
 pub const TSMonitorDrawCtx = ?*struct__n_TSMonitorDrawCtx;
@@ -19027,7 +19232,10 @@ pub extern fn TSMonitorDrawError(TS, PetscInt, PetscReal, Vec, ?*anyopaque) Pets
 pub extern fn TSMonitorDrawSolutionFunction(TS, PetscInt, PetscReal, Vec, ?*anyopaque) PetscErrorCode;
 pub extern fn TSAdjointMonitorDefault(TS, PetscInt, PetscReal, Vec, PetscInt, [*c]Vec, [*c]Vec, [*c]PetscViewerAndFormat) PetscErrorCode;
 pub extern fn TSAdjointMonitorDrawSensi(TS, PetscInt, PetscReal, Vec, PetscInt, [*c]Vec, [*c]Vec, ?*anyopaque) PetscErrorCode;
+pub const struct__n_TSMonitorSolutionCtx = opaque {};
+pub const TSMonitorSolutionCtx = ?*struct__n_TSMonitorSolutionCtx;
 pub extern fn TSMonitorSolution(TS, PetscInt, PetscReal, Vec, [*c]PetscViewerAndFormat) PetscErrorCode;
+pub extern fn TSMonitorSolutionSetup(TS, [*c]PetscViewerAndFormat) PetscErrorCode;
 pub const struct__n_TSMonitorVTKCtx = opaque {};
 pub const TSMonitorVTKCtx = ?*struct__n_TSMonitorVTKCtx;
 pub extern fn TSMonitorSolutionVTK(TS, PetscInt, PetscReal, Vec, TSMonitorVTKCtx) PetscErrorCode;
@@ -19104,10 +19312,10 @@ pub extern fn TSSetUseSplitRHSFunction(TS, PetscBool) PetscErrorCode;
 pub extern fn TSGetUseSplitRHSFunction(TS, [*c]PetscBool) PetscErrorCode;
 pub extern fn TSRHSSplitGetSNES(TS, [*c]SNES) PetscErrorCode;
 pub extern fn TSRHSSplitSetSNES(TS, SNES) PetscErrorCode;
-pub const TSComputeRHSFunctionLinear = @compileError("unable to resolve function type clang.TypeClass.Elaborated");
-// /opt/petsc/linux-c-opt/include/petscts.h:769:30
-pub const TSComputeRHSJacobianConstant = @compileError("unable to resolve function type clang.TypeClass.Elaborated");
-// /opt/petsc/linux-c-opt/include/petscts.h:770:30
+pub const TSComputeRHSFunctionLinear = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscts.h:775:30
+pub const TSComputeRHSJacobianConstant = @compileError("unable to resolve function type .Elaborated");
+// /opt/petsc/linux-c-opt/include/petscts.h:776:30
 pub extern fn TSComputeIFunctionLinear(TS, PetscReal, Vec, Vec, Vec, ?*anyopaque) PetscErrorCode;
 pub extern fn TSComputeIJacobianConstant(TS, PetscReal, Vec, Vec, PetscReal, Mat, Mat, ?*anyopaque) PetscErrorCode;
 pub extern fn TSComputeSolutionFunction(TS, PetscReal, Vec) PetscErrorCode;
@@ -19441,10 +19649,14 @@ pub extern fn TSBasicSymplecticRegisterAll() PetscErrorCode;
 pub extern fn TSBasicSymplecticInitializePackage() PetscErrorCode;
 pub extern fn TSBasicSymplecticFinalizePackage() PetscErrorCode;
 pub extern fn TSBasicSymplecticRegisterDestroy() PetscErrorCode;
+pub const TS_DG_GONZALEZ: c_int = 0;
+pub const TS_DG_AVERAGE: c_int = 1;
+pub const TS_DG_NONE: c_int = 2;
+pub const TSDGType = c_uint;
 pub extern fn TSDiscGradSetFormulation(TS, ?*const fn (TS, PetscReal, Vec, Mat, ?*anyopaque) callconv(.c) PetscErrorCode, ?*const fn (TS, PetscReal, Vec, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode, ?*const fn (TS, PetscReal, Vec, Vec, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
 pub extern fn TSDiscGradGetFormulation(TS, [*c]?*const fn (TS, PetscReal, Vec, Mat, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*const fn (TS, PetscReal, Vec, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*const fn (TS, PetscReal, Vec, Vec, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
-pub extern fn TSDiscGradIsGonzalez(TS, [*c]PetscBool) PetscErrorCode;
-pub extern fn TSDiscGradUseGonzalez(TS, PetscBool) PetscErrorCode;
+pub extern fn TSDiscGradSetType(TS, TSDGType) PetscErrorCode;
+pub extern fn TSDiscGradGetType(TS, [*c]TSDGType) PetscErrorCode;
 pub extern fn TSThetaSetTheta(TS, PetscReal) PetscErrorCode;
 pub extern fn TSThetaGetTheta(TS, [*c]PetscReal) PetscErrorCode;
 pub extern fn TSThetaGetEndpoint(TS, [*c]PetscBool) PetscErrorCode;
@@ -19685,13 +19897,6 @@ pub const PETSC_DISC_NONE: c_int = 0;
 pub const PETSC_DISC_FE: c_int = 1;
 pub const PETSC_DISC_FV: c_int = 2;
 pub const PetscDiscType = c_uint;
-pub const PetscPointFunc = ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void;
-pub const PetscPointJac = ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void;
-pub const PetscBdPointFunc = ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void;
-pub const PetscBdPointJac = ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void;
-pub const PetscRiemannFunc = ?*const fn (PetscInt, PetscInt, [*c]const PetscReal, [*c]const PetscReal, [*c]const PetscScalar, [*c]const PetscScalar, PetscInt, [*c]const PetscScalar, [*c]PetscScalar, ?*anyopaque) callconv(.c) void;
-pub const PetscSimplePointFn = fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode;
-pub const PetscSimplePointFunc = ?*const PetscSimplePointFn;
 pub extern var PetscDSList: PetscFunctionList;
 pub extern fn PetscDSCreate(MPI_Comm, [*c]PetscDS) PetscErrorCode;
 pub extern fn PetscDSDestroy([*c]PetscDS) PetscErrorCode;
@@ -19740,40 +19945,40 @@ pub extern fn PetscDSGetConstants(PetscDS, [*c]PetscInt, [*c][*c]const PetscScal
 pub extern fn PetscDSSetConstants(PetscDS, PetscInt, [*c]PetscScalar) PetscErrorCode;
 pub extern fn PetscDSSetIntegrationParameters(PetscDS, PetscInt, PetscInt) PetscErrorCode;
 pub extern fn PetscDSSetCellParameters(PetscDS, PetscReal) PetscErrorCode;
-pub extern fn PetscDSGetObjective(PetscDS, PetscInt, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSSetObjective(PetscDS, PetscInt, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSGetResidual(PetscDS, PetscInt, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSSetResidual(PetscDS, PetscInt, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSGetRHSResidual(PetscDS, PetscInt, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSSetRHSResidual(PetscDS, PetscInt, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
+pub extern fn PetscDSGetObjective(PetscDS, PetscInt, [*c]?*const PetscPointFn) PetscErrorCode;
+pub extern fn PetscDSSetObjective(PetscDS, PetscInt, ?*const PetscPointFn) PetscErrorCode;
+pub extern fn PetscDSGetResidual(PetscDS, PetscInt, [*c]?*const PetscPointFn, [*c]?*const PetscPointFn) PetscErrorCode;
+pub extern fn PetscDSSetResidual(PetscDS, PetscInt, ?*const PetscPointFn, ?*const PetscPointFn) PetscErrorCode;
+pub extern fn PetscDSGetRHSResidual(PetscDS, PetscInt, [*c]?*const PetscPointFn, [*c]?*const PetscPointFn) PetscErrorCode;
+pub extern fn PetscDSSetRHSResidual(PetscDS, PetscInt, ?*const PetscPointFn, ?*const PetscPointFn) PetscErrorCode;
 pub extern fn PetscDSHasJacobian(PetscDS, [*c]PetscBool) PetscErrorCode;
-pub extern fn PetscDSGetJacobian(PetscDS, PetscInt, PetscInt, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSSetJacobian(PetscDS, PetscInt, PetscInt, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
+pub extern fn PetscDSGetJacobian(PetscDS, PetscInt, PetscInt, [*c]?*const PetscPointJacFn, [*c]?*const PetscPointJacFn, [*c]?*const PetscPointJacFn, [*c]?*const PetscPointJacFn) PetscErrorCode;
+pub extern fn PetscDSSetJacobian(PetscDS, PetscInt, PetscInt, ?*const PetscPointJacFn, ?*const PetscPointJacFn, ?*const PetscPointJacFn, ?*const PetscPointJacFn) PetscErrorCode;
 pub extern fn PetscDSUseJacobianPreconditioner(PetscDS, PetscBool) PetscErrorCode;
 pub extern fn PetscDSHasJacobianPreconditioner(PetscDS, [*c]PetscBool) PetscErrorCode;
-pub extern fn PetscDSGetJacobianPreconditioner(PetscDS, PetscInt, PetscInt, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSSetJacobianPreconditioner(PetscDS, PetscInt, PetscInt, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
+pub extern fn PetscDSGetJacobianPreconditioner(PetscDS, PetscInt, PetscInt, [*c]?*const PetscPointJacFn, [*c]?*const PetscPointJacFn, [*c]?*const PetscPointJacFn, [*c]?*const PetscPointJacFn) PetscErrorCode;
+pub extern fn PetscDSSetJacobianPreconditioner(PetscDS, PetscInt, PetscInt, ?*const PetscPointJacFn, ?*const PetscPointJacFn, ?*const PetscPointJacFn, ?*const PetscPointJacFn) PetscErrorCode;
 pub extern fn PetscDSHasDynamicJacobian(PetscDS, [*c]PetscBool) PetscErrorCode;
-pub extern fn PetscDSGetDynamicJacobian(PetscDS, PetscInt, PetscInt, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSSetDynamicJacobian(PetscDS, PetscInt, PetscInt, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSGetRiemannSolver(PetscDS, PetscInt, [*c]?*const fn (PetscInt, PetscInt, [*c]const PetscReal, [*c]const PetscReal, [*c]const PetscScalar, [*c]const PetscScalar, PetscInt, [*c]const PetscScalar, [*c]PetscScalar, ?*anyopaque) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSSetRiemannSolver(PetscDS, PetscInt, ?*const fn (PetscInt, PetscInt, [*c]const PetscReal, [*c]const PetscReal, [*c]const PetscScalar, [*c]const PetscScalar, PetscInt, [*c]const PetscScalar, [*c]PetscScalar, ?*anyopaque) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSGetUpdate(PetscDS, PetscInt, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSSetUpdate(PetscDS, PetscInt, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
+pub extern fn PetscDSGetDynamicJacobian(PetscDS, PetscInt, PetscInt, [*c]?*const PetscPointJacFn, [*c]?*const PetscPointJacFn, [*c]?*const PetscPointJacFn, [*c]?*const PetscPointJacFn) PetscErrorCode;
+pub extern fn PetscDSSetDynamicJacobian(PetscDS, PetscInt, PetscInt, ?*const PetscPointJacFn, ?*const PetscPointJacFn, ?*const PetscPointJacFn, ?*const PetscPointJacFn) PetscErrorCode;
+pub extern fn PetscDSGetRiemannSolver(PetscDS, PetscInt, [*c]?*const PetscRiemannFn) PetscErrorCode;
+pub extern fn PetscDSSetRiemannSolver(PetscDS, PetscInt, ?*const PetscRiemannFn) PetscErrorCode;
+pub extern fn PetscDSGetUpdate(PetscDS, PetscInt, [*c]?*const PetscPointFn) PetscErrorCode;
+pub extern fn PetscDSSetUpdate(PetscDS, PetscInt, ?*const PetscPointFn) PetscErrorCode;
 pub extern fn PetscDSGetContext(PetscDS, PetscInt, ?*anyopaque) PetscErrorCode;
 pub extern fn PetscDSSetContext(PetscDS, PetscInt, ?*anyopaque) PetscErrorCode;
-pub extern fn PetscDSGetBdResidual(PetscDS, PetscInt, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSSetBdResidual(PetscDS, PetscInt, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
+pub extern fn PetscDSGetBdResidual(PetscDS, PetscInt, [*c]?*const PetscBdPointFn, [*c]?*const PetscBdPointFn) PetscErrorCode;
+pub extern fn PetscDSSetBdResidual(PetscDS, PetscInt, ?*const PetscBdPointFn, ?*const PetscBdPointFn) PetscErrorCode;
 pub extern fn PetscDSHasBdJacobian(PetscDS, [*c]PetscBool) PetscErrorCode;
-pub extern fn PetscDSGetBdJacobian(PetscDS, PetscInt, PetscInt, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSSetBdJacobian(PetscDS, PetscInt, PetscInt, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
+pub extern fn PetscDSGetBdJacobian(PetscDS, PetscInt, PetscInt, [*c]?*const PetscBdPointJacFn, [*c]?*const PetscBdPointJacFn, [*c]?*const PetscBdPointJacFn, [*c]?*const PetscBdPointJacFn) PetscErrorCode;
+pub extern fn PetscDSSetBdJacobian(PetscDS, PetscInt, PetscInt, ?*const PetscBdPointJacFn, ?*const PetscBdPointJacFn, ?*const PetscBdPointJacFn, ?*const PetscBdPointJacFn) PetscErrorCode;
 pub extern fn PetscDSHasBdJacobianPreconditioner(PetscDS, [*c]PetscBool) PetscErrorCode;
-pub extern fn PetscDSGetBdJacobianPreconditioner(PetscDS, PetscInt, PetscInt, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, [*c]?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSSetBdJacobianPreconditioner(PetscDS, PetscInt, PetscInt, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void, ?*const fn (PetscInt, PetscInt, PetscInt, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscInt, [*c]const PetscInt, [*c]const PetscScalar, [*c]const PetscScalar, [*c]const PetscScalar, PetscReal, PetscReal, [*c]const PetscReal, [*c]const PetscReal, PetscInt, [*c]const PetscScalar, [*c]PetscScalar) callconv(.c) void) PetscErrorCode;
-pub extern fn PetscDSGetExactSolution(PetscDS, PetscInt, [*c]?*const fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*anyopaque) PetscErrorCode;
-pub extern fn PetscDSSetExactSolution(PetscDS, PetscInt, ?*const fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
-pub extern fn PetscDSGetExactSolutionTimeDerivative(PetscDS, PetscInt, [*c]?*const fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*anyopaque) PetscErrorCode;
-pub extern fn PetscDSSetExactSolutionTimeDerivative(PetscDS, PetscInt, ?*const fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
+pub extern fn PetscDSGetBdJacobianPreconditioner(PetscDS, PetscInt, PetscInt, [*c]?*const PetscBdPointJacFn, [*c]?*const PetscBdPointJacFn, [*c]?*const PetscBdPointJacFn, [*c]?*const PetscBdPointJacFn) PetscErrorCode;
+pub extern fn PetscDSSetBdJacobianPreconditioner(PetscDS, PetscInt, PetscInt, ?*const PetscBdPointJacFn, ?*const PetscBdPointJacFn, ?*const PetscBdPointJacFn, ?*const PetscBdPointJacFn) PetscErrorCode;
+pub extern fn PetscDSGetExactSolution(PetscDS, PetscInt, [*c]?*const PetscPointExactSolutionFn, [*c]?*anyopaque) PetscErrorCode;
+pub extern fn PetscDSSetExactSolution(PetscDS, PetscInt, ?*const PetscPointExactSolutionFn, ?*anyopaque) PetscErrorCode;
+pub extern fn PetscDSGetExactSolutionTimeDerivative(PetscDS, PetscInt, [*c]?*const PetscPointExactSolutionFn, [*c]?*anyopaque) PetscErrorCode;
+pub extern fn PetscDSSetExactSolutionTimeDerivative(PetscDS, PetscInt, ?*const PetscPointExactSolutionFn, ?*anyopaque) PetscErrorCode;
 pub extern fn PetscDSGetLowerBound(PetscDS, PetscInt, [*c]?*const fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*anyopaque) PetscErrorCode;
 pub extern fn PetscDSSetLowerBound(PetscDS, PetscInt, ?*const fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
 pub extern fn PetscDSGetUpperBound(PetscDS, PetscInt, [*c]?*const fn (PetscInt, PetscReal, [*c]const PetscReal, PetscInt, [*c]PetscScalar, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*anyopaque) PetscErrorCode;
@@ -19790,11 +19995,11 @@ pub extern fn PetscDSCopyEquations(PetscDS, PetscDS) PetscErrorCode;
 pub extern fn PetscDSCopy(PetscDS, PetscInt, PetscInt, DM, PetscDS) PetscErrorCode;
 pub extern fn PetscDSSelectDiscretizations(PetscDS, PetscInt, [*c]const PetscInt, PetscInt, PetscInt, PetscDS) PetscErrorCode;
 pub extern fn PetscDSSelectEquations(PetscDS, PetscInt, [*c]const PetscInt, PetscDS) PetscErrorCode;
-pub extern fn PetscDSAddBoundary(PetscDS, DMBoundaryConditionType, [*c]const u8, DMLabel, PetscInt, [*c]const PetscInt, PetscInt, PetscInt, [*c]const PetscInt, ?*const fn () callconv(.c) void, ?*const fn () callconv(.c) void, ?*anyopaque, [*c]PetscInt) PetscErrorCode;
-pub extern fn PetscDSAddBoundaryByName(PetscDS, DMBoundaryConditionType, [*c]const u8, [*c]const u8, PetscInt, [*c]const PetscInt, PetscInt, PetscInt, [*c]const PetscInt, ?*const fn () callconv(.c) void, ?*const fn () callconv(.c) void, ?*anyopaque, [*c]PetscInt) PetscErrorCode;
-pub extern fn PetscDSUpdateBoundary(PetscDS, PetscInt, DMBoundaryConditionType, [*c]const u8, DMLabel, PetscInt, [*c]const PetscInt, PetscInt, PetscInt, [*c]const PetscInt, ?*const fn () callconv(.c) void, ?*const fn () callconv(.c) void, ?*anyopaque) PetscErrorCode;
+pub extern fn PetscDSAddBoundary(PetscDS, DMBoundaryConditionType, [*c]const u8, DMLabel, PetscInt, [*c]const PetscInt, PetscInt, PetscInt, [*c]const PetscInt, ?*const PetscVoidFn, ?*const PetscVoidFn, ?*anyopaque, [*c]PetscInt) PetscErrorCode;
+pub extern fn PetscDSAddBoundaryByName(PetscDS, DMBoundaryConditionType, [*c]const u8, [*c]const u8, PetscInt, [*c]const PetscInt, PetscInt, PetscInt, [*c]const PetscInt, ?*const PetscVoidFn, ?*const PetscVoidFn, ?*anyopaque, [*c]PetscInt) PetscErrorCode;
+pub extern fn PetscDSUpdateBoundary(PetscDS, PetscInt, DMBoundaryConditionType, [*c]const u8, DMLabel, PetscInt, [*c]const PetscInt, PetscInt, PetscInt, [*c]const PetscInt, ?*const PetscVoidFn, ?*const PetscVoidFn, ?*anyopaque) PetscErrorCode;
 pub extern fn PetscDSGetNumBoundary(PetscDS, [*c]PetscInt) PetscErrorCode;
-pub extern fn PetscDSGetBoundary(PetscDS, PetscInt, [*c]PetscWeakForm, [*c]DMBoundaryConditionType, [*c][*c]const u8, [*c]DMLabel, [*c]PetscInt, [*c][*c]const PetscInt, [*c]PetscInt, [*c]PetscInt, [*c][*c]const PetscInt, [*c]?*const fn () callconv(.c) void, [*c]?*const fn () callconv(.c) void, [*c]?*anyopaque) PetscErrorCode;
+pub extern fn PetscDSGetBoundary(PetscDS, PetscInt, [*c]PetscWeakForm, [*c]DMBoundaryConditionType, [*c][*c]const u8, [*c]DMLabel, [*c]PetscInt, [*c][*c]const PetscInt, [*c]PetscInt, [*c]PetscInt, [*c][*c]const PetscInt, [*c]?*const PetscVoidFn, [*c]?*const PetscVoidFn, [*c]?*anyopaque) PetscErrorCode;
 pub extern fn PetscDSCopyBoundary(PetscDS, PetscInt, [*c]const PetscInt, PetscDS) PetscErrorCode;
 pub extern fn PetscDSUpdateBoundaryLabels(PetscDS, DM) PetscErrorCode;
 pub extern fn PetscDSDestroyBoundary(PetscDS) PetscErrorCode;
@@ -19923,13 +20128,17 @@ pub extern fn TaoSetResidualRoutine(Tao, Vec, ?*const fn (Tao, Vec, Vec, ?*anyop
 pub extern fn TaoSetResidualWeights(Tao, Vec, PetscInt, [*c]PetscInt, [*c]PetscInt, [*c]PetscReal) PetscErrorCode;
 pub extern fn TaoSetConstraintsRoutine(Tao, Vec, ?*const fn (Tao, Vec, Vec, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
 pub extern fn TaoSetInequalityConstraintsRoutine(Tao, Vec, ?*const fn (Tao, Vec, Vec, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
+pub extern fn TaoGetInequalityConstraintsRoutine(Tao, [*c]Vec, [*c]?*const fn (Tao, Vec, Vec, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*anyopaque) PetscErrorCode;
 pub extern fn TaoSetEqualityConstraintsRoutine(Tao, Vec, ?*const fn (Tao, Vec, Vec, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
+pub extern fn TaoGetEqualityConstraintsRoutine(Tao, [*c]Vec, [*c]?*const fn (Tao, Vec, Vec, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*anyopaque) PetscErrorCode;
 pub extern fn TaoSetJacobianResidualRoutine(Tao, Mat, Mat, ?*const fn (Tao, Vec, Mat, Mat, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
 pub extern fn TaoSetJacobianRoutine(Tao, Mat, Mat, ?*const fn (Tao, Vec, Mat, Mat, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
 pub extern fn TaoSetJacobianStateRoutine(Tao, Mat, Mat, Mat, ?*const fn (Tao, Vec, Mat, Mat, Mat, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
 pub extern fn TaoSetJacobianDesignRoutine(Tao, Mat, ?*const fn (Tao, Vec, Mat, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
 pub extern fn TaoSetJacobianInequalityRoutine(Tao, Mat, Mat, ?*const fn (Tao, Vec, Mat, Mat, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
+pub extern fn TaoGetJacobianInequalityRoutine(Tao, [*c]Mat, [*c]Mat, [*c]?*const fn (Tao, Vec, Mat, Mat, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*anyopaque) PetscErrorCode;
 pub extern fn TaoSetJacobianEqualityRoutine(Tao, Mat, Mat, ?*const fn (Tao, Vec, Mat, Mat, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
+pub extern fn TaoGetJacobianEqualityRoutine(Tao, [*c]Mat, [*c]Mat, [*c]?*const fn (Tao, Vec, Mat, Mat, ?*anyopaque) callconv(.c) PetscErrorCode, [*c]?*anyopaque) PetscErrorCode;
 pub extern fn TaoPythonSetType(Tao, [*c]const u8) PetscErrorCode;
 pub extern fn TaoPythonGetType(Tao, [*c][*c]const u8) PetscErrorCode;
 pub extern fn TaoShellSetSolve(Tao, ?*const fn (Tao) callconv(.c) PetscErrorCode) PetscErrorCode;
@@ -20008,6 +20217,7 @@ pub const TAOLINESEARCH_HALTED_LOWERBOUND: c_int = 6;
 pub const TAOLINESEARCH_HALTED_RTOL: c_int = 7;
 pub const TAOLINESEARCH_HALTED_USER: c_int = 8;
 pub const TaoLineSearchConvergedReason = c_int;
+pub extern var TaoLineSearchConvergedReasons: [*c]const [*c]const u8;
 pub const TaoLineSearchType = [*c]const u8;
 pub extern var TAOLINESEARCH_CLASSID: PetscClassId;
 pub extern var TaoLineSearchList: PetscFunctionList;
@@ -20071,7 +20281,18 @@ pub const struct__n_TaoMonitorDrawCtx = opaque {};
 pub const TaoMonitorDrawCtx = ?*struct__n_TaoMonitorDrawCtx;
 pub extern fn TaoMonitorDrawCtxCreate(MPI_Comm, [*c]const u8, [*c]const u8, c_int, c_int, c_int, c_int, PetscInt, [*c]TaoMonitorDrawCtx) PetscErrorCode;
 pub extern fn TaoMonitorDrawCtxDestroy([*c]TaoMonitorDrawCtx) PetscErrorCode;
+pub const TAOBRGN_REGULARIZATION_USER: c_int = 0;
+pub const TAOBRGN_REGULARIZATION_L2PROX: c_int = 1;
+pub const TAOBRGN_REGULARIZATION_L2PURE: c_int = 2;
+pub const TAOBRGN_REGULARIZATION_L1DICT: c_int = 3;
+pub const TAOBRGN_REGULARIZATION_LM: c_int = 4;
+pub const TaoBRGNRegularizationType = c_uint;
+pub const TaoBRGNRegularizationTypes: [*c]const [*c]const u8 = @extern([*c]const [*c]const u8, .{
+    .name = "TaoBRGNRegularizationTypes",
+});
 pub extern fn TaoBRGNGetSubsolver(Tao, [*c]Tao) PetscErrorCode;
+pub extern fn TaoBRGNGetRegularizationType(Tao, [*c]TaoBRGNRegularizationType) PetscErrorCode;
+pub extern fn TaoBRGNSetRegularizationType(Tao, TaoBRGNRegularizationType) PetscErrorCode;
 pub extern fn TaoBRGNSetRegularizerObjectiveAndGradientRoutine(Tao, ?*const fn (Tao, Vec, [*c]PetscReal, Vec, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
 pub extern fn TaoBRGNSetRegularizerHessianRoutine(Tao, Mat, ?*const fn (Tao, Vec, Mat, ?*anyopaque) callconv(.c) PetscErrorCode, ?*anyopaque) PetscErrorCode;
 pub extern fn TaoBRGNSetRegularizerWeight(Tao, PetscReal) PetscErrorCode;
@@ -20306,12 +20527,50 @@ pub fn TaoDrawStepDirectionMonitor(arg_tao: Tao, arg_ctx: ?*anyopaque) callconv(
     _ = &ctx;
     return TaoMonitorGlobalization(tao, ctx);
 }
+pub const struct__p_PetscRegressor = opaque {};
+pub const PetscRegressor = ?*struct__p_PetscRegressor;
+pub const PetscRegressorType = [*c]const u8;
+pub const REGRESSOR_LINEAR_OLS: c_int = 0;
+pub const REGRESSOR_LINEAR_LASSO: c_int = 1;
+pub const REGRESSOR_LINEAR_RIDGE: c_int = 2;
+pub const PetscRegressorLinearType = c_uint;
+pub const PetscRegressorLinearTypes: [*c]const [*c]const u8 = @extern([*c]const [*c]const u8, .{
+    .name = "PetscRegressorLinearTypes",
+});
+pub extern var PetscRegressorList: PetscFunctionList;
+pub extern var PETSCREGRESSOR_CLASSID: PetscClassId;
+pub extern fn PetscRegressorInitializePackage() PetscErrorCode;
+pub extern fn PetscRegressorFinalizePackage() PetscErrorCode;
+pub extern fn PetscRegressorRegister([*c]const u8, ?*const fn (PetscRegressor) callconv(.c) PetscErrorCode) PetscErrorCode;
+pub extern fn PetscRegressorCreate(MPI_Comm, [*c]PetscRegressor) PetscErrorCode;
+pub extern fn PetscRegressorReset(PetscRegressor) PetscErrorCode;
+pub extern fn PetscRegressorDestroy([*c]PetscRegressor) PetscErrorCode;
+pub extern fn PetscRegressorSetOptionsPrefix(PetscRegressor, [*c]const u8) PetscErrorCode;
+pub extern fn PetscRegressorAppendOptionsPrefix(PetscRegressor, [*c]const u8) PetscErrorCode;
+pub extern fn PetscRegressorGetOptionsPrefix(PetscRegressor, [*c][*c]const u8) PetscErrorCode;
+pub extern fn PetscRegressorSetType(PetscRegressor, PetscRegressorType) PetscErrorCode;
+pub extern fn PetscRegressorGetType(PetscRegressor, [*c]PetscRegressorType) PetscErrorCode;
+pub extern fn PetscRegressorSetRegularizerWeight(PetscRegressor, PetscReal) PetscErrorCode;
+pub extern fn PetscRegressorSetUp(PetscRegressor) PetscErrorCode;
+pub extern fn PetscRegressorSetFromOptions(PetscRegressor) PetscErrorCode;
+pub extern fn PetscRegressorView(PetscRegressor, PetscViewer) PetscErrorCode;
+pub extern fn PetscRegressorViewFromOptions(PetscRegressor, PetscObject, [*c]const u8) PetscErrorCode;
+pub extern fn PetscRegressorFit(PetscRegressor, Mat, Vec) PetscErrorCode;
+pub extern fn PetscRegressorPredict(PetscRegressor, Mat, Vec) PetscErrorCode;
+pub extern fn PetscRegressorGetTao(PetscRegressor, [*c]Tao) PetscErrorCode;
+pub extern fn PetscRegressorLinearSetFitIntercept(PetscRegressor, PetscBool) PetscErrorCode;
+pub extern fn PetscRegressorLinearSetUseKSP(PetscRegressor, PetscBool) PetscErrorCode;
+pub extern fn PetscRegressorLinearGetKSP(PetscRegressor, [*c]KSP) PetscErrorCode;
+pub extern fn PetscRegressorLinearGetCoefficients(PetscRegressor, [*c]Vec) PetscErrorCode;
+pub extern fn PetscRegressorLinearGetIntercept(PetscRegressor, [*c]PetscScalar) PetscErrorCode;
+pub extern fn PetscRegressorLinearSetType(PetscRegressor, PetscRegressorLinearType) PetscErrorCode;
+pub extern fn PetscRegressorLinearGetType(PetscRegressor, [*c]PetscRegressorLinearType) PetscErrorCode;
 pub const __llvm__ = @as(c_int, 1);
 pub const __clang__ = @as(c_int, 1);
-pub const __clang_major__ = @as(c_int, 19);
+pub const __clang_major__ = @as(c_int, 20);
 pub const __clang_minor__ = @as(c_int, 1);
-pub const __clang_patchlevel__ = @as(c_int, 7);
-pub const __clang_version__ = "19.1.7 (https://github.com/ziglang/zig-bootstrap 1c3c59435891bc9caf8cd1d3783773369d191c5f)";
+pub const __clang_patchlevel__ = @as(c_int, 2);
+pub const __clang_version__ = "20.1.2 (https://github.com/ziglang/zig-bootstrap 7ef74e656cf8ddbd6bf891a8475892aa1afa6891)";
 pub const __GNUC__ = @as(c_int, 4);
 pub const __GNUC_MINOR__ = @as(c_int, 2);
 pub const __GNUC_PATCHLEVEL__ = @as(c_int, 1);
@@ -20343,7 +20602,7 @@ pub const __FPCLASS_POSSUBNORMAL = @as(c_int, 0x0080);
 pub const __FPCLASS_POSNORMAL = @as(c_int, 0x0100);
 pub const __FPCLASS_POSINF = @as(c_int, 0x0200);
 pub const __PRAGMA_REDEFINE_EXTNAME = @as(c_int, 1);
-pub const __VERSION__ = "Clang 19.1.7 (https://github.com/ziglang/zig-bootstrap 1c3c59435891bc9caf8cd1d3783773369d191c5f)";
+pub const __VERSION__ = "Clang 20.1.2 (https://github.com/ziglang/zig-bootstrap 7ef74e656cf8ddbd6bf891a8475892aa1afa6891)";
 pub const __OBJC_BOOL_IS_BOOL = @as(c_int, 0);
 pub const __CONSTANT_CFSTRINGS__ = @as(c_int, 1);
 pub const __clang_literal_encoding__ = "UTF-8";
@@ -20356,7 +20615,7 @@ pub const __LITTLE_ENDIAN__ = @as(c_int, 1);
 pub const _LP64 = @as(c_int, 1);
 pub const __LP64__ = @as(c_int, 1);
 pub const __CHAR_BIT__ = @as(c_int, 8);
-pub const __BOOL_WIDTH__ = @as(c_int, 8);
+pub const __BOOL_WIDTH__ = @as(c_int, 1);
 pub const __SHRT_WIDTH__ = @as(c_int, 16);
 pub const __INT_WIDTH__ = @as(c_int, 32);
 pub const __LONG_WIDTH__ = @as(c_int, 64);
@@ -20401,13 +20660,15 @@ pub const __INTMAX_FMTd__ = "ld";
 pub const __INTMAX_FMTi__ = "li";
 pub const __INTMAX_C_SUFFIX__ = @compileError("unable to translate macro: undefined identifier `L`");
 // (no file):95:9
+pub const __INTMAX_C = @import("std").zig.c_translation.Macros.L_SUFFIX;
 pub const __UINTMAX_TYPE__ = c_ulong;
 pub const __UINTMAX_FMTo__ = "lo";
 pub const __UINTMAX_FMTu__ = "lu";
 pub const __UINTMAX_FMTx__ = "lx";
 pub const __UINTMAX_FMTX__ = "lX";
 pub const __UINTMAX_C_SUFFIX__ = @compileError("unable to translate macro: undefined identifier `UL`");
-// (no file):101:9
+// (no file):102:9
+pub const __UINTMAX_C = @import("std").zig.c_translation.Macros.UL_SUFFIX;
 pub const __PTRDIFF_TYPE__ = c_long;
 pub const __PTRDIFF_FMTd__ = "ld";
 pub const __PTRDIFF_FMTi__ = "li";
@@ -20497,25 +20758,42 @@ pub const __INT8_TYPE__ = i8;
 pub const __INT8_FMTd__ = "hhd";
 pub const __INT8_FMTi__ = "hhi";
 pub const __INT8_C_SUFFIX__ = "";
+pub inline fn __INT8_C(c: anytype) @TypeOf(c) {
+    _ = &c;
+    return c;
+}
 pub const __INT16_TYPE__ = c_short;
 pub const __INT16_FMTd__ = "hd";
 pub const __INT16_FMTi__ = "hi";
 pub const __INT16_C_SUFFIX__ = "";
+pub inline fn __INT16_C(c: anytype) @TypeOf(c) {
+    _ = &c;
+    return c;
+}
 pub const __INT32_TYPE__ = c_int;
 pub const __INT32_FMTd__ = "d";
 pub const __INT32_FMTi__ = "i";
 pub const __INT32_C_SUFFIX__ = "";
+pub inline fn __INT32_C(c: anytype) @TypeOf(c) {
+    _ = &c;
+    return c;
+}
 pub const __INT64_TYPE__ = c_long;
 pub const __INT64_FMTd__ = "ld";
 pub const __INT64_FMTi__ = "li";
 pub const __INT64_C_SUFFIX__ = @compileError("unable to translate macro: undefined identifier `L`");
-// (no file):202:9
+// (no file):207:9
+pub const __INT64_C = @import("std").zig.c_translation.Macros.L_SUFFIX;
 pub const __UINT8_TYPE__ = u8;
 pub const __UINT8_FMTo__ = "hho";
 pub const __UINT8_FMTu__ = "hhu";
 pub const __UINT8_FMTx__ = "hhx";
 pub const __UINT8_FMTX__ = "hhX";
 pub const __UINT8_C_SUFFIX__ = "";
+pub inline fn __UINT8_C(c: anytype) @TypeOf(c) {
+    _ = &c;
+    return c;
+}
 pub const __UINT8_MAX__ = @as(c_int, 255);
 pub const __INT8_MAX__ = @as(c_int, 127);
 pub const __UINT16_TYPE__ = c_ushort;
@@ -20524,6 +20802,10 @@ pub const __UINT16_FMTu__ = "hu";
 pub const __UINT16_FMTx__ = "hx";
 pub const __UINT16_FMTX__ = "hX";
 pub const __UINT16_C_SUFFIX__ = "";
+pub inline fn __UINT16_C(c: anytype) @TypeOf(c) {
+    _ = &c;
+    return c;
+}
 pub const __UINT16_MAX__ = @import("std").zig.c_translation.promoteIntLiteral(c_int, 65535, .decimal);
 pub const __INT16_MAX__ = @as(c_int, 32767);
 pub const __UINT32_TYPE__ = c_uint;
@@ -20532,7 +20814,8 @@ pub const __UINT32_FMTu__ = "u";
 pub const __UINT32_FMTx__ = "x";
 pub const __UINT32_FMTX__ = "X";
 pub const __UINT32_C_SUFFIX__ = @compileError("unable to translate macro: undefined identifier `U`");
-// (no file):224:9
+// (no file):232:9
+pub const __UINT32_C = @import("std").zig.c_translation.Macros.U_SUFFIX;
 pub const __UINT32_MAX__ = @import("std").zig.c_translation.promoteIntLiteral(c_uint, 4294967295, .decimal);
 pub const __INT32_MAX__ = @import("std").zig.c_translation.promoteIntLiteral(c_int, 2147483647, .decimal);
 pub const __UINT64_TYPE__ = c_ulong;
@@ -20541,7 +20824,8 @@ pub const __UINT64_FMTu__ = "lu";
 pub const __UINT64_FMTx__ = "lx";
 pub const __UINT64_FMTX__ = "lX";
 pub const __UINT64_C_SUFFIX__ = @compileError("unable to translate macro: undefined identifier `UL`");
-// (no file):232:9
+// (no file):241:9
+pub const __UINT64_C = @import("std").zig.c_translation.Macros.UL_SUFFIX;
 pub const __UINT64_MAX__ = @import("std").zig.c_translation.promoteIntLiteral(c_ulong, 18446744073709551615, .decimal);
 pub const __INT64_MAX__ = @import("std").zig.c_translation.promoteIntLiteral(c_long, 9223372036854775807, .decimal);
 pub const __INT_LEAST8_TYPE__ = i8;
@@ -20674,9 +20958,9 @@ pub const __x86_64__ = @as(c_int, 1);
 pub const __SEG_GS = @as(c_int, 1);
 pub const __SEG_FS = @as(c_int, 1);
 pub const __seg_gs = @compileError("unable to translate macro: undefined identifier `address_space`");
-// (no file):366:9
+// (no file):376:9
 pub const __seg_fs = @compileError("unable to translate macro: undefined identifier `address_space`");
-// (no file):367:9
+// (no file):377:9
 pub const __znver5 = @as(c_int, 1);
 pub const __znver5__ = @as(c_int, 1);
 pub const __tune_znver5__ = @as(c_int, 1);
@@ -20694,7 +20978,6 @@ pub const __BMI__ = @as(c_int, 1);
 pub const __BMI2__ = @as(c_int, 1);
 pub const __POPCNT__ = @as(c_int, 1);
 pub const __PRFCHW__ = @as(c_int, 1);
-pub const __RDSEED__ = @as(c_int, 1);
 pub const __ADX__ = @as(c_int, 1);
 pub const __MWAITX__ = @as(c_int, 1);
 pub const __MOVBE__ = @as(c_int, 1);
@@ -20727,7 +21010,6 @@ pub const __CLFLUSHOPT__ = @as(c_int, 1);
 pub const __CLWB__ = @as(c_int, 1);
 pub const __WBNOINVD__ = @as(c_int, 1);
 pub const __SHSTK__ = @as(c_int, 1);
-pub const __PREFETCHI__ = @as(c_int, 1);
 pub const __CLZERO__ = @as(c_int, 1);
 pub const __RDPID__ = @as(c_int, 1);
 pub const __RDPRU__ = @as(c_int, 1);
@@ -20770,17 +21052,17 @@ pub const __STDC_UTF_32__ = @as(c_int, 1);
 pub const __STDC_EMBED_NOT_FOUND__ = @as(c_int, 0);
 pub const __STDC_EMBED_FOUND__ = @as(c_int, 1);
 pub const __STDC_EMBED_EMPTY__ = @as(c_int, 2);
-pub const __GLIBC_MINOR__ = @as(c_int, 41);
-pub const _DEBUG = @as(c_int, 1);
-pub const _GLFW_X11 = @as(c_int, 1);
-pub const _GLFW_WAYLAND = @as(c_int, 1);
+pub const __GLIBC_MINOR__ = @as(c_int, 42);
 pub const __GCC_HAVE_DWARF2_CFI_ASM = @as(c_int, 1);
+pub const PeOp = "";
+pub const PeNS = "";
+pub const PeNSS = "";
 pub const INCLUDED_PETSCCONF_H = "";
 pub const PETSC_ARCH = "";
 pub const PETSC_ATTRIBUTEALIGNED = @compileError("unable to translate macro: undefined identifier `aligned`");
 // /opt/petsc/linux-c-opt/include/petscconf.h:5:9
 pub const PETSC_BLASLAPACK_UNDERSCORE = @as(c_int, 1);
-pub const PETSC_CLANGUAGE_CXX = @as(c_int, 1);
+pub const PETSC_CLANGUAGE_C = @as(c_int, 1);
 pub const PETSC_CXX_RESTRICT = @compileError("unable to translate C expr: unexpected token '__restrict'");
 // /opt/petsc/linux-c-opt/include/petscconf.h:8:9
 pub const PETSC_DEPRECATED_ENUM_BASE = @compileError("unable to translate macro: undefined identifier `deprecated`");
@@ -20798,12 +21080,10 @@ pub const PETSC_DEPRECATED_TYPEDEF_BASE = @compileError("unable to translate mac
 pub const PETSC_DIR = "/opt/petsc/linux-c-opt";
 pub const PETSC_DIR_SEPARATOR = '/';
 pub const PETSC_FORTRAN_CHARLEN_T = usize;
-pub const PETSC_FORTRAN_TYPE_INITIALIZE = @compileError("unable to translate C expr: unexpected token '='");
-// /opt/petsc/linux-c-opt/include/petscconf.h:18:9
 pub const PETSC_FUNCTION_NAME_C = @compileError("unable to translate C expr: unexpected token 'an identifier'");
-// /opt/petsc/linux-c-opt/include/petscconf.h:19:9
+// /opt/petsc/linux-c-opt/include/petscconf.h:18:9
 pub const PETSC_FUNCTION_NAME_CXX = @compileError("unable to translate C expr: unexpected token 'an identifier'");
-// /opt/petsc/linux-c-opt/include/petscconf.h:20:9
+// /opt/petsc/linux-c-opt/include/petscconf.h:19:9
 pub const PETSC_HAVE_ACCESS = @as(c_int, 1);
 pub const PETSC_HAVE_ATOLL = @as(c_int, 1);
 pub const PETSC_HAVE_ATTRIBUTEALIGNED = @as(c_int, 1);
@@ -20812,6 +21092,7 @@ pub const PETSC_HAVE_BZERO = @as(c_int, 1);
 pub const PETSC_HAVE_C99_COMPLEX = @as(c_int, 1);
 pub const PETSC_HAVE_CLOCK = @as(c_int, 1);
 pub const PETSC_HAVE_CXX = @as(c_int, 1);
+pub const PETSC_HAVE_CXXABI_H = @as(c_int, 1);
 pub const PETSC_HAVE_CXX_ATOMIC = @as(c_int, 1);
 pub const PETSC_HAVE_CXX_COMPLEX = @as(c_int, 1);
 pub const PETSC_HAVE_CXX_COMPLEX_FIX = @as(c_int, 1);
@@ -20848,6 +21129,7 @@ pub const PETSC_HAVE_GETPAGESIZE = @as(c_int, 1);
 pub const PETSC_HAVE_GETRUSAGE = @as(c_int, 1);
 pub const PETSC_HAVE_GSL = @as(c_int, 1);
 pub const PETSC_HAVE_HDF5 = @as(c_int, 1);
+pub const PETSC_HAVE_HWLOC = @as(c_int, 1);
 pub const PETSC_HAVE_IMMINTRIN_H = @as(c_int, 1);
 pub const PETSC_HAVE_INTTYPES_H = @as(c_int, 1);
 pub const PETSC_HAVE_ISINF = @as(c_int, 1);
@@ -20863,7 +21145,7 @@ pub const PETSC_HAVE_MEMMOVE = @as(c_int, 1);
 pub const PETSC_HAVE_METIS = @as(c_int, 1);
 pub const PETSC_HAVE_MKSTEMP = @as(c_int, 1);
 pub const PETSC_HAVE_MPIEXEC_ENVIRONMENTAL_VARIABLE = @compileError("unable to translate macro: undefined identifier `OMP`");
-// /opt/petsc/linux-c-opt/include/petscconf.h:79:9
+// /opt/petsc/linux-c-opt/include/petscconf.h:80:9
 pub const PETSC_HAVE_MPIIO = @as(c_int, 1);
 pub const PETSC_HAVE_MPI_COMBINER_CONTIGUOUS = @as(c_int, 1);
 pub const PETSC_HAVE_MPI_COMBINER_DUP = @as(c_int, 1);
@@ -20892,8 +21174,10 @@ pub const PETSC_HAVE_NETCDF = @as(c_int, 1);
 pub const PETSC_HAVE_NETDB_H = @as(c_int, 1);
 pub const PETSC_HAVE_NETINET_IN_H = @as(c_int, 1);
 pub const PETSC_HAVE_NO_FINITE_MATH_ONLY = @as(c_int, 1);
+pub const PETSC_HAVE_OPENBLAS_SET_NUM_THREADS = @as(c_int, 1);
 pub const PETSC_HAVE_OPENMPI = @as(c_int, 1);
-pub const PETSC_HAVE_PACKAGES = ":amd:blaslapack:cholmod:fftw3:gsl:hdf5:klu:libjpeg:mathlib:metis:mpi:mumps:netcdf:pthread:ptscotch:regex:scalapack:spqr:superlu:umfpack:x11:yaml:zfp:zlib:";
+pub const PETSC_HAVE_PACKAGES = ":amd:blaslapack:cholmod:fftw3:gsl:hdf5:hwloc:klu:libjpeg:mathlib:metis:mpi:mumps:netcdf:pastix:pthread:ptscotch:regex:scalapack:spqr:superlu:umfpack:x11:yaml:zfp:zlib:";
+pub const PETSC_HAVE_PASTIX = @as(c_int, 1);
 pub const PETSC_HAVE_PETSC4PY = @as(c_int, 1);
 pub const PETSC_HAVE_POPEN = @as(c_int, 1);
 pub const PETSC_HAVE_POSIX_MEMALIGN = @as(c_int, 1);
@@ -20955,27 +21239,28 @@ pub const PETSC_INTPTR_T_FMT = "#" ++ PRIxPTR;
 pub const PETSC_IS_COLORING_MAX = USHRT_MAX;
 pub const PETSC_IS_COLORING_VALUE_TYPE = c_short;
 pub const PETSC_IS_COLORING_VALUE_TYPE_F = @compileError("unable to translate macro: undefined identifier `integer2`");
-// /opt/petsc/linux-c-opt/include/petscconf.h:170:9
+// /opt/petsc/linux-c-opt/include/petscconf.h:173:9
 pub const PETSC_LEVEL1_DCACHE_LINESIZE = @as(c_int, 64);
 pub const PETSC_LIB_DIR = "/opt/petsc/linux-c-opt/lib";
 pub const PETSC_LIB_NAME_SUFFIX = "";
 pub const PETSC_MAX_PATH_LEN = @as(c_int, 4096);
 pub const PETSC_MEMALIGN = @as(c_int, 16);
+pub const PETSC_MISSING_LAPACK_lsame = @as(c_int, 1);
 pub const PETSC_MPICC_SHOW = "gcc -I/usr/include -Wl,-rpath -Wl,/usr/lib -Wl,--enable-new-dtags -lmpi";
 pub const PETSC_MPIU_IS_COLORING_VALUE_TYPE = MPI_UNSIGNED_SHORT;
 pub const PETSC_OMAKE = "/usr/bin/make --no-print-directory";
 pub const PETSC_PETSC4PY_INSTALL_PATH = "/opt/petsc/linux-c-opt/lib";
 pub const PETSC_PREFETCH_HINT_NTA = @compileError("unable to translate macro: undefined identifier `_MM_HINT_NTA`");
-// /opt/petsc/linux-c-opt/include/petscconf.h:180:9
+// /opt/petsc/linux-c-opt/include/petscconf.h:184:9
 pub const PETSC_PREFETCH_HINT_T0 = @compileError("unable to translate macro: undefined identifier `_MM_HINT_T0`");
-// /opt/petsc/linux-c-opt/include/petscconf.h:181:9
+// /opt/petsc/linux-c-opt/include/petscconf.h:185:9
 pub const PETSC_PREFETCH_HINT_T1 = @compileError("unable to translate macro: undefined identifier `_MM_HINT_T1`");
-// /opt/petsc/linux-c-opt/include/petscconf.h:182:9
+// /opt/petsc/linux-c-opt/include/petscconf.h:186:9
 pub const PETSC_PREFETCH_HINT_T2 = @compileError("unable to translate macro: undefined identifier `_MM_HINT_T2`");
-// /opt/petsc/linux-c-opt/include/petscconf.h:183:9
+// /opt/petsc/linux-c-opt/include/petscconf.h:187:9
 pub const PETSC_PYTHON_EXE = "/usr/bin/python3";
 pub const PETSC_Prefetch = @compileError("unable to translate macro: undefined identifier `_mm_prefetch`");
-// /opt/petsc/linux-c-opt/include/petscconf.h:185:9
+// /opt/petsc/linux-c-opt/include/petscconf.h:189:9
 pub const PETSC_REPLACE_DIR_SEPARATOR = '\\';
 pub const PETSC_SIGNAL_CAST = "";
 pub const PETSC_SIZEOF_INT = @as(c_int, 4);
@@ -20987,9 +21272,8 @@ pub const PETSC_SLSUFFIX = "so";
 pub const PETSC_UINTPTR_T = usize;
 pub const PETSC_UINTPTR_T_FMT = "#" ++ PRIxPTR;
 pub const PETSC_UNUSED = @compileError("unable to translate macro: undefined identifier `unused`");
-// /opt/petsc/linux-c-opt/include/petscconf.h:196:9
+// /opt/petsc/linux-c-opt/include/petscconf.h:200:9
 pub const PETSC_USE_AVX512_KERNELS = @as(c_int, 1);
-pub const PETSC_USE_BACKWARD_LOOP = @as(c_int, 1);
 pub const PETSC_USE_CTABLE = @as(c_int, 1);
 pub const PETSC_USE_DEBUG = @as(c_int, 1);
 pub const PETSC_USE_DEBUGGER = "gdb";
@@ -21046,9 +21330,43 @@ pub inline fn PETSC_PKG_MPI_VERSION_GE(MAJOR: anytype, MINOR: anytype, SUBMINOR:
     _ = &SUBMINOR;
     return @as(c_int, 0) == PETSC_PKG_MPI_VERSION_LT(MAJOR, MINOR, SUBMINOR);
 }
+pub const PETSC_PKG_HWLOC_VERSION_MAJOR = @as(c_int, 2);
+pub const PETSC_PKG_HWLOC_VERSION_MINOR = @as(c_int, 12);
+pub const PETSC_PKG_HWLOC_VERSION_SUBMINOR = @as(c_int, 2);
+pub const PETSC_PKG_HWLOC_VERSION_ = PETSC_PKG_HWLOC_VERSION_EQ;
+pub inline fn PETSC_PKG_HWLOC_VERSION_EQ(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(((PETSC_PKG_HWLOC_VERSION_MAJOR == MAJOR) and (PETSC_PKG_HWLOC_VERSION_MINOR == MINOR)) and (PETSC_PKG_HWLOC_VERSION_SUBMINOR == SUBMINOR)) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return ((PETSC_PKG_HWLOC_VERSION_MAJOR == MAJOR) and (PETSC_PKG_HWLOC_VERSION_MINOR == MINOR)) and (PETSC_PKG_HWLOC_VERSION_SUBMINOR == SUBMINOR);
+}
+pub inline fn PETSC_PKG_HWLOC_VERSION_LT(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf((PETSC_PKG_HWLOC_VERSION_MAJOR < MAJOR) or ((PETSC_PKG_HWLOC_VERSION_MAJOR == MAJOR) and ((PETSC_PKG_HWLOC_VERSION_MINOR < MINOR) or ((PETSC_PKG_HWLOC_VERSION_MINOR == MINOR) and (PETSC_PKG_HWLOC_VERSION_SUBMINOR < SUBMINOR))))) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return (PETSC_PKG_HWLOC_VERSION_MAJOR < MAJOR) or ((PETSC_PKG_HWLOC_VERSION_MAJOR == MAJOR) and ((PETSC_PKG_HWLOC_VERSION_MINOR < MINOR) or ((PETSC_PKG_HWLOC_VERSION_MINOR == MINOR) and (PETSC_PKG_HWLOC_VERSION_SUBMINOR < SUBMINOR))));
+}
+pub inline fn PETSC_PKG_HWLOC_VERSION_LE(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf((PETSC_PKG_HWLOC_VERSION_LT(MAJOR, MINOR, SUBMINOR) != 0) or (PETSC_PKG_HWLOC_VERSION_EQ(MAJOR, MINOR, SUBMINOR) != 0)) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return (PETSC_PKG_HWLOC_VERSION_LT(MAJOR, MINOR, SUBMINOR) != 0) or (PETSC_PKG_HWLOC_VERSION_EQ(MAJOR, MINOR, SUBMINOR) != 0);
+}
+pub inline fn PETSC_PKG_HWLOC_VERSION_GT(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(@as(c_int, 0) == PETSC_PKG_HWLOC_VERSION_LE(MAJOR, MINOR, SUBMINOR)) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return @as(c_int, 0) == PETSC_PKG_HWLOC_VERSION_LE(MAJOR, MINOR, SUBMINOR);
+}
+pub inline fn PETSC_PKG_HWLOC_VERSION_GE(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(@as(c_int, 0) == PETSC_PKG_HWLOC_VERSION_LT(MAJOR, MINOR, SUBMINOR)) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return @as(c_int, 0) == PETSC_PKG_HWLOC_VERSION_LT(MAJOR, MINOR, SUBMINOR);
+}
 pub const PETSC_PKG_OPENMPI_VERSION_MAJOR = @as(c_int, 5);
 pub const PETSC_PKG_OPENMPI_VERSION_MINOR = @as(c_int, 0);
-pub const PETSC_PKG_OPENMPI_VERSION_SUBMINOR = @as(c_int, 8);
+pub const PETSC_PKG_OPENMPI_VERSION_SUBMINOR = @as(c_int, 9);
 pub const PETSC_PKG_OPENMPI_VERSION_ = PETSC_PKG_OPENMPI_VERSION_EQ;
 pub inline fn PETSC_PKG_OPENMPI_VERSION_EQ(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(((PETSC_PKG_OPENMPI_VERSION_MAJOR == MAJOR) and (PETSC_PKG_OPENMPI_VERSION_MINOR == MINOR)) and (PETSC_PKG_OPENMPI_VERSION_SUBMINOR == SUBMINOR)) {
     _ = &MAJOR;
@@ -21182,6 +21500,40 @@ pub inline fn PETSC_PKG_NETCDF_VERSION_GE(MAJOR: anytype, MINOR: anytype, SUBMIN
     _ = &SUBMINOR;
     return @as(c_int, 0) == PETSC_PKG_NETCDF_VERSION_LT(MAJOR, MINOR, SUBMINOR);
 }
+pub const PETSC_PKG_SUITESPARSE_VERSION_MAJOR = @as(c_int, 7);
+pub const PETSC_PKG_SUITESPARSE_VERSION_MINOR = @as(c_int, 12);
+pub const PETSC_PKG_SUITESPARSE_VERSION_SUBMINOR = @as(c_int, 1);
+pub const PETSC_PKG_SUITESPARSE_VERSION_ = PETSC_PKG_SUITESPARSE_VERSION_EQ;
+pub inline fn PETSC_PKG_SUITESPARSE_VERSION_EQ(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(((PETSC_PKG_SUITESPARSE_VERSION_MAJOR == MAJOR) and (PETSC_PKG_SUITESPARSE_VERSION_MINOR == MINOR)) and (PETSC_PKG_SUITESPARSE_VERSION_SUBMINOR == SUBMINOR)) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return ((PETSC_PKG_SUITESPARSE_VERSION_MAJOR == MAJOR) and (PETSC_PKG_SUITESPARSE_VERSION_MINOR == MINOR)) and (PETSC_PKG_SUITESPARSE_VERSION_SUBMINOR == SUBMINOR);
+}
+pub inline fn PETSC_PKG_SUITESPARSE_VERSION_LT(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf((PETSC_PKG_SUITESPARSE_VERSION_MAJOR < MAJOR) or ((PETSC_PKG_SUITESPARSE_VERSION_MAJOR == MAJOR) and ((PETSC_PKG_SUITESPARSE_VERSION_MINOR < MINOR) or ((PETSC_PKG_SUITESPARSE_VERSION_MINOR == MINOR) and (PETSC_PKG_SUITESPARSE_VERSION_SUBMINOR < SUBMINOR))))) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return (PETSC_PKG_SUITESPARSE_VERSION_MAJOR < MAJOR) or ((PETSC_PKG_SUITESPARSE_VERSION_MAJOR == MAJOR) and ((PETSC_PKG_SUITESPARSE_VERSION_MINOR < MINOR) or ((PETSC_PKG_SUITESPARSE_VERSION_MINOR == MINOR) and (PETSC_PKG_SUITESPARSE_VERSION_SUBMINOR < SUBMINOR))));
+}
+pub inline fn PETSC_PKG_SUITESPARSE_VERSION_LE(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf((PETSC_PKG_SUITESPARSE_VERSION_LT(MAJOR, MINOR, SUBMINOR) != 0) or (PETSC_PKG_SUITESPARSE_VERSION_EQ(MAJOR, MINOR, SUBMINOR) != 0)) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return (PETSC_PKG_SUITESPARSE_VERSION_LT(MAJOR, MINOR, SUBMINOR) != 0) or (PETSC_PKG_SUITESPARSE_VERSION_EQ(MAJOR, MINOR, SUBMINOR) != 0);
+}
+pub inline fn PETSC_PKG_SUITESPARSE_VERSION_GT(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(@as(c_int, 0) == PETSC_PKG_SUITESPARSE_VERSION_LE(MAJOR, MINOR, SUBMINOR)) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return @as(c_int, 0) == PETSC_PKG_SUITESPARSE_VERSION_LE(MAJOR, MINOR, SUBMINOR);
+}
+pub inline fn PETSC_PKG_SUITESPARSE_VERSION_GE(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(@as(c_int, 0) == PETSC_PKG_SUITESPARSE_VERSION_LT(MAJOR, MINOR, SUBMINOR)) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return @as(c_int, 0) == PETSC_PKG_SUITESPARSE_VERSION_LT(MAJOR, MINOR, SUBMINOR);
+}
 pub const PETSC_PKG_METIS_VERSION_MAJOR = @as(c_int, 5);
 pub const PETSC_PKG_METIS_VERSION_MINOR = @as(c_int, 2);
 pub const PETSC_PKG_METIS_VERSION_SUBMINOR = @as(c_int, 1);
@@ -21216,43 +21568,9 @@ pub inline fn PETSC_PKG_METIS_VERSION_GE(MAJOR: anytype, MINOR: anytype, SUBMINO
     _ = &SUBMINOR;
     return @as(c_int, 0) == PETSC_PKG_METIS_VERSION_LT(MAJOR, MINOR, SUBMINOR);
 }
-pub const PETSC_PKG_SUITESPARSE_VERSION_MAJOR = @as(c_int, 7);
-pub const PETSC_PKG_SUITESPARSE_VERSION_MINOR = @as(c_int, 10);
-pub const PETSC_PKG_SUITESPARSE_VERSION_SUBMINOR = @as(c_int, 3);
-pub const PETSC_PKG_SUITESPARSE_VERSION_ = PETSC_PKG_SUITESPARSE_VERSION_EQ;
-pub inline fn PETSC_PKG_SUITESPARSE_VERSION_EQ(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(((PETSC_PKG_SUITESPARSE_VERSION_MAJOR == MAJOR) and (PETSC_PKG_SUITESPARSE_VERSION_MINOR == MINOR)) and (PETSC_PKG_SUITESPARSE_VERSION_SUBMINOR == SUBMINOR)) {
-    _ = &MAJOR;
-    _ = &MINOR;
-    _ = &SUBMINOR;
-    return ((PETSC_PKG_SUITESPARSE_VERSION_MAJOR == MAJOR) and (PETSC_PKG_SUITESPARSE_VERSION_MINOR == MINOR)) and (PETSC_PKG_SUITESPARSE_VERSION_SUBMINOR == SUBMINOR);
-}
-pub inline fn PETSC_PKG_SUITESPARSE_VERSION_LT(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf((PETSC_PKG_SUITESPARSE_VERSION_MAJOR < MAJOR) or ((PETSC_PKG_SUITESPARSE_VERSION_MAJOR == MAJOR) and ((PETSC_PKG_SUITESPARSE_VERSION_MINOR < MINOR) or ((PETSC_PKG_SUITESPARSE_VERSION_MINOR == MINOR) and (PETSC_PKG_SUITESPARSE_VERSION_SUBMINOR < SUBMINOR))))) {
-    _ = &MAJOR;
-    _ = &MINOR;
-    _ = &SUBMINOR;
-    return (PETSC_PKG_SUITESPARSE_VERSION_MAJOR < MAJOR) or ((PETSC_PKG_SUITESPARSE_VERSION_MAJOR == MAJOR) and ((PETSC_PKG_SUITESPARSE_VERSION_MINOR < MINOR) or ((PETSC_PKG_SUITESPARSE_VERSION_MINOR == MINOR) and (PETSC_PKG_SUITESPARSE_VERSION_SUBMINOR < SUBMINOR))));
-}
-pub inline fn PETSC_PKG_SUITESPARSE_VERSION_LE(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf((PETSC_PKG_SUITESPARSE_VERSION_LT(MAJOR, MINOR, SUBMINOR) != 0) or (PETSC_PKG_SUITESPARSE_VERSION_EQ(MAJOR, MINOR, SUBMINOR) != 0)) {
-    _ = &MAJOR;
-    _ = &MINOR;
-    _ = &SUBMINOR;
-    return (PETSC_PKG_SUITESPARSE_VERSION_LT(MAJOR, MINOR, SUBMINOR) != 0) or (PETSC_PKG_SUITESPARSE_VERSION_EQ(MAJOR, MINOR, SUBMINOR) != 0);
-}
-pub inline fn PETSC_PKG_SUITESPARSE_VERSION_GT(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(@as(c_int, 0) == PETSC_PKG_SUITESPARSE_VERSION_LE(MAJOR, MINOR, SUBMINOR)) {
-    _ = &MAJOR;
-    _ = &MINOR;
-    _ = &SUBMINOR;
-    return @as(c_int, 0) == PETSC_PKG_SUITESPARSE_VERSION_LE(MAJOR, MINOR, SUBMINOR);
-}
-pub inline fn PETSC_PKG_SUITESPARSE_VERSION_GE(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(@as(c_int, 0) == PETSC_PKG_SUITESPARSE_VERSION_LT(MAJOR, MINOR, SUBMINOR)) {
-    _ = &MAJOR;
-    _ = &MINOR;
-    _ = &SUBMINOR;
-    return @as(c_int, 0) == PETSC_PKG_SUITESPARSE_VERSION_LT(MAJOR, MINOR, SUBMINOR);
-}
 pub const PETSC_PKG_PTSCOTCH_VERSION_MAJOR = @as(c_int, 7);
 pub const PETSC_PKG_PTSCOTCH_VERSION_MINOR = @as(c_int, 0);
-pub const PETSC_PKG_PTSCOTCH_VERSION_SUBMINOR = @as(c_int, 7);
+pub const PETSC_PKG_PTSCOTCH_VERSION_SUBMINOR = @as(c_int, 10);
 pub const PETSC_PKG_PTSCOTCH_VERSION_ = PETSC_PKG_PTSCOTCH_VERSION_EQ;
 pub inline fn PETSC_PKG_PTSCOTCH_VERSION_EQ(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(((PETSC_PKG_PTSCOTCH_VERSION_MAJOR == MAJOR) and (PETSC_PKG_PTSCOTCH_VERSION_MINOR == MINOR)) and (PETSC_PKG_PTSCOTCH_VERSION_SUBMINOR == SUBMINOR)) {
     _ = &MAJOR;
@@ -21318,9 +21636,43 @@ pub inline fn PETSC_PKG_MUMPS_VERSION_GE(MAJOR: anytype, MINOR: anytype, SUBMINO
     _ = &SUBMINOR;
     return @as(c_int, 0) == PETSC_PKG_MUMPS_VERSION_LT(MAJOR, MINOR, SUBMINOR);
 }
+pub const PETSC_PKG_ZFP_VERSION_MAJOR = @as(c_int, 4112);
+pub const PETSC_PKG_ZFP_VERSION_MINOR = @as(c_int, 0);
+pub const PETSC_PKG_ZFP_VERSION_SUBMINOR = @as(c_int, 0);
+pub const PETSC_PKG_ZFP_VERSION_ = PETSC_PKG_ZFP_VERSION_EQ;
+pub inline fn PETSC_PKG_ZFP_VERSION_EQ(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(((PETSC_PKG_ZFP_VERSION_MAJOR == MAJOR) and (PETSC_PKG_ZFP_VERSION_MINOR == MINOR)) and (PETSC_PKG_ZFP_VERSION_SUBMINOR == SUBMINOR)) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return ((PETSC_PKG_ZFP_VERSION_MAJOR == MAJOR) and (PETSC_PKG_ZFP_VERSION_MINOR == MINOR)) and (PETSC_PKG_ZFP_VERSION_SUBMINOR == SUBMINOR);
+}
+pub inline fn PETSC_PKG_ZFP_VERSION_LT(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf((PETSC_PKG_ZFP_VERSION_MAJOR < MAJOR) or ((PETSC_PKG_ZFP_VERSION_MAJOR == MAJOR) and ((PETSC_PKG_ZFP_VERSION_MINOR < MINOR) or ((PETSC_PKG_ZFP_VERSION_MINOR == MINOR) and (PETSC_PKG_ZFP_VERSION_SUBMINOR < SUBMINOR))))) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return (PETSC_PKG_ZFP_VERSION_MAJOR < MAJOR) or ((PETSC_PKG_ZFP_VERSION_MAJOR == MAJOR) and ((PETSC_PKG_ZFP_VERSION_MINOR < MINOR) or ((PETSC_PKG_ZFP_VERSION_MINOR == MINOR) and (PETSC_PKG_ZFP_VERSION_SUBMINOR < SUBMINOR))));
+}
+pub inline fn PETSC_PKG_ZFP_VERSION_LE(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf((PETSC_PKG_ZFP_VERSION_LT(MAJOR, MINOR, SUBMINOR) != 0) or (PETSC_PKG_ZFP_VERSION_EQ(MAJOR, MINOR, SUBMINOR) != 0)) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return (PETSC_PKG_ZFP_VERSION_LT(MAJOR, MINOR, SUBMINOR) != 0) or (PETSC_PKG_ZFP_VERSION_EQ(MAJOR, MINOR, SUBMINOR) != 0);
+}
+pub inline fn PETSC_PKG_ZFP_VERSION_GT(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(@as(c_int, 0) == PETSC_PKG_ZFP_VERSION_LE(MAJOR, MINOR, SUBMINOR)) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return @as(c_int, 0) == PETSC_PKG_ZFP_VERSION_LE(MAJOR, MINOR, SUBMINOR);
+}
+pub inline fn PETSC_PKG_ZFP_VERSION_GE(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(@as(c_int, 0) == PETSC_PKG_ZFP_VERSION_LT(MAJOR, MINOR, SUBMINOR)) {
+    _ = &MAJOR;
+    _ = &MINOR;
+    _ = &SUBMINOR;
+    return @as(c_int, 0) == PETSC_PKG_ZFP_VERSION_LT(MAJOR, MINOR, SUBMINOR);
+}
 pub const PETSC_PKG_SUPERLU_VERSION_MAJOR = @as(c_int, 7);
 pub const PETSC_PKG_SUPERLU_VERSION_MINOR = @as(c_int, 0);
-pub const PETSC_PKG_SUPERLU_VERSION_SUBMINOR = @as(c_int, 0);
+pub const PETSC_PKG_SUPERLU_VERSION_SUBMINOR = @as(c_int, 1);
 pub const PETSC_PKG_SUPERLU_VERSION_ = PETSC_PKG_SUPERLU_VERSION_EQ;
 pub inline fn PETSC_PKG_SUPERLU_VERSION_EQ(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf(((PETSC_PKG_SUPERLU_VERSION_MAJOR == MAJOR) and (PETSC_PKG_SUPERLU_VERSION_MINOR == MINOR)) and (PETSC_PKG_SUPERLU_VERSION_SUBMINOR == SUBMINOR)) {
     _ = &MAJOR;
@@ -21436,12 +21788,12 @@ pub const PETSC_NODISCARD = @compileError("unable to translate macro: undefined 
 pub const PETSCVERSION_H = "";
 pub const PETSC_VERSION_RELEASE = @as(c_int, 1);
 pub const PETSC_VERSION_MAJOR = @as(c_int, 3);
-pub const PETSC_VERSION_MINOR = @as(c_int, 23);
-pub const PETSC_VERSION_SUBMINOR = @as(c_int, 3);
-pub const PETSC_RELEASE_DATE = "Mar 28, 2025";
-pub const PETSC_VERSION_DATE = "May 30, 2025";
-pub const PETSC_VERSION_GIT = "v3.23.3-1-g5c1c8ccd28e";
-pub const PETSC_VERSION_DATE_GIT = "2025-05-30 15:34:56 -0500";
+pub const PETSC_VERSION_MINOR = @as(c_int, 24);
+pub const PETSC_VERSION_SUBMINOR = @as(c_int, 1);
+pub const PETSC_RELEASE_DATE = "Sep 29, 2025";
+pub const PETSC_VERSION_DATE = "Oct 29, 2025";
+pub const PETSC_VERSION_GIT = "v3.24.1";
+pub const PETSC_VERSION_DATE_GIT = "2025-10-29 13:15:15 -0500";
 pub inline fn PETSC_VERSION_EQ(MAJOR: anytype, MINOR: anytype, SUBMINOR: anytype) @TypeOf((((PETSC_VERSION_MAJOR == MAJOR) and (PETSC_VERSION_MINOR == MINOR)) and (PETSC_VERSION_SUBMINOR == SUBMINOR)) and (PETSC_VERSION_RELEASE == @as(c_int, 1))) {
     _ = &MAJOR;
     _ = &MINOR;
@@ -21620,6 +21972,11 @@ pub const NULL = @import("std").zig.c_translation.cast(?*anyopaque, @as(c_int, 0
 pub const __CLANG_MAX_ALIGN_T_DEFINED = "";
 pub const offsetof = @compileError("unable to translate C expr: unexpected token 'an identifier'");
 // /usr/lib/zig/include/__stddef_offsetof.h:16:9
+pub const __STDBOOL_H = "";
+pub const __bool_true_false_are_defined = @as(c_int, 1);
+pub const @"bool" = bool;
+pub const @"true" = @as(c_int, 1);
+pub const @"false" = @as(c_int, 0);
 pub const __CLANG_LIMITS_H = "";
 pub const _GCC_LIMITS_H_ = "";
 pub const _LIBC_LIMITS_H_ = @as(c_int, 1);
@@ -22059,8 +22416,6 @@ pub const _BITS_STDINT_INTN_H = @as(c_int, 1);
 pub const _BITS_STDINT_UINTN_H = @as(c_int, 1);
 pub const _BITS_STDINT_LEAST_H = @as(c_int, 1);
 pub const __intptr_t_defined = "";
-pub const __INT64_C = @import("std").zig.c_translation.Macros.L_SUFFIX;
-pub const __UINT64_C = @import("std").zig.c_translation.Macros.UL_SUFFIX;
 pub const INT8_MIN = -@as(c_int, 128);
 pub const INT16_MIN = -@as(c_int, 32767) - @as(c_int, 1);
 pub const INT32_MIN = -@import("std").zig.c_translation.promoteIntLiteral(c_int, 2147483647, .decimal) - @as(c_int, 1);
@@ -22314,6 +22669,8 @@ pub const MPIU_INT32 = MPI_INT32_T;
 pub const PetscInt32_FMT = PRId32;
 pub const PetscBLASInt_FMT = "d";
 pub const PetscExodusIIInt_FMT = "d";
+pub const PETSC_FALSE = @"false";
+pub const PETSC_TRUE = @"true";
 pub inline fn PetscBool3ToBool(a: anytype) @TypeOf(if (a == PETSC_BOOL3_TRUE) PETSC_TRUE else PETSC_FALSE) {
     _ = &a;
     return if (a == PETSC_BOOL3_TRUE) PETSC_TRUE else PETSC_FALSE;
@@ -22454,7 +22811,7 @@ pub const MPICH_SKIP_MPICXX = @as(c_int, 1);
 pub const OMPI_SKIP_MPICXX = @as(c_int, 1);
 pub const OMPI_MPI_H = "";
 pub const OPAL_BUILD_PLATFORM_COMPILER_FAMILYID = @as(c_int, 1);
-pub const OPAL_BUILD_PLATFORM_COMPILER_VERSION = @import("std").zig.c_translation.promoteIntLiteral(c_int, 983297, .decimal);
+pub const OPAL_BUILD_PLATFORM_COMPILER_VERSION = @import("std").zig.c_translation.promoteIntLiteral(c_int, 983553, .decimal);
 pub const OPAL_STDC_HEADERS = @as(c_int, 1);
 pub const OPAL_HAVE_ATTRIBUTE_DEPRECATED = @as(c_int, 1);
 pub const OPAL_HAVE_ATTRIBUTE_DEPRECATED_ARGUMENT = @as(c_int, 1);
@@ -22497,7 +22854,7 @@ pub const OMPI_PARAM_CHECK = @as(c_int, 1);
 pub const OMPI_WANT_MPI_INTERFACE_WARNING = @as(c_int, 1);
 pub const OMPI_MAJOR_VERSION = @as(c_int, 5);
 pub const OMPI_MINOR_VERSION = @as(c_int, 0);
-pub const OMPI_RELEASE_VERSION = @as(c_int, 8);
+pub const OMPI_RELEASE_VERSION = @as(c_int, 9);
 pub const MPI_VERSION = @as(c_int, 3);
 pub const MPI_SUBVERSION = @as(c_int, 1);
 pub const ompi_fortran_bogus_type_t = c_int;
@@ -22813,6 +23170,10 @@ pub const MPI_CONVERSION_FN_NULL = @import("std").zig.c_translation.cast([*c]MPI
 // /usr/include/mpi.h:1209:9: warning: macro 'MPI_COMM_WORLD' contains a runtime value, translated to function
 pub inline fn MPI_COMM_WORLD() @TypeOf(OMPI_PREDEFINED_GLOBAL(MPI_Comm, ompi_mpi_comm_world)) {
     return OMPI_PREDEFINED_GLOBAL(MPI_Comm, ompi_mpi_comm_world);
+}
+// /usr/include/mpi.h:1210:9: warning: macro 'MPI_COMM_SELF' contains a runtime value, translated to function
+pub inline fn MPI_COMM_SELF() @TypeOf(OMPI_PREDEFINED_GLOBAL(MPI_Comm, ompi_mpi_comm_self)) {
+    return OMPI_PREDEFINED_GLOBAL(MPI_Comm, ompi_mpi_comm_self);
 }
 // /usr/include/mpi.h:1212:9: warning: macro 'MPI_GROUP_EMPTY' contains a runtime value, translated to function
 pub inline fn MPI_GROUP_EMPTY() @TypeOf(OMPI_PREDEFINED_GLOBAL(MPI_Group, ompi_mpi_group_empty)) {
@@ -23215,9 +23576,9 @@ pub const ____FILE_defined = @as(c_int, 1);
 pub const __FILE_defined = @as(c_int, 1);
 pub const __struct_FILE_defined = @as(c_int, 1);
 pub const __getc_unlocked_body = @compileError("TODO postfix inc/dec expr");
-// /usr/include/bits/types/struct_FILE.h:105:9
+// /usr/include/bits/types/struct_FILE.h:113:9
 pub const __putc_unlocked_body = @compileError("TODO postfix inc/dec expr");
-// /usr/include/bits/types/struct_FILE.h:109:9
+// /usr/include/bits/types/struct_FILE.h:117:9
 pub const _IO_EOF_SEEN = @as(c_int, 0x0010);
 pub inline fn __feof_unlocked_body(_fp: anytype) @TypeOf((_fp.*._flags & _IO_EOF_SEEN) != @as(c_int, 0)) {
     _ = &_fp;
@@ -23250,6 +23611,8 @@ pub const L_ctermid = @as(c_int, 9);
 pub const FOPEN_MAX = @as(c_int, 16);
 pub const __attr_dealloc_fclose = __attr_dealloc(fclose, @as(c_int, 1));
 pub const MPIAPI = "";
+pub const MPIU_BOOL = @compileError("unable to translate C expr: unexpected token ')'");
+// /opt/petsc/linux-c-opt/include/petscsys.h:188:9
 pub const MPIU_INT = MPI_INT;
 pub const MPIU_COUNT = MPI_AINT;
 pub const _MATH_H = @as(c_int, 1);
@@ -23564,6 +23927,46 @@ pub const __DECL_SIMD_tanpif128 = "";
 pub const __DECL_SIMD_tanpif32x = "";
 pub const __DECL_SIMD_tanpif64x = "";
 pub const __DECL_SIMD_tanpif128x = "";
+pub const __DECL_SIMD_acospi = "";
+pub const __DECL_SIMD_acospif = "";
+pub const __DECL_SIMD_acospil = "";
+pub const __DECL_SIMD_acospif16 = "";
+pub const __DECL_SIMD_acospif32 = "";
+pub const __DECL_SIMD_acospif64 = "";
+pub const __DECL_SIMD_acospif128 = "";
+pub const __DECL_SIMD_acospif32x = "";
+pub const __DECL_SIMD_acospif64x = "";
+pub const __DECL_SIMD_acospif128x = "";
+pub const __DECL_SIMD_asinpi = "";
+pub const __DECL_SIMD_asinpif = "";
+pub const __DECL_SIMD_asinpil = "";
+pub const __DECL_SIMD_asinpif16 = "";
+pub const __DECL_SIMD_asinpif32 = "";
+pub const __DECL_SIMD_asinpif64 = "";
+pub const __DECL_SIMD_asinpif128 = "";
+pub const __DECL_SIMD_asinpif32x = "";
+pub const __DECL_SIMD_asinpif64x = "";
+pub const __DECL_SIMD_asinpif128x = "";
+pub const __DECL_SIMD_atanpi = "";
+pub const __DECL_SIMD_atanpif = "";
+pub const __DECL_SIMD_atanpil = "";
+pub const __DECL_SIMD_atanpif16 = "";
+pub const __DECL_SIMD_atanpif32 = "";
+pub const __DECL_SIMD_atanpif64 = "";
+pub const __DECL_SIMD_atanpif128 = "";
+pub const __DECL_SIMD_atanpif32x = "";
+pub const __DECL_SIMD_atanpif64x = "";
+pub const __DECL_SIMD_atanpif128x = "";
+pub const __DECL_SIMD_atan2pi = "";
+pub const __DECL_SIMD_atan2pif = "";
+pub const __DECL_SIMD_atan2pil = "";
+pub const __DECL_SIMD_atan2pif16 = "";
+pub const __DECL_SIMD_atan2pif32 = "";
+pub const __DECL_SIMD_atan2pif64 = "";
+pub const __DECL_SIMD_atan2pif128 = "";
+pub const __DECL_SIMD_atan2pif32x = "";
+pub const __DECL_SIMD_atan2pif64x = "";
+pub const __DECL_SIMD_atan2pif128x = "";
 pub const HUGE_VAL = @compileError("unable to translate macro: undefined identifier `__builtin_huge_val`");
 // /usr/include/math.h:48:10
 pub const HUGE_VALF = __builtin_huge_valf();
@@ -24016,6 +24419,7 @@ pub inline fn PetscRealConstant(constant: anytype) @TypeOf(constant) {
 pub const PETSC_PI = PetscRealConstant(@as(f64, 3.1415926535897932384626433832795029));
 pub const PETSC_PHI = PetscRealConstant(@as(f64, 1.6180339887498948482045868343656381));
 pub const PETSC_SQRT2 = PetscRealConstant(@as(f64, 1.4142135623730950488016887242096981));
+pub const PETSC_E = PetscRealConstant(@as(f64, 2.7182818284590452353602874713526625));
 pub const PETSC_MAX_REAL = @as(f64, 1.7976931348623157e+308);
 pub const PETSC_MIN_REAL = -PETSC_MAX_REAL;
 pub const PETSC_REAL_MIN = @as(f64, 2.225073858507201e-308);
@@ -24039,70 +24443,71 @@ pub inline fn PetscApproximateGTE(x: anytype, b: anytype) @TypeOf(x >= (PetscRea
 }
 pub const PETSC_IGNORE = PETSC_NULLPTR;
 pub const PETSC_NULL = @compileError("unable to translate C expr: unexpected token ')'");
-// /opt/petsc/linux-c-opt/include/petscsys.h:215:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:273:9
 pub const PETSC_DECIDE = -@as(c_int, 1);
 pub const PETSC_DETERMINE = PETSC_DECIDE;
 pub const PETSC_CURRENT = -@as(c_int, 2);
 pub const PETSC_UNLIMITED = -@as(c_int, 3);
 pub const PETSC_DEFAULT = PETSC_CURRENT;
+pub const PETSC_COMM_SELF = MPI_COMM_SELF;
 pub const PetscMalloc = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:433:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:491:9
 pub const PetscRealloc = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:460:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:518:9
 pub inline fn PetscAddrAlign(a: anytype) ?*anyopaque {
     _ = &a;
     return @import("std").zig.c_translation.cast(?*anyopaque, (PETSC_UINTPTR_T(a) + (PETSC_MEMALIGN - @as(c_int, 1))) & ~(PETSC_MEMALIGN - @as(c_int, 1)));
 }
 pub const PetscCalloc = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:509:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:567:9
 pub const PetscMalloc1 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:564:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:622:9
 pub const PetscCalloc1 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:588:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:646:9
 pub const PetscMalloc2 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:611:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:669:9
 pub const PetscCalloc2 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:634:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:692:9
 pub const PetscMalloc3 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:659:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:717:9
 pub const PetscCalloc3 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:685:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:743:9
 pub const PetscMalloc4 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:713:9
-pub const PetscCalloc4 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:741:9
-pub const PetscMalloc5 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
 // /opt/petsc/linux-c-opt/include/petscsys.h:771:9
+pub const PetscCalloc4 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
+// /opt/petsc/linux-c-opt/include/petscsys.h:799:9
+pub const PetscMalloc5 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
+// /opt/petsc/linux-c-opt/include/petscsys.h:829:9
 pub const PetscCalloc5 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:801:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:859:9
 pub const PetscMalloc6 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:833:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:891:9
 pub const PetscCalloc6 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:865:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:923:9
 pub const PetscMalloc7 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:899:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:957:9
 pub const PetscCalloc7 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:933:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:991:9
 pub inline fn PetscNew(b: anytype) @TypeOf(PetscCalloc1(@as(c_int, 1), b)) {
     _ = &b;
     return PetscCalloc1(@as(c_int, 1), b);
 }
 pub const PetscNewLog = @compileError("unable to translate C expr: unexpected token ')'");
-// /opt/petsc/linux-c-opt/include/petscsys.h:957:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:1015:9
 pub const PetscFree = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:980:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:1038:9
 pub const PetscFree2 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:1004:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:1062:9
 pub const PetscFree3 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:1029:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:1087:9
 pub const PetscFree4 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:1055:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:1113:9
 pub const PetscFree5 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:1082:9
-pub const PetscFree6 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:1110:9
-pub const PetscFree7 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
 // /opt/petsc/linux-c-opt/include/petscsys.h:1140:9
+pub const PetscFree6 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
+// /opt/petsc/linux-c-opt/include/petscsys.h:1168:9
+pub const PetscFree7 = @compileError("unable to translate macro: undefined identifier `__LINE__`");
+// /opt/petsc/linux-c-opt/include/petscsys.h:1198:9
 pub const MPIU_PETSCLOGDOUBLE = MPI_DOUBLE;
 pub const MPIU_2PETSCLOGDOUBLE = MPI_2DOUBLE_PRECISION;
 pub const MPIU_SUM = MPI_SUM;
@@ -24169,79 +24574,77 @@ pub const PetscCallMPIAbort = @compileError("unable to translate C expr: expecte
 pub const PetscCallMPINull = @compileError("unable to translate C expr: expected ')' instead got '...'");
 // /opt/petsc/linux-c-opt/include/petscerror.h:788:11
 pub const CHKERRMPI = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:811:9
+// /opt/petsc/linux-c-opt/include/petscerror.h:810:9
 pub const PetscCallAbort = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:881:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:880:11
 pub const PetscCallContinue = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:891:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:890:11
 pub const CHKERRABORT = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:923:9
+// /opt/petsc/linux-c-opt/include/petscerror.h:922:9
 pub const CHKERRCONTINUE = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:924:9
+// /opt/petsc/linux-c-opt/include/petscerror.h:923:9
 pub const PETSCABORTWITHIERR_Private = @compileError("unable to translate macro: undefined identifier `size_`");
-// /opt/petsc/linux-c-opt/include/petscerror.h:956:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:955:11
 pub const PETSCABORT = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1006:11
-pub const PetscCallThrow = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1045:11
-pub const CHKERRXX = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1071:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1005:11
 pub const PetscCallCXX_Private = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1074:9
+// /opt/petsc/linux-c-opt/include/petscerror.h:1072:9
 pub const PetscCallCXX = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1152:9
+// /opt/petsc/linux-c-opt/include/petscerror.h:1150:9
 pub const PetscCallCXXAbort = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1221:9
+// /opt/petsc/linux-c-opt/include/petscerror.h:1219:9
 pub const CHKERRCXX = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1243:9
+// /opt/petsc/linux-c-opt/include/petscerror.h:1241:9
 pub const CHKMEMQ = @compileError("unable to translate macro: undefined identifier `ierr_petsc_memq_`");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1275:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1273:11
 pub const CHKMEMA = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1280:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1278:11
 pub const PETSCSTACKSIZE = @as(c_int, 64);
 pub const PetscRegister__FUNCT__ = @compileError("unable to translate C expr: unexpected token ''");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1427:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1424:11
 pub const PetscStackPush_Private = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1450:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1447:11
 pub const PetscStackPop_Private = @compileError("unable to translate macro: undefined identifier `__FILE__`");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1468:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1465:11
 pub const PetscStackPushNoCheck = @compileError("unable to translate macro: undefined identifier `__FILE__`");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1514:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1511:11
 pub const PetscStackUpdateLine = @compileError("unable to translate macro: undefined identifier `__LINE__`");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1546:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1543:11
 pub const PetscStackPushExternal = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1583:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1580:11
 pub const PetscStackPopNoCheck = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1618:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1615:11
 pub const PetscStackClearTop = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1625:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1622:11
 pub const PetscFunctionBegin = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1663:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1660:11
 pub const PetscFunctionBeginHot = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1691:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1688:11
 pub const PetscFunctionBeginUser = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1725:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1722:11
 pub const PetscStackPush = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1756:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1753:11
 pub const PetscStackPop = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1783:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1780:11
 pub const PetscFunctionReturn = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1844:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1841:11
 pub const PetscFunctionReturnVoid = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1878:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1875:11
 pub const PetscStackCallExternalVoid = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1926:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1923:11
 pub const PetscCallExternal = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1954:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1951:11
 pub const PetscCallExternalAbort = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscerror.h:1983:11
+// /opt/petsc/linux-c-opt/include/petscerror.h:1980:11
 pub const PETSC_SMALLEST_CLASSID = @import("std").zig.c_translation.promoteIntLiteral(c_int, 1211211, .decimal);
 pub const PetscObjectComposeFunction = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscsys.h:1348:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:1420:9
 pub const PetscObjectParameterSetDefault = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petscsys.h:1381:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:1453:9
 pub const PetscObjectParameterDeclare = @compileError("unable to translate macro: undefined identifier `default_`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:1404:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:1476:9
+pub const PetscObjectParameterDeclarePtr = @compileError("unable to translate macro: undefined identifier `default_`");
+// /opt/petsc/linux-c-opt/include/petscsys.h:1477:9
 pub const PETSC_MAX_OPTION_NAME = @as(c_int, 512);
 pub const PetscOptionsBegin = @compileError("unable to translate macro: undefined identifier `PetscOptionsObjectBase`");
 // /opt/petsc/linux-c-opt/include/petscoptions.h:194:11
@@ -24279,30 +24682,32 @@ pub const PetscOptionsString = @compileError("unable to translate macro: undefin
 // /opt/petsc/linux-c-opt/include/petscoptions.h:897:11
 pub const PetscOptionsBool = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
 // /opt/petsc/linux-c-opt/include/petscoptions.h:940:11
+pub const PetscOptionsBool3 = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
+// /opt/petsc/linux-c-opt/include/petscoptions.h:983:11
 pub const PetscOptionsBoolGroupBegin = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
-// /opt/petsc/linux-c-opt/include/petscoptions.h:974:11
+// /opt/petsc/linux-c-opt/include/petscoptions.h:1017:11
 pub const PetscOptionsBoolGroup = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
-// /opt/petsc/linux-c-opt/include/petscoptions.h:1008:11
+// /opt/petsc/linux-c-opt/include/petscoptions.h:1051:11
 pub const PetscOptionsBoolGroupEnd = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
-// /opt/petsc/linux-c-opt/include/petscoptions.h:1042:11
+// /opt/petsc/linux-c-opt/include/petscoptions.h:1085:11
 pub const PetscOptionsFList = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
-// /opt/petsc/linux-c-opt/include/petscoptions.h:1094:11
-pub const PetscOptionsEList = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
 // /opt/petsc/linux-c-opt/include/petscoptions.h:1137:11
+pub const PetscOptionsEList = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
+// /opt/petsc/linux-c-opt/include/petscoptions.h:1180:11
 pub const PetscOptionsRealArray = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
-// /opt/petsc/linux-c-opt/include/petscoptions.h:1173:11
+// /opt/petsc/linux-c-opt/include/petscoptions.h:1216:11
 pub const PetscOptionsScalarArray = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
-// /opt/petsc/linux-c-opt/include/petscoptions.h:1209:11
-pub const PetscOptionsIntArray = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
 // /opt/petsc/linux-c-opt/include/petscoptions.h:1252:11
+pub const PetscOptionsIntArray = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
+// /opt/petsc/linux-c-opt/include/petscoptions.h:1295:11
 pub const PetscOptionsStringArray = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
-// /opt/petsc/linux-c-opt/include/petscoptions.h:1294:11
+// /opt/petsc/linux-c-opt/include/petscoptions.h:1337:11
 pub const PetscOptionsBoolArray = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
-// /opt/petsc/linux-c-opt/include/petscoptions.h:1332:11
+// /opt/petsc/linux-c-opt/include/petscoptions.h:1375:11
 pub const PetscOptionsEnumArray = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
-// /opt/petsc/linux-c-opt/include/petscoptions.h:1372:11
+// /opt/petsc/linux-c-opt/include/petscoptions.h:1415:11
 pub const PetscOptionsDeprecated = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
-// /opt/petsc/linux-c-opt/include/petscoptions.h:1407:11
+// /opt/petsc/linux-c-opt/include/petscoptions.h:1450:11
 pub inline fn PetscOptionsDeprecatedNoObject(opt: anytype, text: anytype, man: anytype, info: anytype) @TypeOf(PetscOptionsDeprecated_Private(NULL, opt, text, man, info)) {
     _ = &opt;
     _ = &text;
@@ -24311,7 +24716,7 @@ pub inline fn PetscOptionsDeprecatedNoObject(opt: anytype, text: anytype, man: a
     return PetscOptionsDeprecated_Private(NULL, opt, text, man, info);
 }
 pub const PetscObjectQueryFunction = @compileError("unable to translate C expr: expected ')' instead got '*'");
-// /opt/petsc/linux-c-opt/include/petscsys.h:1417:9
+// /opt/petsc/linux-c-opt/include/petscsys.h:1490:9
 pub inline fn PetscSAWsBlock() @TypeOf(PETSC_SUCCESS) {
     return PETSC_SUCCESS;
 }
@@ -24343,35 +24748,40 @@ pub inline fn PetscStackSAWsViewOff() @TypeOf(PETSC_SUCCESS) {
     return PETSC_SUCCESS;
 }
 pub const PetscStackSAWsTakeAccess = @compileError("unable to translate C expr: unexpected token ''");
-// /opt/petsc/linux-c-opt/include/petscsys.h:1458:11
+// /opt/petsc/linux-c-opt/include/petscsys.h:1531:11
 pub const PetscStackSAWsGrantAccess = @compileError("unable to translate C expr: unexpected token ''");
-// /opt/petsc/linux-c-opt/include/petscsys.h:1459:11
-pub inline fn PetscFunctionListAdd(list: anytype, name: anytype, fptr: anytype) @TypeOf(PetscFunctionListAdd_Private(list, name, @import("std").zig.c_translation.cast([*c]PetscVoidFn, fptr))) {
+// /opt/petsc/linux-c-opt/include/petscsys.h:1532:11
+pub inline fn PetscFunctionListAdd(list: anytype, name: anytype, fptr: anytype) @TypeOf(PetscFunctionListAdd_Private(list, name, @import("std").zig.c_translation.cast([*c]PetscErrorCodeFn, fptr))) {
     _ = &list;
     _ = &name;
     _ = &fptr;
-    return PetscFunctionListAdd_Private(list, name, @import("std").zig.c_translation.cast([*c]PetscVoidFn, fptr));
+    return PetscFunctionListAdd_Private(list, name, @import("std").zig.c_translation.cast([*c]PetscErrorCodeFn, fptr));
 }
 pub const PetscFunctionListFind = @compileError("unable to translate C expr: expected ')' instead got '*'");
-// /opt/petsc/linux-c-opt/include/petscsys.h:1492:9
-pub inline fn PetscNot(a: anytype) @TypeOf(if (a) PETSC_FALSE else PETSC_TRUE) {
+// /opt/petsc/linux-c-opt/include/petscsys.h:1565:9
+pub inline fn PetscNot(a: anytype) @TypeOf(if (a != 0) PETSC_FALSE else PETSC_TRUE) {
     _ = &a;
-    return if (a) PETSC_FALSE else PETSC_TRUE;
+    return if (a != 0) PETSC_FALSE else PETSC_TRUE;
 }
 pub const _STRING_H = @as(c_int, 1);
 pub const _BITS_TYPES_LOCALE_T_H = @as(c_int, 1);
 pub const _BITS_TYPES___LOCALE_T_H = @as(c_int, 1);
 pub const _STRINGS_H = @as(c_int, 1);
+pub inline fn PetscAssertPointer_Private(ptr: anytype, arg: anytype) @TypeOf(PetscAssert(ptr, PETSC_COMM_SELF, PETSC_ERR_ARG_NULL, "Null Pointer: Parameter '" ++ PetscStringize(ptr) ++ "' # " ++ PetscStringize(arg))) {
+    _ = &ptr;
+    _ = &arg;
+    return PetscAssert(ptr, PETSC_COMM_SELF, PETSC_ERR_ARG_NULL, "Null Pointer: Parameter '" ++ PetscStringize(ptr) ++ "' # " ++ PetscStringize(arg));
+}
 pub const PETSC_SILENCE_WSTRINGOP_TRUNCATION_BEGIN = @import("std").zig.c_translation.cast(anyopaque, @as(c_int, 0));
 pub const PETSC_SILENCE_WSTRINGOP_TRUNCATION_END = @import("std").zig.c_translation.cast(anyopaque, @as(c_int, 0));
 pub const PetscArraycmp = @compileError("unable to translate C expr: unexpected token '*'");
-// /opt/petsc/linux-c-opt/include/petscstring.h:789:9
+// /opt/petsc/linux-c-opt/include/petscstring.h:784:9
 pub const PetscArraymove = @compileError("unable to translate C expr: unexpected token '*'");
-// /opt/petsc/linux-c-opt/include/petscstring.h:815:9
+// /opt/petsc/linux-c-opt/include/petscstring.h:810:9
 pub const PetscArraycpy = @compileError("unable to translate C expr: unexpected token '*'");
-// /opt/petsc/linux-c-opt/include/petscstring.h:840:9
+// /opt/petsc/linux-c-opt/include/petscstring.h:835:9
 pub const PetscArrayzero = @compileError("unable to translate C expr: unexpected token '*'");
-// /opt/petsc/linux-c-opt/include/petscstring.h:862:9
+// /opt/petsc/linux-c-opt/include/petscstring.h:857:9
 pub const PETSCLOGHANDLERDEFAULT = "default";
 pub const PETSCLOGHANDLERNESTED = "nested";
 pub const PETSCLOGHANDLERTRACE = "trace";
@@ -24379,6 +24789,7 @@ pub const PETSCLOGHANDLERMPE = "mpe";
 pub const PETSCLOGHANDLERPERFSTUBS = "perfstubs";
 pub const PETSCLOGHANDLERLEGACY = "legacy";
 pub const PETSCLOGHANDLERNVTX = "nvtx";
+pub const PETSCLOGHANDLERROCTX = "roctx";
 pub const PetscInfo = @compileError("unable to translate C expr: expected ')' instead got '...'");
 // /opt/petsc/linux-c-opt/include/petsclog.h:17:11
 pub const PetscInfo1 = @compileError("unable to translate C expr: expected ')' instead got '...'");
@@ -24414,7 +24825,6 @@ pub inline fn PetscAddLogDoubleCnt(a: anytype, b: anytype, c: anytype, d: anytyp
 pub const PetscLogObjectParents = @compileError("unable to translate macro: undefined identifier `_i`");
 // /opt/petsc/linux-c-opt/include/petsclog.h:186:9
 pub const PETSC_LOG_HANDLER_MAX = @as(c_int, 4);
-pub const PETSC_FLOPS_PER_OP = @as(f64, 1.0);
 pub const PetscPreLoadBegin = @compileError("unable to translate macro: undefined identifier `PetscPreLoading`");
 // /opt/petsc/linux-c-opt/include/petsclog.h:688:9
 pub const PetscPreLoadEnd = @compileError("unable to translate C expr: unexpected token ';'");
@@ -24740,7 +25150,7 @@ pub const __have_pthread_attr_t = @as(c_int, 1);
 pub const _ALLOCA_H = @as(c_int, 1);
 pub const __COMPAR_FN_T = "";
 pub const PetscPrefetchBlock = @compileError("unable to translate macro: undefined identifier `_p`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:1726:11
+// /opt/petsc/linux-c-opt/include/petscsys.h:1799:11
 pub const EXTERN_C_BEGIN = "";
 pub const EXTERN_C_END = "";
 pub inline fn PetscInt64Mult(a: anytype, b: anytype) @TypeOf(@import("std").zig.c_translation.cast(PetscInt64, a) * @import("std").zig.c_translation.cast(PetscInt64, b)) {
@@ -24771,7 +25181,7 @@ pub const __va_copy = @compileError("unable to translate macro: undefined identi
 pub const va_copy = @compileError("unable to translate macro: undefined identifier `__builtin_va_copy`");
 // /usr/lib/zig/include/__stdarg_va_copy.h:11:9
 pub const PetscMPIIntCast_Internal = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petscsys.h:2599:11
+// /opt/petsc/linux-c-opt/include/petscsys.h:2672:11
 pub inline fn MPIU_Scatterv(sendbuf: anytype, sendcounts: anytype, displs: anytype, sendtype: anytype, recvbuf: anytype, recvcount: anytype, recvtype: anytype, root: anytype, comm: anytype) @TypeOf(MPI_Scatterv(sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype, root, comm)) {
     _ = &sendbuf;
     _ = &sendcounts;
@@ -24796,14 +25206,14 @@ pub inline fn MPIU_Gatherv(sendbuf: anytype, sendcount: anytype, sendtype: anyty
     _ = &comm;
     return MPI_Gatherv(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, root, comm);
 }
-pub const MPIU_Allreduce = @compileError("unable to translate macro: undefined identifier `a_b1`");
-// /opt/petsc/linux-c-opt/include/petscsys.h:2817:11
+pub const MPIU_Allreduce = @compileError("unable to translate macro: undefined identifier `__FILE__`");
+// /opt/petsc/linux-c-opt/include/petscsys.h:2891:11
 pub const PETSC_HAVE_FORTRAN = @compileError("unable to translate C expr: unexpected token ')'");
-// /opt/petsc/linux-c-opt/include/petscsys.h:2872:9
-pub inline fn PetscSafePointerPlusOffset(ptr: anytype, offset: anytype) @TypeOf(if (ptr) ptr + offset else NULL) {
+// /opt/petsc/linux-c-opt/include/petscsys.h:2929:9
+pub inline fn PetscSafePointerPlusOffset(ptr: anytype, offset: anytype) @TypeOf(if (ptr != 0) ptr + offset else NULL) {
     _ = &ptr;
     _ = &offset;
-    return if (ptr) ptr + offset else NULL;
+    return if (ptr != 0) ptr + offset else NULL;
 }
 pub const PETSC_SHOULD_SILENCE_GCC_TAUTOLOGICAL_COMPARE_WARNING = @as(c_int, 0);
 pub const PETSC_MEMTYPE_KOKKOS = PETSC_MEMTYPE_HOST;
@@ -24866,6 +25276,7 @@ pub const PETSC_BAG_FILE_CLASSID = @import("std").zig.c_translation.promoteIntLi
 pub inline fn PETSC_MATLAB_ENGINE_WORLD() @TypeOf(PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD)) {
     return PETSC_MATLAB_ENGINE_(PETSC_COMM_WORLD);
 }
+pub const PETSC_MATLAB_ENGINE_SELF = PETSC_MATLAB_ENGINE_(PETSC_COMM_SELF);
 pub const PETSC_DRAW_X = "x";
 pub const PETSC_DRAW_NULL = "null";
 pub const PETSC_DRAW_WIN32 = "win32";
@@ -24920,9 +25331,9 @@ pub inline fn sigsetjmp(env: anytype, savemask: anytype) @TypeOf(__sigsetjmp(env
     return __sigsetjmp(env, savemask);
 }
 pub const PetscDrawCollectiveBegin = @compileError("unable to translate macro: undefined identifier `_Petsc_jmpbuf`");
-// /opt/petsc/linux-c-opt/include/petscdraw.h:389:11
+// /opt/petsc/linux-c-opt/include/petscdraw.h:390:11
 pub const PetscDrawCollectiveEnd = @compileError("unable to translate macro: undefined identifier `_Petsc_isdrawx`");
-// /opt/petsc/linux-c-opt/include/petscdraw.h:434:11
+// /opt/petsc/linux-c-opt/include/petscdraw.h:435:11
 pub const PETSC_DEVICE_ALIGNOF = @compileError("unable to translate C expr: expected ')' instead got '...'");
 // /opt/petsc/linux-c-opt/include/petscdevice.h:10:13
 pub const PETSC_HAVE_HOST = @as(c_int, 1);
@@ -24973,6 +25384,8 @@ pub const PETSCVIEWERPYTHON = "python";
 pub const PETSCVIEWERPYVISTA = "pyvista";
 pub const PetscOptionsViewer = @compileError("unable to translate macro: undefined identifier `PetscOptionsObject`");
 // /opt/petsc/linux-c-opt/include/petscviewer.h:194:9
+pub const PETSC_VIEWER_STDERR_SELF = PETSC_VIEWER_STDERR_(PETSC_COMM_SELF);
+// /opt/petsc/linux-c-opt/include/petscviewer.h:363:9: warning: macro 'PETSC_VIEWER_STDERR_WORLD' contains a runtime value, translated to function
 pub inline fn PETSC_VIEWER_STDERR_WORLD() @TypeOf(PETSC_VIEWER_STDERR_(PETSC_COMM_WORLD)) {
     return PETSC_VIEWER_STDERR_(PETSC_COMM_WORLD);
 }
@@ -24980,18 +25393,27 @@ pub inline fn PETSC_VIEWER_STDERR_WORLD() @TypeOf(PETSC_VIEWER_STDERR_(PETSC_COM
 pub inline fn PETSC_VIEWER_STDOUT_WORLD() @TypeOf(PETSC_VIEWER_STDOUT_(PETSC_COMM_WORLD)) {
     return PETSC_VIEWER_STDOUT_(PETSC_COMM_WORLD);
 }
+pub const PETSC_VIEWER_STDOUT_SELF = PETSC_VIEWER_STDOUT_(PETSC_COMM_SELF);
+// /opt/petsc/linux-c-opt/include/petscviewer.h:384:9: warning: macro 'PETSC_VIEWER_DRAW_WORLD' contains a runtime value, translated to function
 pub inline fn PETSC_VIEWER_DRAW_WORLD() @TypeOf(PETSC_VIEWER_DRAW_(PETSC_COMM_WORLD)) {
     return PETSC_VIEWER_DRAW_(PETSC_COMM_WORLD);
 }
+pub const PETSC_VIEWER_DRAW_SELF = PETSC_VIEWER_DRAW_(PETSC_COMM_SELF);
+// /opt/petsc/linux-c-opt/include/petscviewer.h:398:9: warning: macro 'PETSC_VIEWER_SOCKET_WORLD' contains a runtime value, translated to function
 pub inline fn PETSC_VIEWER_SOCKET_WORLD() @TypeOf(PETSC_VIEWER_SOCKET_(PETSC_COMM_WORLD)) {
     return PETSC_VIEWER_SOCKET_(PETSC_COMM_WORLD);
 }
+pub const PETSC_VIEWER_SOCKET_SELF = PETSC_VIEWER_SOCKET_(PETSC_COMM_SELF);
+// /opt/petsc/linux-c-opt/include/petscviewer.h:412:9: warning: macro 'PETSC_VIEWER_BINARY_WORLD' contains a runtime value, translated to function
 pub inline fn PETSC_VIEWER_BINARY_WORLD() @TypeOf(PETSC_VIEWER_BINARY_(PETSC_COMM_WORLD)) {
     return PETSC_VIEWER_BINARY_(PETSC_COMM_WORLD);
 }
+pub const PETSC_VIEWER_BINARY_SELF = PETSC_VIEWER_BINARY_(PETSC_COMM_SELF);
+// /opt/petsc/linux-c-opt/include/petscviewer.h:426:9: warning: macro 'PETSC_VIEWER_MATLAB_WORLD' contains a runtime value, translated to function
 pub inline fn PETSC_VIEWER_MATLAB_WORLD() @TypeOf(PETSC_VIEWER_MATLAB_(PETSC_COMM_WORLD)) {
     return PETSC_VIEWER_MATLAB_(PETSC_COMM_WORLD);
 }
+pub const PETSC_VIEWER_MATLAB_SELF = PETSC_VIEWER_MATLAB_(PETSC_COMM_SELF);
 pub const PETSC_VIEWER_MATHEMATICA_WORLD = @compileError("unable to translate macro: undefined identifier `PetscViewerInitializeMathematicaWorld_Private`");
 // /opt/petsc/linux-c-opt/include/petscviewer.h:435:9
 pub const VECSEQ = "seq";
@@ -25014,6 +25436,10 @@ pub const VECKOKKOS = "kokkos";
 pub const REAL_FILE_CLASSID = @import("std").zig.c_translation.promoteIntLiteral(c_int, 1211213, .decimal);
 pub const VEC_FILE_CLASSID = @import("std").zig.c_translation.promoteIntLiteral(c_int, 1211214, .decimal);
 pub const NORM_MAX = NORM_INFINITY;
+pub inline fn VecCheckAssembled(v: anytype) @TypeOf(PetscCheck(v.*.stash.insertmode == NOT_SET_VALUES, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Not for unassembled vector, did you call VecAssemblyBegin()/VecAssemblyEnd()?")) {
+    _ = &v;
+    return PetscCheck(v.*.stash.insertmode == NOT_SET_VALUES, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "Not for unassembled vector, did you call VecAssemblyBegin()/VecAssemblyEnd()?");
+}
 pub const VecLocked = @compileError("unable to translate C expr: unexpected token ')'");
 // /opt/petsc/linux-c-opt/include/petscvec.h:668:9
 pub const VECTAGGERABSOLUTE = "absolute";
@@ -25021,6 +25447,10 @@ pub const VECTAGGERRELATIVE = "relative";
 pub const VECTAGGERCDF = "cdf";
 pub const VECTAGGEROR = "or";
 pub const VECTAGGERAND = "and";
+pub inline fn VEC_CUPM_NOT_CONFIGURED(impl: anytype) @TypeOf(SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP_SYS, "Must configure PETSc with " ++ PetscStringize(impl) ++ " support to use %s", PETSC_FUNCTION_NAME)) {
+    _ = &impl;
+    return SETERRQ(PETSC_COMM_SELF, PETSC_ERR_SUP_SYS, "Must configure PETSc with " ++ PetscStringize(impl) ++ " support to use %s", PETSC_FUNCTION_NAME);
+}
 pub const VEC_CUDA_DECL_OR_STUB = @compileError("unable to translate C expr: expected ')' instead got '...'");
 // /opt/petsc/linux-c-opt/include/petscvec.h:942:11
 pub const VEC_HIP__DECL_OR_STUB = @compileError("unable to translate C expr: expected ')' instead got '...'");
@@ -25182,34 +25612,34 @@ pub const MATPRODUCTALGORITHMCYCLIC = "cyclic";
 pub const MATPRODUCTALGORITHMHYPRE = "hypre";
 pub const MAT_FILE_CLASSID = @import("std").zig.c_translation.promoteIntLiteral(c_int, 1211216, .decimal);
 pub const MatPreallocateBegin = @compileError("unable to translate macro: undefined identifier `__nrows`");
-// /opt/petsc/linux-c-opt/include/petscmat.h:1075:9
+// /opt/petsc/linux-c-opt/include/petscmat.h:1078:9
 pub const MatPreallocateInitialize = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscmat.h:1086:9
+// /opt/petsc/linux-c-opt/include/petscmat.h:1089:9
 pub const MatPreallocateSetLocal = @compileError("unable to translate macro: undefined identifier `__l`");
-// /opt/petsc/linux-c-opt/include/petscmat.h:1119:9
+// /opt/petsc/linux-c-opt/include/petscmat.h:1122:9
 pub const MatPreallocateSetLocalRemoveDups = @compileError("unable to translate macro: undefined identifier `__l`");
-// /opt/petsc/linux-c-opt/include/petscmat.h:1153:9
+// /opt/petsc/linux-c-opt/include/petscmat.h:1156:9
 pub const MatPreallocateSetLocalBlock = @compileError("unable to translate macro: undefined identifier `__l`");
-// /opt/petsc/linux-c-opt/include/petscmat.h:1187:9
+// /opt/petsc/linux-c-opt/include/petscmat.h:1190:9
 pub const MatPreallocateSymmetricSetLocalBlock = @compileError("unable to translate macro: undefined identifier `__l`");
-// /opt/petsc/linux-c-opt/include/petscmat.h:1220:9
+// /opt/petsc/linux-c-opt/include/petscmat.h:1223:9
 pub const MatPreallocateSet = @compileError("unable to translate macro: undefined identifier `__rstart`");
-// /opt/petsc/linux-c-opt/include/petscmat.h:1255:9
+// /opt/petsc/linux-c-opt/include/petscmat.h:1258:9
 pub const MatPreallocateSymmetricSetBlock = @compileError("unable to translate macro: undefined identifier `__i`");
-// /opt/petsc/linux-c-opt/include/petscmat.h:1292:9
-pub inline fn MatPreallocateLocation(A: anytype, row: anytype, ncols: anytype, cols: anytype, dnz: anytype, onz: anytype) @TypeOf(if (A) MatSetValues(A, @as(c_int, 1), &row, ncols, cols, NULL, INSERT_VALUES) else MatPreallocateSet(row, ncols, cols, dnz, onz)) {
+// /opt/petsc/linux-c-opt/include/petscmat.h:1295:9
+pub inline fn MatPreallocateLocation(A: anytype, row: anytype, ncols: anytype, cols: anytype, dnz: anytype, onz: anytype) @TypeOf(if (A != 0) MatSetValues(A, @as(c_int, 1), &row, ncols, cols, NULL, INSERT_VALUES) else MatPreallocateSet(row, ncols, cols, dnz, onz)) {
     _ = &A;
     _ = &row;
     _ = &ncols;
     _ = &cols;
     _ = &dnz;
     _ = &onz;
-    return if (A) MatSetValues(A, @as(c_int, 1), &row, ncols, cols, NULL, INSERT_VALUES) else MatPreallocateSet(row, ncols, cols, dnz, onz);
+    return if (A != 0) MatSetValues(A, @as(c_int, 1), &row, ncols, cols, NULL, INSERT_VALUES) else MatPreallocateSet(row, ncols, cols, dnz, onz);
 }
 pub const MatPreallocateEnd = @compileError("unable to translate C expr: unexpected token ';'");
-// /opt/petsc/linux-c-opt/include/petscmat.h:1359:9
+// /opt/petsc/linux-c-opt/include/petscmat.h:1362:9
 pub const MatPreallocateFinalize = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petscmat.h:1364:9
+// /opt/petsc/linux-c-opt/include/petscmat.h:1367:9
 pub const MAT_SKIP_ALLOCATION = -@as(c_int, 4);
 pub const MATORDERINGNATURAL = "natural";
 pub const MATORDERINGND = "nd";
@@ -25262,7 +25692,6 @@ pub const PETSCSECTIONSYMLABEL = "label";
 pub const PETSC_FORM_DEGREE_UNDEFINED = PETSC_INT_MIN;
 pub const PETSC_FACTORIAL_MAX = @as(c_int, 12);
 pub const PETSC_BINOMIAL_MAX = @as(c_int, 29);
-pub const PeOp = "";
 pub const DMLOCATEPOINT_POINT_NOT_FOUND = -@as(c_int, 367);
 pub const DMDA = "da";
 pub const DMCOMPOSITE = "composite";
@@ -25312,7 +25741,7 @@ pub const PETSCFEOPENCL = "opencl";
 pub const PETSCFECOMPOSITE = "composite";
 pub const PETSCFEVECTOR = "vector";
 pub const PLEXFE_QFUNCTION = @compileError("unable to translate C expr: unexpected token ''");
-// /opt/petsc/linux-c-opt/include/petscfe.h:210:13
+// /opt/petsc/linux-c-opt/include/petscfe.h:212:13
 pub const MATSEQUSFFT = "sequsfft";
 pub const PETSCPARTITIONERPARMETIS = "parmetis";
 pub const PETSCPARTITIONERPTSCOTCH = "ptscotch";
@@ -25320,6 +25749,7 @@ pub const PETSCPARTITIONERCHACO = "chaco";
 pub const PETSCPARTITIONERSIMPLE = "simple";
 pub const PETSCPARTITIONERSHELL = "shell";
 pub const PETSCPARTITIONERGATHER = "gather";
+pub const PETSCPARTITIONERMULTISTAGE = "multistage";
 pub const PETSCPARTITIONERMATPARTITIONING = "matpartitioning";
 pub const PETSCLIMITERSIN = "sin";
 pub const PETSCLIMITERZERO = "zero";
@@ -25339,7 +25769,7 @@ pub const PetscDisableStaticAnalyzerForExpressionUnderstandingThatThisIsDangerou
 pub const PETSC_SMALLEST_FORTRAN_CALLBACK = @import("std").zig.c_translation.cast(PetscFortranCallbackId, @as(c_int, 1000));
 pub const PETSC_MAX_OPTIONS_HANDLER = @as(c_int, 5);
 pub const PETSCHEADER = @compileError("unable to translate macro: undefined identifier `hdr`");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:132:9
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:142:9
 pub const PETSCFREEDHEADER = -@as(c_int, 1);
 pub inline fn PetscHeaderCreate(h: anytype, classid: anytype, class_name: anytype, descr: anytype, mansec: anytype, comm: anytype, destroy: anytype, view: anytype) @TypeOf(PetscHeaderCreate_Function(PetscNew(&h), @import("std").zig.c_translation.cast([*c]PetscObject, &h), classid, class_name, descr, mansec, comm, @import("std").zig.c_translation.cast([*c]PetscObjectDestroyFn, destroy), @import("std").zig.c_translation.cast([*c]PetscObjectViewFn, view))) {
     _ = &h;
@@ -25357,103 +25787,115 @@ pub inline fn PetscHeaderDestroy(h: anytype) @TypeOf(PetscHeaderDestroy_Function
     return PetscHeaderDestroy_Function(@import("std").zig.c_translation.cast([*c]PetscObject, h));
 }
 pub const PetscValidHeaderSpecificType = @compileError("unable to translate macro: undefined identifier `_7_same`");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:404:13
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:414:13
 pub const PetscAssertPointer_Internal = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:412:13
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:422:13
 pub const PetscValidHeaderSpecific = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:418:13
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:428:13
 pub const PetscValidHeader = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:427:13
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:437:13
 pub const PETSC_GENERIC_CV = @compileError("unable to translate C expr: unexpected token ':'");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:494:15
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:498:15
 pub inline fn PETSC_GENERIC_CV_COMPLEX(result: anytype) @TypeOf(PETSC_GENERIC_CV(PetscComplex, result)) {
     _ = &result;
     return PETSC_GENERIC_CV(PetscComplex, result);
 }
 pub const PetscAssertPointer_PetscDataType = @compileError("unable to translate C expr: unexpected token '_Generic'");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:502:15
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:506:15
 pub inline fn PETSC_GENERIC_CV_STRINGIZE(@"type": anytype) @TypeOf(PETSC_GENERIC_CV(@"type", PetscStringize(@"type"))) {
     _ = &@"type";
     return PETSC_GENERIC_CV(@"type", PetscStringize(@"type"));
 }
 pub const PETSC_GENERIC_CV_STRINGIZE_COMPLEX = PETSC_GENERIC_CV_STRINGIZE(PetscComplex);
 pub const PetscAssertPointer_String = @compileError("unable to translate C expr: unexpected token '_Generic'");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:526:15
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:530:15
 pub inline fn PetscAssertPointer(h: anytype, arg: anytype) @TypeOf(PetscAssertPointer_Internal(h, arg, PetscAssertPointer_PetscDataType(h), PetscAssertPointer_String(h))) {
     _ = &h;
     _ = &arg;
     return PetscAssertPointer_Internal(h, arg, PetscAssertPointer_PetscDataType(h), PetscAssertPointer_String(h));
 }
+pub inline fn PetscValidFunction(f: anytype, arg: anytype) @TypeOf(PetscCheck(f, PETSC_COMM_SELF, PETSC_ERR_ARG_NULL, "Null Function Pointer: Parameter # %d", arg)) {
+    _ = &f;
+    _ = &arg;
+    return PetscCheck(f, PETSC_COMM_SELF, PETSC_ERR_ARG_NULL, "Null Function Pointer: Parameter # %d", arg);
+}
 pub const PetscValidPointer = @compileError("unable to translate C expr: unexpected token ')'");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:571:9
-pub const PetscValidCharPointer = @compileError("unable to translate C expr: unexpected token ')'");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:572:9
-pub const PetscValidIntPointer = @compileError("unable to translate C expr: unexpected token ')'");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:573:9
-pub const PetscValidInt64Pointer = @compileError("unable to translate C expr: unexpected token ')'");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:574:9
-pub const PetscValidCountPointer = @compileError("unable to translate C expr: unexpected token ')'");
 // /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:575:9
-pub const PetscValidBoolPointer = @compileError("unable to translate C expr: unexpected token ')'");
+pub const PetscValidCharPointer = @compileError("unable to translate C expr: unexpected token ')'");
 // /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:576:9
-pub const PetscValidScalarPointer = @compileError("unable to translate C expr: unexpected token ')'");
+pub const PetscValidIntPointer = @compileError("unable to translate C expr: unexpected token ')'");
 // /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:577:9
-pub const PetscValidRealPointer = @compileError("unable to translate C expr: unexpected token ')'");
+pub const PetscValidInt64Pointer = @compileError("unable to translate C expr: unexpected token ')'");
 // /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:578:9
-pub const PetscSorted = @compileError("unable to translate macro: undefined identifier `_i_`");
+pub const PetscValidCountPointer = @compileError("unable to translate C expr: unexpected token ')'");
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:579:9
+pub const PetscValidBoolPointer = @compileError("unable to translate C expr: unexpected token ')'");
 // /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:580:9
+pub const PetscValidScalarPointer = @compileError("unable to translate C expr: unexpected token ')'");
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:581:9
+pub const PetscValidRealPointer = @compileError("unable to translate C expr: unexpected token ')'");
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:582:9
+pub const PetscSorted = @compileError("unable to translate macro: undefined identifier `_i_`");
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:584:9
 pub const PetscCheckSameType = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:681:15
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:690:15
 pub const PetscCheckTypeName = @compileError("unable to translate macro: undefined identifier `_7_match`");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:691:13
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:700:13
 pub const PetscCheckTypeNames = @compileError("unable to translate macro: undefined identifier `_7_match`");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:698:13
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:707:13
+pub inline fn PetscValidType(a: anytype, arg: anytype) @TypeOf(PetscCheck(@import("std").zig.c_translation.cast(PetscObject, a).*.type_name, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "%s object's type is not set: Argument # %d", @import("std").zig.c_translation.cast(PetscObject, a).*.class_name, arg)) {
+    _ = &a;
+    _ = &arg;
+    return PetscCheck(@import("std").zig.c_translation.cast(PetscObject, a).*.type_name, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONGSTATE, "%s object's type is not set: Argument # %d", @import("std").zig.c_translation.cast(PetscObject, a).*.class_name, arg);
+}
 pub const PetscCheckSameComm = @compileError("unable to translate macro: undefined identifier `_7_flag`");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:713:13
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:722:13
 pub const PetscCheckSameTypeAndComm = @compileError("unable to translate C expr: unexpected token 'do'");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:720:13
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:729:13
 pub const PetscValidLogicalCollectiveScalar = @compileError("unable to translate macro: undefined identifier `b0`");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:726:13
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:735:13
 pub const PetscValidLogicalCollectiveReal = @compileError("unable to translate macro: undefined identifier `b0`");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:743:13
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:752:13
 pub const PetscValidLogicalCollectiveInt = @compileError("unable to translate macro: undefined identifier `b0`");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:757:13
-pub const PetscValidLogicalCollectiveCount = @compileError("unable to translate macro: undefined identifier `b0`");
 // /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:766:13
-pub const PetscValidLogicalCollectiveMPIInt = @compileError("unable to translate macro: undefined identifier `b0`");
+pub const PetscValidLogicalCollectiveIntComm = @compileError("unable to translate macro: undefined identifier `b1`");
 // /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:775:13
-pub const PetscValidLogicalCollectiveBool = @compileError("unable to translate macro: undefined identifier `b0`");
+pub const PetscValidLogicalCollectiveCount = @compileError("unable to translate macro: undefined identifier `b0`");
 // /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:784:13
-pub const PetscValidLogicalCollectiveEnum = @compileError("unable to translate macro: undefined identifier `b0`");
+pub const PetscValidLogicalCollectiveMPIInt = @compileError("unable to translate macro: undefined identifier `b0`");
 // /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:793:13
-pub const PetscCheckSorted = @compileError("unable to translate macro: undefined identifier `_1_flg`");
+pub const PetscValidLogicalCollectiveBool = @compileError("unable to translate macro: undefined identifier `b0`");
 // /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:802:13
+pub const PetscValidLogicalCollectiveEnum = @compileError("unable to translate macro: undefined identifier `b0`");
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:811:13
+pub const PetscCheckSorted = @compileError("unable to translate macro: undefined identifier `_1_flg`");
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:820:13
 pub const PetscTryMethod = @compileError("unable to translate macro: undefined identifier `_7_f`");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:864:9
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:882:9
 pub const PetscUseMethod = @compileError("unable to translate macro: undefined identifier `_7_f`");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:894:9
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:912:9
 pub const PetscUseTypeMethod = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:958:11
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:976:11
 pub const PetscTryTypeMethod = @compileError("unable to translate C expr: expected ')' instead got '...'");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:986:11
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1004:11
 pub const PetscObjectStateIncrease = @compileError("TODO postfix inc/dec expr");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1028:9
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1046:9
 pub const PetscObjectComposedDataSetInt = @compileError("unable to translate C expr: expected ')' instead got '='");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1067:9
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1085:9
 pub const PetscObjectComposedDataGetInt = @compileError("unable to translate C expr: expected ')' instead got '='");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1096:9
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1114:9
 pub const PetscObjectComposedDataSetIntstar = @compileError("unable to translate C expr: expected ')' instead got '='");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1123:9
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1141:9
 pub const PetscObjectComposedDataGetIntstar = @compileError("unable to translate C expr: expected ')' instead got '='");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1154:9
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1172:9
 pub const PetscObjectComposedDataSetReal = @compileError("unable to translate C expr: expected ')' instead got '='");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1180:9
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1198:9
 pub const PetscObjectComposedDataGetReal = @compileError("unable to translate C expr: expected ')' instead got '='");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1209:9
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1227:9
 pub const PetscObjectComposedDataSetRealstar = @compileError("unable to translate C expr: expected ')' instead got '='");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1236:9
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1254:9
 pub const PetscObjectComposedDataGetRealstar = @compileError("unable to translate C expr: expected ')' instead got '='");
-// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1267:9
+// /opt/petsc/linux-c-opt/include/petsc/private/petscimpl.h:1285:9
 pub inline fn PetscObjectComposedDataSetScalar(obj: anytype, id: anytype, data: anytype) @TypeOf(PetscObjectComposedDataSetReal(obj, id, data)) {
     _ = &obj;
     _ = &id;
@@ -25496,8 +25938,6 @@ pub inline fn PetscSpinlockDestroy(a: anytype) @TypeOf(PETSC_SUCCESS) {
     _ = &a;
     return PETSC_SUCCESS;
 }
-pub const PeNS = "";
-pub const PeNSS = "";
 pub const kh_inline = @compileError("unable to translate C expr: unexpected token 'inline'");
 // /opt/petsc/linux-c-opt/include/petsc/private/hashtable.h:5:9
 pub const klib_unused = PETSC_UNUSED;
@@ -25519,10 +25959,20 @@ pub inline fn __ac_iseither(flag: anytype, i: anytype) @TypeOf((flag[@as(usize, 
     _ = &i;
     return (flag[@as(usize, @intCast(i >> @as(c_int, 4)))] >> ((i & @as(c_uint, 0xf)) << @as(c_int, 1))) & @as(c_int, 3);
 }
+pub const __ac_set_isdel_false = @compileError("unable to translate C expr: expected ')' instead got '&='");
+// /opt/petsc/linux-c-opt/include/petsc/private/khash/khash.h:172:9
+pub const __ac_set_isempty_false = @compileError("unable to translate C expr: expected ')' instead got '&='");
+// /opt/petsc/linux-c-opt/include/petsc/private/khash/khash.h:173:9
+pub const __ac_set_isboth_false = @compileError("unable to translate C expr: expected ')' instead got '&='");
+// /opt/petsc/linux-c-opt/include/petsc/private/khash/khash.h:174:9
+pub const __ac_set_isdel_true = @compileError("unable to translate C expr: expected ')' instead got '|='");
+// /opt/petsc/linux-c-opt/include/petsc/private/khash/khash.h:175:9
 pub inline fn __ac_fsize(m: anytype) @TypeOf(if (m < @as(c_int, 16)) @as(c_int, 1) else m >> @as(c_int, 4)) {
     _ = &m;
     return if (m < @as(c_int, 16)) @as(c_int, 1) else m >> @as(c_int, 4);
 }
+pub const kroundup32 = @compileError("TODO unary inc/dec expr");
+// /opt/petsc/linux-c-opt/include/petsc/private/khash/khash.h:180:9
 pub inline fn kcalloc(N: anytype, Z: anytype) @TypeOf(calloc(N, Z)) {
     _ = &N;
     _ = &Z;
@@ -25545,7 +25995,7 @@ pub const PETSC_HMAPI_HAVE_EXTENDED_API = @as(c_int, 1);
 pub const DMPLEX_OVERLAP_MANUAL = -@as(c_int, 1);
 pub const DMPLEX_STORAGE_VERSION_FIRST = "1.0.0";
 pub const DMPLEX_STORAGE_VERSION_STABLE = "1.0.0";
-pub const DMPLEX_STORAGE_VERSION_LATEST = "3.0.0";
+pub const DMPLEX_STORAGE_VERSION_LATEST = "3.1.0";
 pub const DMPLEXREFINEREGULAR = "refine_regular";
 pub const DMPLEXREFINEALFELD = "refine_alfeld";
 pub const DMPLEXREFINEPOWELLSABIN = "refine_powell_sabin";
@@ -25638,11 +26088,11 @@ pub const KSPNASH = "nash";
 pub const KSPSTCG = "stcg";
 pub const KSPGLTR = "gltr";
 pub const KSPCGNASH = @compileError("unable to translate C expr: unexpected token ')'");
-// /opt/petsc/linux-c-opt/include/petscksp.h:52:9
+// /opt/petsc/linux-c-opt/include/petscksp.h:55:9
 pub const KSPCGSTCG = @compileError("unable to translate C expr: unexpected token ')'");
-// /opt/petsc/linux-c-opt/include/petscksp.h:53:9
+// /opt/petsc/linux-c-opt/include/petscksp.h:56:9
 pub const KSPCGGLTR = @compileError("unable to translate C expr: unexpected token ')'");
-// /opt/petsc/linux-c-opt/include/petscksp.h:54:9
+// /opt/petsc/linux-c-opt/include/petscksp.h:57:9
 pub const KSPFCG = "fcg";
 pub const KSPPIPEFCG = "pipefcg";
 pub const KSPGMRES = "gmres";
@@ -25681,11 +26131,13 @@ pub const KSPHPDDM = "hpddm";
 pub const KSP_FILE_CLASSID = @import("std").zig.c_translation.promoteIntLiteral(c_int, 1211223, .decimal);
 pub const KSP_NORM_MAX = KSP_NORM_NATURAL + @as(c_int, 1);
 pub const KSP_CONVERGED_CG_NEG_CURVE_DEPRECATED = @compileError("unable to translate C expr: unexpected token ')'");
-// /opt/petsc/linux-c-opt/include/petscksp.h:630:9
+// /opt/petsc/linux-c-opt/include/petscksp.h:763:9
 pub const KSP_CONVERGED_CG_CONSTRAINED_DEPRECATED = @compileError("unable to translate C expr: unexpected token ')'");
-// /opt/petsc/linux-c-opt/include/petscksp.h:631:9
-pub const KSP_DIVERGED_PCSETUP_FAILED_DEPRECATED = @compileError("unable to translate C expr: unexpected token ')'");
-// /opt/petsc/linux-c-opt/include/petscksp.h:632:9
+// /opt/petsc/linux-c-opt/include/petscksp.h:764:9
+pub const KSP_CONVERGED_RTOL_NORMAL_DEPRECATED = @compileError("unable to translate C expr: unexpected token ')'");
+// /opt/petsc/linux-c-opt/include/petscksp.h:765:9
+pub const KSP_CONVERGED_ATOL_NORMAL_DEPRECATED = @compileError("unable to translate C expr: unexpected token ')'");
+// /opt/petsc/linux-c-opt/include/petscksp.h:766:9
 pub const KSPGUESSFISCHER = "fischer";
 pub const KSPGUESSPOD = "pod";
 pub const SNESNEWTONLS = "newtonls";
@@ -25717,7 +26169,9 @@ pub const SNESLINESEARCHBT = "bt";
 pub const SNESLINESEARCHNLEQERR = "nleqerr";
 pub const SNESLINESEARCHBASIC = "basic";
 pub const SNESLINESEARCHNONE = "none";
-pub const SNESLINESEARCHL2 = "l2";
+pub const SNESLINESEARCHSECANT = "secant";
+pub const SNESLINESEARCHL2 = @compileError("unable to translate C expr: unexpected token ')'");
+// /opt/petsc/linux-c-opt/include/petscsnes.h:735:9
 pub const SNESLINESEARCHCP = "cp";
 pub const SNESLINESEARCHSHELL = "shell";
 pub const SNESLINESEARCHNCGLINEAR = "ncglinear";
@@ -25918,6 +26372,7 @@ pub const TAOLINESEARCHGPCG = "gpcg";
 pub const TAOLINESEARCHARMIJO = "armijo";
 pub const TAOLINESEARCHOWARMIJO = "owarmijo";
 pub const TAOLINESEARCHIPM = "ipm";
+pub const PETSCREGRESSORLINEAR = "linear";
 pub const _n_PetscToken = struct__n_PetscToken;
 pub const ompi_communicator_t = struct_ompi_communicator_t;
 pub const _n_PetscFunctionList = struct__n_PetscFunctionList;
@@ -26069,6 +26524,7 @@ pub const _p_PetscConvEst = struct__p_PetscConvEst;
 pub const _p_TS = struct__p_TS;
 pub const _p_TSTrajectory = struct__p_TSTrajectory;
 pub const _n_TSMonitorDrawCtx = struct__n_TSMonitorDrawCtx;
+pub const _n_TSMonitorSolutionCtx = struct__n_TSMonitorSolutionCtx;
 pub const _n_TSMonitorVTKCtx = struct__n_TSMonitorVTKCtx;
 pub const _n_TSMonitorLGCtx = struct__n_TSMonitorLGCtx;
 pub const _n_TSMonitorLGCtxNetwork = struct__n_TSMonitorLGCtxNetwork;
@@ -26083,3 +26539,4 @@ pub const _p_Characteristic = struct__p_Characteristic;
 pub const _p_Tao = struct__p_Tao;
 pub const _p_TaoLineSearch = struct__p_TaoLineSearch;
 pub const _n_TaoMonitorDrawCtx = struct__n_TaoMonitorDrawCtx;
+pub const _p_PetscRegressor = struct__p_PetscRegressor;

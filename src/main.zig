@@ -27,7 +27,10 @@ pub fn main() !void {
     const config_file = try cmd.parseArgs();
     defer config_file.close();
 
-    var json_reader = std.json.reader(allocator, config_file.reader());
+    var buffer: [1024]u8 = undefined;
+    var config_file_reader = config_file.reader(&buffer);
+
+    var json_reader = std.json.Reader.init(allocator, &config_file_reader.interface);
     defer json_reader.deinit();
 
     const parsed = try std.json.parseFromTokenSource(Config, allocator, &json_reader, .{});

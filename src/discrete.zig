@@ -161,19 +161,19 @@ pub const Block2d = struct {
 };
 
 pub const Mesh = struct {
-    blocks: std.ArrayList(Block2d),
-    names: std.ArrayList([:0]const u8),
-    connections: std.ArrayList(boundary.Connection),
-    boundary_conditions: std.ArrayList(boundary.Condition),
+    blocks: std.array_list.Managed(Block2d),
+    names: std.array_list.Managed([:0]const u8),
+    connections: std.array_list.Managed(boundary.Connection),
+    boundary_conditions: std.array_list.Managed(boundary.Condition),
 
     // vec of boundaries
 
     pub fn init(allocator: std.mem.Allocator) Mesh {
         return .{
-            .blocks = std.ArrayList(Block2d).init(allocator),
-            .names = std.ArrayList([:0]const u8).init(allocator),
-            .connections = std.ArrayList(boundary.Connection).init(allocator),
-            .boundary_conditions = std.ArrayList(boundary.Condition).init(allocator),
+            .blocks = std.array_list.Managed(Block2d).init(allocator),
+            .names = std.array_list.Managed([:0]const u8).init(allocator),
+            .connections = std.array_list.Managed(boundary.Connection).init(allocator),
+            .boundary_conditions = std.array_list.Managed(boundary.Condition).init(allocator),
         };
     }
 

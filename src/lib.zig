@@ -83,10 +83,10 @@ export fn init(state: *State) callconv(.c) bool {
     {
         var info_log: [512:0]u8 = undefined;
         var success: c_int = undefined;
-        gl.GetShaderiv(vertex_shader, gl.COMPILE_STATUS, &success);
+        gl.GetShaderiv(vertex_shader, gl.COMPILE_STATUS, (&success)[0..1]);
         if (success == gl.FALSE) {
             gl.GetShaderInfoLog(vertex_shader, info_log.len, null, &info_log);
-            std.debug.print("vertex shader compilation error:\n{str}\n", .{info_log});
+            std.debug.print("vertex shader compilation error:\n{s}\n", .{info_log});
             return false;
         }
     }
@@ -98,10 +98,10 @@ export fn init(state: *State) callconv(.c) bool {
     {
         var info_log: [512:0]u8 = undefined;
         var success: c_int = undefined;
-        gl.GetShaderiv(fragment_shader, gl.COMPILE_STATUS, &success);
+        gl.GetShaderiv(fragment_shader, gl.COMPILE_STATUS, (&success)[0..1]);
         if (success == gl.FALSE) {
             gl.GetShaderInfoLog(fragment_shader, info_log.len, null, &info_log);
-            std.debug.print("fragment shader compilation error:\n{str}\n", .{info_log});
+            std.debug.print("fragment shader compilation error:\n{s}\n", .{info_log});
             return false;
         }
     }
@@ -117,11 +117,11 @@ export fn init(state: *State) callconv(.c) bool {
 
     {
         var success: c_int = undefined;
-        gl.GetProgramiv(program, gl.LINK_STATUS, &success);
+        gl.GetProgramiv(program, gl.LINK_STATUS, (&success)[0..1]);
         if (success == gl.FALSE) {
             var info_log: [512:0]u8 = undefined;
             gl.GetProgramInfoLog(program, info_log.len, null, &info_log);
-            std.debug.print("program linkage error:\n{str}\n", .{info_log});
+            std.debug.print("program linkage error:\n{s}\n", .{info_log});
             return false;
         }
     }
@@ -315,7 +315,7 @@ fn createWireframeElementBuffer(alloc: std.mem.Allocator, blocks: []const discre
 
 fn setCallbacks(state: *State) void {
     _ = glfw.setFramebufferSizeCallback(state.window, struct {
-        fn func(win: *glfw.Window, width_: c_int, height_: c_int) callconv(.C) void {
+        fn func(win: *glfw.Window, width_: c_int, height_: c_int) callconv(.c) void {
             if (glfw.getWindowUserPointer(win, State)) |s| {
                 s.width = @intCast(width_);
                 s.height = @intCast(height_);

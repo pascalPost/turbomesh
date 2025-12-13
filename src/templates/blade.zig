@@ -40,7 +40,7 @@ pub const Profile = struct {
     }
 };
 
-fn readSide(allocator: std.mem.Allocator, csv_path: []const u8) !std.ArrayList(types.Vec2d) {
+fn readSide(allocator: std.mem.Allocator, csv_path: []const u8) !std.array_list.Managed(types.Vec2d) {
     const side = try csv.parseCsvIntoVec2d(allocator, csv_path);
     // TODO add check of axial direction: does the vector form origion to end point in upstream direction (?)
     if (side.items[0].data[0] > side.items[side.items.len - 1].data[0]) {

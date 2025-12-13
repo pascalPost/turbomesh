@@ -15,16 +15,16 @@
     // internet connectivity.
     .dependencies = .{
         .zigglgen = .{
-            .url = "git+https://github.com/castholm/zigglgen.git#d5f381759825ee0bac29bc294d47aa05be4ab7b5",
-            .hash = "zigglgen-0.4.0-bmyqLX_gLQDFXilQ5VQ9fJeOHKU1RFrggOzRqTGBX79W",
+            .url = "git+https://github.com/castholm/zigglgen.git#fdb315ec08871393966b7e982d06372f4c01acad",
+            .hash = "zigglgen-0.4.0-bmyqLYOOLwBrkLPE4fDTHfbufU4FpP-NjvaBxmwYKeDx",
         },
         .zlm = .{
-            .url = "git+https://github.com/ziglibs/zlm#35b76fae19f9d0a1ed541db621d7c4b3e266087e",
-            .hash = "zlm-0.1.0-AAAAAPGfAAA0KsMzll3pFfdKhCXkhI_-RoUtoOR4kQP5",
+            .url = "git+https://github.com/ziglibs/zlm#35ab7df57cfb5392a11486f6e4b03a82f849a118",
+            .hash = "zlm-0.1.0-LoZ6yDawAADMopilIe9MDzer0UqmruCy_PuhNv4OMc7c",
         },
         .zglfw = .{
-            .url = "git+https://github.com/zig-gamedev/zglfw#c337cb3d3f984468ea7a386335937a5d555fc024",
-            .hash = "zglfw-0.10.0-dev-zgVDNMacIQA-k7kNSfwUc9Lfzx-bb_wklVm25K-p8Tr7",
+            .url = "git+https://github.com/zig-gamedev/zglfw#15bf6ec59a4e1399d0c753455f69b28f09e41791",
+            .hash = "zglfw-0.10.0-dev-zgVDNHO2IQDy_fSdwY5U4z42rHUuKgt7T9f-qmQ3FnuL",
         },
     },
     .paths = .{

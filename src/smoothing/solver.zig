@@ -99,7 +99,7 @@ const PetscSolver = struct {
 
         // Additional solver settings for better convergence
         // _ = petsc.KSPSetTolerances(ksp, 1e-6, 1e-8, 1e-10, 1000);
-        _ = petsc.KSPSetInitialGuessNonzero(s.ksp, 1); // Use previous solution as initial guess
+        _ = petsc.KSPSetInitialGuessNonzero(s.ksp, true); // Use previous solution as initial guess
 
         _ = petsc.KSPSetUp(s.ksp);
 

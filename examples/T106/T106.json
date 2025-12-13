@@ -1,17 +1,19 @@
 {
   "template": {
     "O4H": {
+      "inlet_axial_position": 0.998,
+      "outlet_axial_position": 0.02,
       "ps_csv_path": "examples/T106/T106_ps.dat",
       "ss_csv_path": "examples/T106/T106_ss.dat",
       "pitch": 8.836e-2,
       "blade_clustering": {
         "roberts": {
           "alpha": 5e-1,
-          "beta": 1.03e0
+          "beta": 1.03
         }
       },
       "num_cells": {
-        "o_grid": 20,
+        "o_grid": 40,
         "middle_i": 100,
         "in_up_j": 30,
         "in_down_j": 10,
@@ -27,9 +29,9 @@
       "smoothing": {
         "iterations": 20,
         "backend": "umfpack",
-        "wall_control_function" : {
-          "white" : {
-            "ds_target" : 1e-6,
+        "wall_control_function": {
+          "white": {
+            "ds_target": 1e-6,
             "theta_target": 1.570796327
           }
         }

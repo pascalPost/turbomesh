@@ -33,6 +33,11 @@ const abs = types.abs;
 /// | ->i           |           *                                      *           | ->i            |
 /// |_______________________________________________________________________________________________
 pub const O4H = struct {
+
+    // TODO: allow to determine inlet and outlet automatically from something like the default mesh size.
+    inlet_axial_position: types.Float,
+    outlet_axial_position: types.Float,
+
     ps_csv_path: []const u8,
     ss_csv_path: []const u8,
     pitch: types.Float,
@@ -364,8 +369,8 @@ pub const O4H = struct {
         const upstream_x_11 = upstream_j_max.points[upstream_j_max.points.len - 1];
 
         // TODO: remove hard coding
-        const upstream_x_00 = add(upstream_x_10, Vec2d.init(-0.05, 0.0));
-        const upstream_x_01 = add(upstream_x_00, Vec2d.init(0.0, self.pitch));
+        const upstream_x_00 = Vec2d.init(self.inlet_axial_position, leading_edge.data[1] - 0.5 * self.pitch);
+        const upstream_x_01 = Vec2d.init(self.inlet_axial_position, leading_edge.data[1] + 0.5 * self.pitch);
 
         const upstream_j_min = try discrete.Edge.init(allocator, upstream_j_max.points.len, .{ .line = .{ .start = upstream_x_00, .end = upstream_x_01 } }, .{ .uniform = .{} });
         defer upstream_j_min.deinit();
@@ -403,7 +408,7 @@ pub const O4H = struct {
         const downstream_x_01 = downstream_j_min.points[downstream_j_min.points.len - 1];
 
         // TODO: remove hard coding
-        const downstream_x_10 = add(downstream_x_00, Vec2d.init(0.02, 0.00));
+        const downstream_x_10 = add(downstream_x_00, Vec2d.init(self.outlet_axial_position, 0.00));
         const downstream_x_11 = add(downstream_x_10, Vec2d.init(0.0, self.pitch));
 
         const downstream_j_max = try discrete.Edge.init(allocator, downstream_j_min.points.len, .{ .line = .{ .start = downstream_x_10, .end = downstream_x_11 } }, .{ .uniform = .{} });
@@ -592,6 +597,16 @@ test "O4H template" {
             .upstream_i = 20,
             .downstream_i = 10,
         },
+        .smoothing = .{
+            .iterations = 10,
+            .backend = .umfpack,
+            .wall_control_function = .{
+                .white = .{
+                    .ds_target = 1e-6,
+                    .theta_target = 1.570796327,
+                },
+            },
+        },
     };
 
     var mesh = try template.run(allocator);
@@ -599,7 +614,7 @@ test "O4H template" {
 
     // try mesh.write(allocator, "o4h_linear.cgns");
 
-    try smooth.mesh(allocator, &mesh, 10, .umfpack);
+    // try smooth.mesh(allocator, &mesh, 10, .umfpack, .laplace);
 
     try mesh.write(allocator, "o4h.cgns");
 }

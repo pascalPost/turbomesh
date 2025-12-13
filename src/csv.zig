@@ -4,22 +4,22 @@ const types = @import("types.zig");
 const Float = types.Float;
 const Vec2d = types.Vec2d;
 
-pub fn parseCsvIntoVec2d(allocator: std.mem.Allocator, file_path: []const u8) !std.ArrayList(Vec2d) {
+pub fn parseCsvIntoVec2d(allocator: std.mem.Allocator, file_path: []const u8) !std.array_list.Managed(Vec2d) {
     std.log.info("reading csv: {s}", .{file_path});
     var file = try std.fs.cwd().openFile(file_path, .{});
     defer file.close();
 
-    var buf_reader = std.io.bufferedReader(file.reader());
-    var in_stream = buf_reader.reader();
+    var read_buf: [1024]u8 = undefined;
+    var file_reader = file.reader(&read_buf);
+    const reader = &file_reader.interface;
 
     // we assume that the csv is not bigger than 1000 lines (if it is bigger, reallocations will happen)
     const assumed_csv_lines: usize = 1000;
-    var list = try std.ArrayList(Vec2d).initCapacity(allocator, assumed_csv_lines);
+    var list = try std.array_list.Managed(Vec2d).initCapacity(allocator, assumed_csv_lines);
 
     // iterate over all lines
     var i_line: usize = 0;
-    var buf: [1024]u8 = undefined;
-    while (try in_stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
+    while (try reader.takeDelimiter('\n')) |line| {
 
         // ignore lines starting with a comment character #
         if (line[0] == '#') continue;
