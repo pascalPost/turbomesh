@@ -116,6 +116,7 @@ pub const O4H = struct {
         defer ss_outer_edge.deinit();
 
         var mesh = discrete.Mesh.init(allocator);
+        errdefer mesh.deinit();
 
         // Block SS (0)
         //

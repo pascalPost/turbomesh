@@ -1245,8 +1245,11 @@ const BlockBoundaryPoints = struct {
                             try appendIfUnique(&laplacian_point, endpoint_ids[points[1] * 2 + 1], periodicity);
                         }
 
-                        // try laplacian_points.append(.{ .overlapping_points = laplacian_point, .stencil_ids = try .initBuffer(), .rhs = .init(0, 0) });
-                        // try laplacian_points.append(point);
+                        try laplacian_points.append(.{
+                            .overlapping_points = laplacian_point,
+                            .stencil_ids = .{},
+                            .rhs = .init(0, 0),
+                        });
                     }
                 }
             }

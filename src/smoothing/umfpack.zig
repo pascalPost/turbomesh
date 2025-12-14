@@ -19,60 +19,13 @@ pub fn solve(
     var symbolic: ?*anyopaque = undefined;
     var numeric: ?*anyopaque = undefined;
 
-    // {
-    //     var file = try std.fs.cwd().createFile("Ap.txt", .{});
-    //     defer file.close();
-    //
-    //     const writer = file.writer();
-    //
-    //     for (ap) |a| {
-    //         try writer.print("{}\n", .{a});
-    //     }
-    // }
-    //
-    // {
-    //     var file = try std.fs.cwd().createFile("Ai.txt", .{});
-    //     defer file.close();
-    //
-    //     const writer = file.writer();
-    //
-    //     for (ai) |a| {
-    //         try writer.print("{}\n", .{a});
-    //     }
-    // }
-    //
-    // {
-    //     var file = try std.fs.cwd().createFile("Ax.txt", .{});
-    //     defer file.close();
-    //
-    //     const writer = file.writer();
-    //
-    //     for (ax) |a| {
-    //         try writer.print("{}\n", .{a});
-    //     }
-    // }
-    //
-    // {
-    //     var file = try std.fs.cwd().createFile("rhs_x.txt", .{});
-    //     defer file.close();
-    //
-    //     const writer = file.writer();
-    //
-    //     for (rhs_x) |a| {
-    //         try writer.print("{}\n", .{a});
-    //     }
-    // }
-    //
-    // {
-    //     var file = try std.fs.cwd().createFile("rhs_y.txt", .{});
-    //     defer file.close();
-    //
-    //     const writer = file.writer();
-    //
-    //     for (rhs_y) |a| {
-    //         try writer.print("{}\n", .{a});
-    //     }
-    // }
+    // var buffer: [1024]u8 = undefined;
+    // try writeFile("Ap.txt", ap, &buffer);
+    // try writeFile("Ai.txt", ai, &buffer);
+    // try writeFile("Ax.txt", ax, &buffer);
+    // try writeFile("Ax.txt", ax, &buffer);
+    // try writeFile("rhs_x.txt", rhs_x, &buffer);
+    // try writeFile("rhs_y.txt", rhs_y, &buffer);
 
     {
         const res = c.umfpack_di_symbolic(n_row, n_col, ap[0..].ptr, ai[0..].ptr, ax[0..].ptr, &symbolic, null, null);
@@ -89,6 +42,20 @@ pub fn solve(
     _ = c.umfpack_di_solve(c.UMFPACK_Aat, ap[0..].ptr, ai[0..].ptr, ax[0..].ptr, x[0..].ptr, rhs_x[0..].ptr, numeric, null, null);
     _ = c.umfpack_di_solve(c.UMFPACK_Aat, ap[0..].ptr, ai[0..].ptr, ax[0..].ptr, y[0..].ptr, rhs_y[0..].ptr, numeric, null, null);
     c.umfpack_di_free_numeric(&numeric);
+}
+
+fn writeFile(name: []const u8, field: anytype, buffer: []u8) !void {
+    var file = try std.fs.cwd().createFile(name, .{});
+    defer file.close();
+
+    var file_writer = file.writer(buffer);
+    var writer = &file_writer.interface;
+
+    for (field) |item| {
+        try writer.print("{}\n", .{item});
+    }
+
+    try writer.flush();
 }
 
 test "umfpack" {
