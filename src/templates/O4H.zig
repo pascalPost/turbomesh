@@ -583,6 +583,8 @@ fn projectNormal(allocator: std.mem.Allocator, edge: []Vec2d, distance: Float) !
 test "O4H template" {
     const allocator = std.testing.allocator;
     const template = O4H{
+        .inlet_axial_position = 0.998,
+        .outlet_axial_position = 0.02,
         .ps_csv_path = "./examples/T106/T106_ps.dat",
         .ss_csv_path = "./examples/T106/T106_ss.dat",
         .pitch = 0.08836, // m
@@ -618,7 +620,7 @@ test "O4H template" {
 
     // try mesh.write(allocator, "o4h_linear.cgns");
 
-    // try smooth.mesh(allocator, &mesh, 10, .umfpack, .laplace);
+    try smooth.mesh(allocator, &mesh, 10, .umfpack, .laplace);
 
     try mesh.write(allocator, "o4h.cgns");
 }
