@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Pascal Post
+// This code is licensed under AGPL license (see LICENSE.txt for details)
+
 // TODO: allow to compile with a subset of solvers
 
 const std = @import("std");

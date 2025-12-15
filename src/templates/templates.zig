@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Pascal Post
+// This code is licensed under AGPL license (see LICENSE.txt for details)
+
 const std = @import("std");
 const o4h = @import("O4H.zig");
 const discrete = @import("../discrete.zig");

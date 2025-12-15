@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Pascal Post
+// This code is licensed under AGPL license (see LICENSE.txt for details)
+
 comptime {
     _ = @import("cgns.zig");
     _ = @import("spline.zig");
