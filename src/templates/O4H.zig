@@ -24,12 +24,12 @@ const abs = types.abs;
 /// |               |           *                                               ** |                |
 /// |               |           *               up (5)                     *****   |                |
 /// |               |__________________________________________________****        |                |
-/// |               |    i<-|   /               ss (0)                 \  i^ ->j   |                |
+/// |               |    i<-|   /         blade_up (0)                 \  i^ ->j   |                |
 /// |               |       vj /  ____________________________________  \__________|                |
 /// |               |         /  /                                    \  \         |                |
 /// |  upstream (6) | IN (2) |--|* leading edge        trailing edge *|--| out (3) | downstream (7) |
 /// |               |         \  \____________________________________/  / ^j      |                |
-/// |               |          \                ps (1)                  /  ->i     |                |
+/// |               |          \        blade_down (1)                  /  ->i     |                |
 /// |               |___________\______________________________________/___________|                |
 /// | ^j            |  -> i     *                                      *           | ^j             |
 /// | |             |  vj       *             down (4)                 *           | |              |
@@ -41,8 +41,11 @@ pub const O4H = struct {
     inlet_axial_position: types.Float,
     outlet_axial_position: types.Float,
 
-    ps_csv_path: []const u8,
-    ss_csv_path: []const u8,
+    // TODO: add blade definition: from csv, points
+    // IDEA: add optional parameter for turbine or compressor to allow to define PS and SS
+
+    down_csv_path: []const u8,
+    up_csv_path: []const u8,
     pitch: types.Float,
     blade_clustering: clustering.Function,
     num_cells: struct {
@@ -73,31 +76,29 @@ pub const O4H = struct {
 
     pub fn run(self: *const O4H, allocator: std.mem.Allocator) !discrete.Mesh {
 
-        // TODO: remove pressure side and suction side and just use up and down (to be neutral w.r.t. turbine or compressor)
-
         // TODO: add geometry and discrete entities to manager
 
-        const num_cells_ss =
+        const num_cells_up =
             self.num_cells.in_up_j + self.num_cells.middle_i + self.num_cells.bulge + self.num_cells.out_up_j + self.num_cells.out_i;
-        const num_cells_ps =
+        const num_cells_down =
             self.num_cells.in_down_j + self.num_cells.middle_i + self.num_cells.out_down_j;
 
-        const profile = try blade.Profile.init(allocator, self.ps_csv_path, self.ss_csv_path);
+        const profile = try blade.Profile.init(allocator, self.down_csv_path, self.up_csv_path);
         defer profile.deinit();
 
-        var ps_edge = try discrete.Edge.init(allocator, num_cells_ps + 1, .{ .spline = profile.pressure_side }, self.blade_clustering);
-        defer ps_edge.deinit();
+        var down_edge = try discrete.Edge.init(allocator, num_cells_down + 1, .{ .spline = profile.down_part }, self.blade_clustering);
+        defer down_edge.deinit();
 
-        var ss_edge = try discrete.Edge.init(allocator, num_cells_ss + 1, .{ .spline = profile.suction_side }, self.blade_clustering);
-        defer ss_edge.deinit();
+        var up_edge = try discrete.Edge.init(allocator, num_cells_up + 1, .{ .spline = profile.up_part }, self.blade_clustering);
+        defer up_edge.deinit();
 
         // TODO: introducing a tolerance, this should not be necessary anymore.
         // TODO: handle this by a connect points function (?)
-        const leading_edge = ss_edge.points[0];
-        ps_edge.points[0] = leading_edge;
+        const leading_edge = up_edge.points[0];
+        down_edge.points[0] = leading_edge;
 
-        const trailing_edge = ss_edge.points[ss_edge.points.len - 1];
-        ps_edge.points[ps_edge.points.len - 1] = trailing_edge;
+        const trailing_edge = up_edge.points[up_edge.points.len - 1];
+        down_edge.points[down_edge.points.len - 1] = trailing_edge;
 
         // o - grid for viscous computations
 
@@ -107,21 +108,21 @@ pub const O4H = struct {
         // TODO: replace with a percentage value of the chord length
         const d = 0.001;
 
-        const ps_outer_edge = discrete.Edge{ .allocator = allocator, .points = try projectNormal(allocator, ps_edge.points[0..], d), .clustering = try allocator.dupe(Float, ps_edge.clustering) };
-        defer ps_outer_edge.deinit();
+        const down_outer_edge = discrete.Edge{ .allocator = allocator, .points = try projectNormal(allocator, down_edge.points[0..], d), .clustering = try allocator.dupe(Float, down_edge.clustering) };
+        defer down_outer_edge.deinit();
 
-        const ss_outer_edge = blk: {
-            var ss_outer = discrete.Edge{ .allocator = allocator, .points = try projectNormal(allocator, ss_edge.points[0..], -d), .clustering = try allocator.dupe(Float, ss_edge.clustering) };
-            ss_outer.points[0] = ps_outer_edge.points[0];
-            ss_outer.points[ss_outer.points.len - 1] = ps_outer_edge.points[ps_outer_edge.points.len - 1];
-            break :blk ss_outer;
+        const up_outer_edge = blk: {
+            var up_outer = discrete.Edge{ .allocator = allocator, .points = try projectNormal(allocator, up_edge.points[0..], -d), .clustering = try allocator.dupe(Float, up_edge.clustering) };
+            up_outer.points[0] = down_outer_edge.points[0];
+            up_outer.points[up_outer.points.len - 1] = down_outer_edge.points[down_outer_edge.points.len - 1];
+            break :blk up_outer;
         };
-        defer ss_outer_edge.deinit();
+        defer up_outer_edge.deinit();
 
         var mesh = discrete.Mesh.init(allocator);
         errdefer mesh.deinit();
 
-        // Block SS (0)
+        // Block BLADE_UP (0)
         //
         // |          /
         // |         |          ^
@@ -129,31 +130,31 @@ pub const O4H = struct {
         // |-------< x_00      i_min
         //         LE
 
-        const ss_i_min = ss_edge;
-        const ss_i_max = ss_outer_edge;
+        const blade_up_i_min = up_edge;
+        const blade_up_i_max = up_outer_edge;
 
-        const ss_j_min = try discrete.Edge.init(
+        const blade_up_j_min = try discrete.Edge.init(
             allocator,
             self.num_cells.o_grid + 1,
-            .{ .line = geometry.Line.init(ss_i_min.points[0], ss_i_max.points[0]) },
+            .{ .line = geometry.Line.init(blade_up_i_min.points[0], blade_up_i_max.points[0]) },
             .{ .single_hyperbolic_clustering = .{ .delta_s = 0.01 } },
         );
-        defer ss_j_min.deinit();
+        defer blade_up_j_min.deinit();
 
-        const ss_j_max = try discrete.Edge.init(
+        const blade_up_j_max = try discrete.Edge.init(
             allocator,
             self.num_cells.o_grid + 1,
-            .{ .line = geometry.Line.init(ss_i_min.points[ss_edge.points.len - 1], ss_i_max.points[ss_i_max.points.len - 1]) },
+            .{ .line = geometry.Line.init(blade_up_i_min.points[up_edge.points.len - 1], blade_up_i_max.points[blade_up_i_max.points.len - 1]) },
             .{ .single_hyperbolic_clustering = .{ .delta_s = 0.01 } },
         );
-        defer ss_j_max.deinit();
+        defer blade_up_j_max.deinit();
 
-        const ss = try discrete.Block2d.init(allocator, ss_i_min, ss_i_max, ss_j_min, ss_j_max);
+        const blade_up = try discrete.Block2d.init(allocator, blade_up_i_min, blade_up_i_max, blade_up_j_min, blade_up_j_max);
 
-        try mesh.addBlock("ss", ss);
-        const ss_id = mesh.blocks.items.len - 1;
+        try mesh.addBlock("blade_up", blade_up);
+        const blade_up_id = mesh.blocks.items.len - 1;
 
-        // Block PS (1)
+        // Block BLADE_DOWN (1)
         //
         //         LE
         // |-------< x_00      i_min
@@ -161,15 +162,15 @@ pub const O4H = struct {
         // |         |           v
         // |          /
 
-        const ps_i_min = ps_edge;
-        const ps_i_max = ps_outer_edge;
-        const ps_j_min = ss_j_min;
-        const ps_j_max = ss_j_max;
+        const blade_down_i_min = down_edge;
+        const blade_down_i_max = down_outer_edge;
+        const blade_down_j_min = blade_up_j_min;
+        const blade_down_j_max = blade_up_j_max;
 
-        const ps = try discrete.Block2d.init(allocator, ps_i_min, ps_i_max, ps_j_min, ps_j_max);
+        const blade_down = try discrete.Block2d.init(allocator, blade_down_i_min, blade_down_i_max, blade_down_j_min, blade_down_j_max);
 
-        try mesh.addBlock("ps", ps);
-        const ps_id = mesh.blocks.items.len - 1;
+        try mesh.addBlock("blade_down", blade_down);
+        const blade_down_id = mesh.blocks.items.len - 1;
 
         // Block IN (2)
         //
@@ -186,11 +187,11 @@ pub const O4H = struct {
         // TODO: remove hard coded positions for block
 
         const in_j_min = try discrete.Edge.combine(allocator, &.{ .{
-            .edge = &ss_i_max,
+            .edge = &blade_up_i_max,
             .start = self.num_cells.in_up_j,
             .end = 0,
         }, .{
-            .edge = &ps_i_max,
+            .edge = &blade_down_i_max,
             .start = 0,
             .end = self.num_cells.in_down_j,
         } });
@@ -221,12 +222,12 @@ pub const O4H = struct {
         //
 
         const out_j_min = try discrete.Edge.combine(allocator, &.{ .{
-            .edge = &ps_i_max,
+            .edge = &blade_down_i_max,
             .start = self.num_cells.in_down_j + self.num_cells.middle_i,
-            .end = ps_i_max.points.len - 1,
+            .end = blade_down_i_max.points.len - 1,
         }, .{
-            .edge = &ss_i_max,
-            .start = ss_i_max.points.len - 1,
+            .edge = &blade_up_i_max,
+            .start = blade_up_i_max.points.len - 1,
             .end = self.num_cells.in_up_j + self.num_cells.bulge + self.num_cells.middle_i + self.num_cells.out_i,
         } });
         defer out_j_min.deinit();
@@ -263,7 +264,7 @@ pub const O4H = struct {
                 .end = 0,
             },
             .{
-                .edge = &ps_i_max,
+                .edge = &blade_down_i_max,
                 .start = self.num_cells.in_down_j,
                 .end = self.num_cells.in_down_j + self.num_cells.middle_i,
             },
@@ -305,7 +306,7 @@ pub const O4H = struct {
         const up_j_min = out_i_max;
         const up_i_min = try discrete.Edge.combine(allocator, &.{
             .{
-                .edge = &ss_i_max,
+                .edge = &blade_up_i_max,
                 .start = self.num_cells.in_up_j + self.num_cells.middle_i + self.num_cells.bulge + self.num_cells.out_i,
                 .end = self.num_cells.in_up_j,
             },
@@ -432,12 +433,12 @@ pub const O4H = struct {
 
         try mesh.connections.appendSlice(&.{
             boundary.Connection.init(.{
-                .{ .block = ss_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.o_grid },
-                .{ .block = ps_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.o_grid },
+                .{ .block = blade_up_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.o_grid },
+                .{ .block = blade_down_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.o_grid },
             }, null),
             boundary.Connection.init(.{
-                .{ .block = ss_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.o_grid },
-                .{ .block = ps_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.o_grid },
+                .{ .block = blade_up_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.o_grid },
+                .{ .block = blade_down_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.o_grid },
             }, null),
 
             boundary.Connection.init(.{
@@ -485,28 +486,28 @@ pub const O4H = struct {
             }, null),
 
             boundary.Connection.init(.{
-                .{ .block = ss_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_up_j },
+                .{ .block = blade_up_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_up_j },
                 .{ .block = in_id, .side = boundary.Side.j_min, .start = self.num_cells.in_up_j, .end = 0 },
             }, null),
             boundary.Connection.init(.{
-                .{ .block = ss_id, .side = boundary.Side.i_max, .start = self.num_cells.in_up_j, .end = self.num_cells.in_up_j + self.num_cells.middle_i + self.num_cells.bulge + self.num_cells.out_i },
+                .{ .block = blade_up_id, .side = boundary.Side.i_max, .start = self.num_cells.in_up_j, .end = self.num_cells.in_up_j + self.num_cells.middle_i + self.num_cells.bulge + self.num_cells.out_i },
                 .{ .block = up_id, .side = boundary.Side.i_min, .start = up_i_min.points.len - 1 - self.num_cells.in_i, .end = 0 },
             }, null),
             boundary.Connection.init(.{
-                .{ .block = ss_id, .side = boundary.Side.i_max, .start = self.num_cells.in_up_j + self.num_cells.bulge + self.num_cells.middle_i + self.num_cells.out_i, .end = ss_i_max.points.len - 1 },
+                .{ .block = blade_up_id, .side = boundary.Side.i_max, .start = self.num_cells.in_up_j + self.num_cells.bulge + self.num_cells.middle_i + self.num_cells.out_i, .end = blade_up_i_max.points.len - 1 },
                 .{ .block = out_id, .side = boundary.Side.j_min, .start = out_j_min.points.len - 1, .end = self.num_cells.out_down_j },
             }, null),
 
             boundary.Connection.init(.{
-                .{ .block = ps_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_down_j },
+                .{ .block = blade_down_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_down_j },
                 .{ .block = in_id, .side = boundary.Side.j_min, .start = self.num_cells.in_up_j, .end = in_j_min.points.len - 1 },
             }, null),
             boundary.Connection.init(.{
-                .{ .block = ps_id, .side = boundary.Side.i_max, .start = self.num_cells.in_down_j, .end = self.num_cells.in_down_j + self.num_cells.middle_i },
+                .{ .block = blade_down_id, .side = boundary.Side.i_max, .start = self.num_cells.in_down_j, .end = self.num_cells.in_down_j + self.num_cells.middle_i },
                 .{ .block = down_id, .side = boundary.Side.i_min, .start = self.num_cells.in_i, .end = down_i_min.points.len - 1 - self.num_cells.out_i },
             }, null),
             boundary.Connection.init(.{
-                .{ .block = ps_id, .side = boundary.Side.i_max, .start = self.num_cells.in_down_j + self.num_cells.middle_i, .end = ps_i_max.points.len - 1 },
+                .{ .block = blade_down_id, .side = boundary.Side.i_max, .start = self.num_cells.in_down_j + self.num_cells.middle_i, .end = blade_down_i_max.points.len - 1 },
                 .{ .block = out_id, .side = boundary.Side.j_min, .start = 0, .end = self.num_cells.out_down_j },
             }, null),
 
@@ -585,8 +586,8 @@ test "O4H template" {
     const template = O4H{
         .inlet_axial_position = 0.998,
         .outlet_axial_position = 0.02,
-        .ps_csv_path = "./examples/T106/T106_ps.dat",
-        .ss_csv_path = "./examples/T106/T106_ss.dat",
+        .down_csv_path = "./examples/T106/T106_ps.dat",
+        .up_csv_path = "./examples/T106/T106_ss.dat",
         .pitch = 0.08836, // m
         .blade_clustering = .{ .roberts = .{ .alpha = 0.5, .beta = 1.03 } },
         .num_cells = .{

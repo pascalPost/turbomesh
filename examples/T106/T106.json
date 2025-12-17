@@ -3,8 +3,8 @@
     "O4H": {
       "inlet_axial_position": 0.998,
       "outlet_axial_position": 0.02,
-      "ps_csv_path": "examples/T106/T106_ps.dat",
-      "ss_csv_path": "examples/T106/T106_ss.dat",
+      "down_csv_path": "examples/T106/T106_ps.dat",
+      "up_csv_path": "examples/T106/T106_ss.dat",
       "pitch": 8.836e-2,
       "blade_clustering": {
         "roberts": {

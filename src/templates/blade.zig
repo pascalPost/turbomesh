@@ -8,38 +8,38 @@ const spline = @import("../spline.zig");
 const types = @import("../types.zig");
 
 pub const Profile = struct {
-    pressure_side: spline.FittingSpline(2),
-    suction_side: spline.FittingSpline(2),
+    down_part: spline.FittingSpline(2),
+    up_part: spline.FittingSpline(2),
 
-    pub fn init(allocator: std.mem.Allocator, ps_csv_path: []const u8, ss_csv_path: []const u8) !Profile {
-        const ps = try readSide(allocator, ps_csv_path);
-        defer ps.deinit();
+    pub fn init(allocator: std.mem.Allocator, down_csv_path: []const u8, up_csv_path: []const u8) !Profile {
+        const down = try readSide(allocator, down_csv_path);
+        defer down.deinit();
 
-        const ss = try readSide(allocator, ss_csv_path);
-        defer ss.deinit();
+        const up = try readSide(allocator, up_csv_path);
+        defer up.deinit();
 
-        if (!types.eql(ps.items[0], ss.items[0])) {
+        if (!types.eql(down.items[0], up.items[0])) {
             std.log.err("Leading edge of suction and pressure side must be equal.", .{});
             return error.NonMatchingLeadingEdge;
         }
 
-        if (!types.eql(ps.items[ps.items.len - 1], ss.items[ss.items.len - 1])) {
+        if (!types.eql(down.items[down.items.len - 1], up.items[up.items.len - 1])) {
             std.log.err("Trailing edge of suction and pressure side must be equal.", .{});
             return error.NonMatchingTrailingEdge;
         }
 
-        std.debug.assert(ps.items.len > 1);
-        std.debug.assert(ps.items[0].data[0] < ps.items[ps.items.len - 1].data[0]);
+        std.debug.assert(down.items.len > 1);
+        std.debug.assert(down.items[0].data[0] < down.items[down.items.len - 1].data[0]);
 
-        const pressure_side = try spline.FittingSpline(2).init(allocator, types.cast(ps.items[0..]), 3);
-        const suction_side = try spline.FittingSpline(2).init(allocator, types.cast(ss.items[0..]), 3);
+        const down_part = try spline.FittingSpline(2).init(allocator, types.cast(down.items[0..]), 3);
+        const up_part = try spline.FittingSpline(2).init(allocator, types.cast(up.items[0..]), 3);
 
-        return .{ .pressure_side = pressure_side, .suction_side = suction_side };
+        return .{ .down_part = down_part, .up_part = up_part };
     }
 
     pub fn deinit(self: *const Profile) void {
-        self.pressure_side.deinit();
-        self.suction_side.deinit();
+        self.down_part.deinit();
+        self.up_part.deinit();
     }
 };
 
