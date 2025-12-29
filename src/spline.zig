@@ -80,6 +80,10 @@ pub fn FittingSpline(comptime dim: usize) type {
             }
         }
 
+        pub fn integrate(self: *const Self) f64 {
+            return self.total_length;
+        }
+
         fn buildArcLengthTable(self: *Self) !void {
             // sample parameters evenly in the spline domain
             for (self.sample_params, 0..) |*p, i| {
@@ -254,4 +258,47 @@ test "spline interpolating a straight line" {
         try std.testing.expectApproxEqAbs(e[0], v[0], 1e-9);
         try std.testing.expectApproxEqAbs(e[1], v[1], 1e-9);
     }
+
+    try std.testing.expectApproxEqAbs(std.math.sqrt(2.0) * 4.0, spline.integrate(), 1e-9);
+}
+
+test "monotonic arc-length mapping on curve" {
+    const allocator = std.testing.allocator;
+    const dim = 2;
+    const degree = 3;
+    const pts = [_][dim]f64{
+        .{ 0.0, 0.0 },
+        .{ 1.0, 0.5 },
+        .{ 2.0, 1.5 },
+        .{ 2.5, 3.0 },
+    };
+
+    var spline = try FittingSpline(dim).init(allocator, pts[0..], degree);
+    defer spline.deinit();
+
+    var values: [3][dim]f64 = undefined;
+    const u = [_]f64{ 0.0, 0.5, 1.0 };
+    try spline.interpolate(&u, &values);
+
+    try std.testing.expect(values[0][0] <= values[1][0]);
+    try std.testing.expect(values[1][0] <= values[2][0]);
+    try std.testing.expectApproxEqAbs(pts[0][0], values[0][0], 1e-9);
+    try std.testing.expectApproxEqAbs(pts[0][1], values[0][1], 1e-9);
+    try std.testing.expectApproxEqAbs(pts[pts.len - 1][0], values[2][0], 1e-9);
+    try std.testing.expectApproxEqAbs(pts[pts.len - 1][1], values[2][1], 1e-9);
+}
+
+test "length of two-point spline" {
+    const allocator = std.testing.allocator;
+    const dim = 2;
+    const degree = 3;
+    const pts = [_][dim]f64{
+        .{ 0.0, 0.0 },
+        .{ 0.0, 3.0 },
+    };
+
+    var spline = try FittingSpline(dim).init(allocator, pts[0..], degree);
+    defer spline.deinit();
+
+    try std.testing.expectApproxEqAbs(3.0, spline.integrate(), 1e-9);
 }
