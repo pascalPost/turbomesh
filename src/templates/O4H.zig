@@ -43,6 +43,7 @@ pub const O4H = struct {
 
     // TODO: add blade definition: from csv, points
     // IDEA: add optional parameter for turbine or compressor to allow to define PS and SS
+    // IDEA: allow to preset numbers based on single setting like low, mid, high or something...
 
     down_csv_path: []const u8,
     up_csv_path: []const u8,
@@ -83,7 +84,7 @@ pub const O4H = struct {
         const num_cells_down =
             self.num_cells.in_down_j + self.num_cells.middle_i + self.num_cells.out_down_j;
 
-        const profile = try blade.Profile.init(allocator, self.down_csv_path, self.up_csv_path);
+        var profile = try blade.Profile.init(allocator, self.down_csv_path, self.up_csv_path);
         defer profile.deinit();
 
         var down_edge = try discrete.Edge.init(allocator, num_cells_down + 1, .{ .spline = profile.down_part }, self.blade_clustering);

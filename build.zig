@@ -75,8 +75,6 @@ pub fn build(b: *std.Build) void {
     exe.linkSystemLibrary("petsc");
     exe.addCSourceFile(.{ .file = b.path("src/smoothing/petsc_shim.c") });
     exe.linkSystemLibrary("mpi"); // needed by petsc
-    exe.linkSystemLibrary("dierckx");
-    exe.addLibraryPath(b.path("./third_party/dierckx/"));
     exe.linkLibC();
 
     // needed on macos
@@ -125,8 +123,6 @@ pub fn build(b: *std.Build) void {
     tests.linkSystemLibrary("petsc");
     tests.addCSourceFile(.{ .file = b.path("src/smoothing/petsc_shim.c") });
     tests.linkSystemLibrary("mpi"); // needed by petsc
-    tests.linkSystemLibrary("dierckx");
-    tests.addLibraryPath(b.path("./third_party/dierckx/"));
     tests.linkLibC();
 
     // needed on macos

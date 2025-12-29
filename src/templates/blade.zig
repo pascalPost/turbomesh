@@ -37,7 +37,7 @@ pub const Profile = struct {
         return .{ .down_part = down_part, .up_part = up_part };
     }
 
-    pub fn deinit(self: *const Profile) void {
+    pub fn deinit(self: *Profile) void {
         self.down_part.deinit();
         self.up_part.deinit();
     }
@@ -54,6 +54,6 @@ fn readSide(allocator: std.mem.Allocator, csv_path: []const u8) !std.array_list.
 
 test "read a blade profile" {
     const allocator = std.testing.allocator;
-    const profile = try Profile.init(allocator, "./examples/T106/T106_ps.dat", "./examples/T106/T106_ss.dat");
+    var profile = try Profile.init(allocator, "./examples/T106/T106_ps.dat", "./examples/T106/T106_ss.dat");
     profile.deinit();
 }
