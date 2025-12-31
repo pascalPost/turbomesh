@@ -2,9 +2,11 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 const std = @import("std");
-const discrete = @import("discrete.zig");
+const core = @import("core");
 const glfw = @import("zglfw");
 const gl = @import("gl");
+
+const discrete = core.discrete;
 
 pub const State = struct {
     allocator: std.mem.Allocator,

@@ -2,10 +2,12 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 const std = @import("std");
-const discrete = @import("discrete.zig");
+const core = @import("core");
 const glfw = @import("zglfw");
 const gl = @import("gl");
 const State = @import("state.zig").State;
+
+const discrete = core.discrete;
 
 var allocator: std.mem.Allocator = undefined;
 

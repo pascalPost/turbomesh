@@ -2,17 +2,14 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 const std = @import("std");
-const builtin = @import("builtin");
-const discrete = @import("discrete.zig");
-const types = @import("types.zig");
-const cgns = @import("cgns.zig");
-const spline = @import("spline.zig");
 const glfw = @import("zglfw");
 pub const gl = @import("gl");
-const templates = @import("templates/templates.zig");
 const reload = @import("reload.zig");
 const cmd = @import("cmd.zig");
 const State = @import("state.zig").State;
+const core = @import("core");
+
+const templates = core.templates;
 
 var gl_proc_table: gl.ProcTable = undefined;
 
