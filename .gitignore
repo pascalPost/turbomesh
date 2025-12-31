@@ -1,2 +1,3 @@
 .zig-cache
 zig-out
+examples/T106/T106.cgns
