@@ -9,6 +9,8 @@ comptime {
     _ = @import("discrete.zig");
     _ = @import("smoothing/umfpack.zig");
     _ = @import("smoothing/petsc.zig");
+    _ = @import("smoothing/BiCGStab.zig");
+    _ = @import("smoothing/GMRES.zig");
     _ = @import("boundary.zig");
     _ = @import("templates/O4H.zig");
 }

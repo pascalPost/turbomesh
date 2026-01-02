@@ -4,21 +4,44 @@
 // TODO: allow to compile with a subset of solvers
 
 const std = @import("std");
+// internal
+const bicgstab = @import("BiCGStab.zig");
+const gmres = @import("GMRES.zig");
+// external
 const umfpack = @import("umfpack.zig");
 const petsc = @import("petsc_import.zig");
+
+const Preconditioner = @import("preconditioner.zig").Preconditioner;
 const RowCompressedMatrixSystem2d = @import("smooth.zig").RowCompressedMatrixSystem2d;
 
 pub const Type = enum {
+    gmres,
+    bicgstab,
     umfpack,
     petsc,
 };
 
+pub const Option = union(Type) {
+    gmres: struct {
+        preconditioner: Preconditioner,
+    },
+    bicgstab: struct {
+        preconditioner: Preconditioner,
+    },
+    umfpack: struct {},
+    petsc: struct {},
+};
+
 pub const Solver = union(Type) {
+    gmres: gmres.GMRESSolver,
+    bicgstab: bicgstab.BiCGStabSolver,
     umfpack: UmfpackSolver,
     petsc: PetscSolver,
 
-    pub fn init(backend: Type, system: RowCompressedMatrixSystem2d) Solver {
-        switch (backend) {
+    pub fn init(option: Option, system: RowCompressedMatrixSystem2d) Solver {
+        switch (option) {
+            .gmres => |s| return .{ .gmres = gmres.GMRESSolver.init(system, s.preconditioner) },
+            .bicgstab => |s| return .{ .bicgstab = bicgstab.BiCGStabSolver.init(system, s.preconditioner) },
             .umfpack => return .{ .umfpack = UmfpackSolver.init(system) },
             .petsc => return .{ .petsc = PetscSolver.init(system) },
         }
@@ -28,6 +51,8 @@ pub const Solver = union(Type) {
         switch (self.*) {
             .umfpack => {},
             .petsc => |*s| s.deinit(),
+            .bicgstab => |*s| s.deinit(),
+            .gmres => |*s| s.deinit(),
         }
     }
 
@@ -35,6 +60,8 @@ pub const Solver = union(Type) {
         try switch (self.*) {
             .umfpack => |s| try s.solve(),
             .petsc => |*s| s.solve(),
+            .bicgstab => |*s| s.solve(),
+            .gmres => |*s| s.solve(),
         };
     }
 };

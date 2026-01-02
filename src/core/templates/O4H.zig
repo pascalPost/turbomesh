@@ -69,11 +69,13 @@ pub const O4H = struct {
         upstream_i: types.Index,
         downstream_i: types.Index,
     },
-    smoothing: struct {
-        iterations: usize,
-        backend: smooth.solver.Type = .umfpack,
-        wall_control_function: smooth.control_function.Algorithm = .{ .laplace = {} },
-    },
+    // smoothing: struct {
+    //     iterations: usize,
+    //     solver: smooth.Solver,
+    //     // backend: smooth.solver.Type = .umfpack,
+    //     // preconditioner: smooth.solver.Preconditioner = .diagonal,
+    //     wall_control_function: smooth.control_function.Algorithm = .{ .laplace = {} },
+    // },
 
     pub fn run(self: *const O4H, allocator: std.mem.Allocator) !discrete.Mesh {
 
@@ -531,7 +533,9 @@ pub const O4H = struct {
 
         // TODO: consider removing the Side definition... Check if this eases the code.
 
-        try smooth.mesh(allocator, &mesh, self.smoothing.iterations, self.smoothing.backend, self.smoothing.wall_control_function);
+        // const solver =
+
+        // try smooth.mesh(allocator, &mesh, self.smoothing.iterations, self.smoothing.backend, self.smoothing.preconditioner, self.smoothing.wall_control_function);
 
         return mesh;
     }
@@ -604,16 +608,6 @@ test "O4H template" {
             .bulge = 40,
             .upstream_i = 20,
             .downstream_i = 10,
-        },
-        .smoothing = .{
-            .iterations = 10,
-            .backend = .umfpack,
-            .wall_control_function = .{
-                .white = .{
-                    .ds_target = 1e-6,
-                    .theta_target = 1.570796327,
-                },
-            },
         },
     };
 

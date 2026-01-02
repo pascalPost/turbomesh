@@ -19,11 +19,12 @@ We need to generate a system matrix.
 
 This is a sparse matrix. There are different sparse matrix solvers and formats.
 
-We use umfpack from SuiteSparse.
+We use UMFPACK from SuiteSparse by default and also provide in-tree BiCGStab and restarted GMRES solvers that run directly on the CSR data with diagonal or ILU(0) preconditioning.
+When using the `bicgstab` or `gmres` backend, set `smoothing.preconditioner` to `diagonal` or `ilu0` in the JSON config.
 
 // UMFPACK docs: https://github.com/PetterS/SuiteSparse/tree/master/UMFPACK/Doc
 
-The packages uses a Compressed Column format, but also allows to create the matrix in a Compressed Row format.
+The package uses a Compressed Column format, but also allows to create the matrix in a Compressed Row format.
 A row based asembly seems to be more natural for us.
 
 Loop over all blocks and add all block internal points.

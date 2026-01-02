@@ -15,6 +15,11 @@ var gl_proc_table: gl.ProcTable = undefined;
 
 const Config = struct {
     template: templates.Template,
+    smoothing: struct {
+        iterations: usize = 0,
+        solver: core.smoothing.solver.Option,
+        wall_control_function: core.smoothing.wall_control_function.Algorithm = .{ .laplace = {} },
+    },
     output: ?[:0]const u8 = null,
     gui: ?bool = null,
 };
@@ -45,16 +50,11 @@ pub fn main() !void {
 
     // TODO: add ini, toml, yaml config files to allow comments!
 
-    // // TODO: use this to write config file
-    // const file = try std.fs.cwd().createFile("T106.json", .{});
-    // defer file.close();
-    //
-    // try std.json.stringify(config, .{ .whitespace = .indent_2 }, file.writer());
-
-    // std.process.exit(0);
-
     var mesh = try config.template.run(allocator);
     defer mesh.deinit();
+
+    // smoothing
+    try core.smoothing.smooth.mesh(allocator, &mesh, config.smoothing.iterations, config.smoothing.solver, config.smoothing.wall_control_function);
 
     if (config.output) |filename| {
         try mesh.write(allocator, filename);

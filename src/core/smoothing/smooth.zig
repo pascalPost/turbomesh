@@ -5,9 +5,9 @@ const std = @import("std");
 const discrete = @import("../discrete.zig");
 const types = @import("../types.zig");
 const boundary = @import("../boundary.zig");
-pub const solver = @import("solver.zig");
 const cgns = @import("../cgns.zig");
-pub const control_function = @import("control_function.zig");
+const wall_control_function = @import("wall_control_function.zig");
+const solver = @import("solver.zig");
 
 // This module provides a block-structured elliptic grid generation algorithm.
 // It takes a set of boundary points and iteratively adjusts interior points to create
@@ -21,7 +21,7 @@ pub const control_function = @import("control_function.zig");
 //    - Cumulative count of non-zeros per row
 // 3. Iteratively solves the system:
 //    - Assembles matrix coefficients based on current grid point positions
-//    - Uses UMFPACK to solve the linear system for new interior point positions
+//    - Uses the selected sparse solver backend to update interior point positions
 //    - Updates grid points and checks convergence
 //
 // The matrix structure assembles all internal block points first
@@ -54,13 +54,19 @@ pub const control_function = @import("control_function.zig");
 // }
 // TODO: rework w.r.t. new handling of block connections.
 
-pub fn mesh(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, iterations: usize, solver_backend: solver.Type, control_function_algorithm: control_function.Algorithm) !void {
+pub fn mesh(
+    allocator: std.mem.Allocator,
+    mesh_data: *discrete.Mesh,
+    iterations: usize,
+    solver_option: solver.Option,
+    control_function_algorithm: wall_control_function.Algorithm,
+) !void {
     const time_start = try std.time.Instant.now();
 
     var system = try RowCompressedMatrixSystem2d.init(allocator, mesh_data, control_function_algorithm);
     defer system.deinit();
 
-    var s = solver.Solver.init(solver_backend, system);
+    var s = solver.Solver.init(solver_option, system);
     defer s.deinit();
 
     // iterate and fill matrix values
@@ -261,9 +267,9 @@ pub const RowCompressedMatrixSystem2d = struct {
 
     boundary_points: BlockBoundaryPoints,
 
-    control_function: control_function.ControlFunction,
+    control_function: wall_control_function.ControlFunction,
 
-    fn init(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, control_function_algorithm: control_function.Algorithm) !RowCompressedMatrixSystem2d {
+    fn init(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, control_function_algorithm: wall_control_function.Algorithm) !RowCompressedMatrixSystem2d {
         connectionDataCheck(mesh_data);
 
         // TODO: check that endpoints match! That allows to ease the connection handling!
