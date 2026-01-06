@@ -63,7 +63,7 @@ pub fn FittingSpline(comptime dim: usize) type {
             return spline;
         }
 
-        pub fn deinit(self: *Self) void {
+        pub fn deinit(self: *const Self) void {
             self.allocator.free(self.params);
             self.allocator.free(self.points);
             inline for (0..dim) |d| self.allocator.free(self.second_derivs[d]);

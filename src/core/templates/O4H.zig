@@ -3,8 +3,8 @@
 
 const std = @import("std");
 
-const blade = @import("blade.zig");
 const types = @import("../types.zig");
+const machine = @import("../machine.zig");
 const clustering = @import("../clustering.zig");
 const discrete = @import("../discrete.zig");
 const geometry = @import("../geometry.zig");
@@ -41,13 +41,9 @@ pub const O4H = struct {
     inlet_axial_position: types.Float,
     outlet_axial_position: types.Float,
 
-    // TODO: add blade definition: from csv, points
     // IDEA: add optional parameter for turbine or compressor to allow to define PS and SS
     // IDEA: allow to preset numbers based on single setting like low, mid, high or something...
 
-    down_csv_path: []const u8,
-    up_csv_path: []const u8,
-    pitch: types.Float,
     blade_clustering: clustering.Function,
     num_cells: struct {
         o_grid: types.Index,
@@ -69,15 +65,8 @@ pub const O4H = struct {
         upstream_i: types.Index,
         downstream_i: types.Index,
     },
-    // smoothing: struct {
-    //     iterations: usize,
-    //     solver: smooth.Solver,
-    //     // backend: smooth.solver.Type = .umfpack,
-    //     // preconditioner: smooth.solver.Preconditioner = .diagonal,
-    //     wall_control_function: smooth.control_function.Algorithm = .{ .laplace = {} },
-    // },
 
-    pub fn run(self: *const O4H, allocator: std.mem.Allocator) !discrete.Mesh {
+    pub fn run(self: *const O4H, allocator: std.mem.Allocator, geom: machine.Geometry) !discrete.Mesh {
 
         // TODO: add geometry and discrete entities to manager
 
@@ -86,13 +75,10 @@ pub const O4H = struct {
         const num_cells_down =
             self.num_cells.in_down_j + self.num_cells.middle_i + self.num_cells.out_down_j;
 
-        var profile = try blade.Profile.init(allocator, self.down_csv_path, self.up_csv_path);
-        defer profile.deinit();
-
-        var down_edge = try discrete.Edge.init(allocator, num_cells_down + 1, .{ .spline = profile.down_part }, self.blade_clustering);
+        var down_edge = try discrete.Edge.init(allocator, num_cells_down + 1, .{ .spline = geom.profile.down_part }, self.blade_clustering);
         defer down_edge.deinit();
 
-        var up_edge = try discrete.Edge.init(allocator, num_cells_up + 1, .{ .spline = profile.up_part }, self.blade_clustering);
+        var up_edge = try discrete.Edge.init(allocator, num_cells_up + 1, .{ .spline = geom.profile.up_part }, self.blade_clustering);
         defer up_edge.deinit();
 
         // TODO: introducing a tolerance, this should not be necessary anymore.
@@ -280,8 +266,8 @@ pub const O4H = struct {
         defer down_i_min.deinit();
 
         const down_x_00 = in_x_11;
-        const down_x_01 = sub(leading_edge, Vec2d.init(0.0, 0.5 * self.pitch));
-        const down_x_11 = sub(trailing_edge, Vec2d.init(0.0, 0.5 * self.pitch));
+        const down_x_01 = sub(leading_edge, Vec2d.init(0.0, 0.5 * geom.pitch));
+        const down_x_11 = sub(trailing_edge, Vec2d.init(0.0, 0.5 * geom.pitch));
         const down_x_10 = out_x_10;
 
         const down_i_max = try discrete.Edge.init(allocator, down_i_min.points.len, .{ .line = .{ .start = down_x_01, .end = down_x_11 } }, .{ .uniform = .{} });
@@ -321,8 +307,8 @@ pub const O4H = struct {
         });
         defer up_i_min.deinit();
 
-        const up_x_11 = add(leading_edge, Vec2d.init(0.0, 0.5 * self.pitch));
-        const up_x_i_max_middle = add(trailing_edge, Vec2d.init(0.0, 0.5 * self.pitch));
+        const up_x_11 = add(leading_edge, Vec2d.init(0.0, 0.5 * geom.pitch));
+        const up_x_i_max_middle = add(trailing_edge, Vec2d.init(0.0, 0.5 * geom.pitch));
         const up_x_01 = out_x_11;
         const up_x_10 = in_x_10;
 
@@ -377,8 +363,8 @@ pub const O4H = struct {
         const upstream_x_11 = upstream_j_max.points[upstream_j_max.points.len - 1];
 
         // TODO: remove hard coding
-        const upstream_x_00 = Vec2d.init(self.inlet_axial_position, leading_edge.data[1] - 0.5 * self.pitch);
-        const upstream_x_01 = Vec2d.init(self.inlet_axial_position, leading_edge.data[1] + 0.5 * self.pitch);
+        const upstream_x_00 = Vec2d.init(self.inlet_axial_position, leading_edge.data[1] - 0.5 * geom.pitch);
+        const upstream_x_01 = Vec2d.init(self.inlet_axial_position, leading_edge.data[1] + 0.5 * geom.pitch);
 
         const upstream_j_min = try discrete.Edge.init(allocator, upstream_j_max.points.len, .{ .line = .{ .start = upstream_x_00, .end = upstream_x_01 } }, .{ .uniform = .{} });
         defer upstream_j_min.deinit();
@@ -417,7 +403,7 @@ pub const O4H = struct {
 
         // TODO: remove hard coding
         const downstream_x_10 = add(downstream_x_00, Vec2d.init(self.outlet_axial_position, 0.00));
-        const downstream_x_11 = add(downstream_x_10, Vec2d.init(0.0, self.pitch));
+        const downstream_x_11 = add(downstream_x_10, Vec2d.init(0.0, geom.pitch));
 
         const downstream_j_max = try discrete.Edge.init(allocator, downstream_j_min.points.len, .{ .line = .{ .start = downstream_x_10, .end = downstream_x_11 } }, .{ .uniform = .{} });
         defer downstream_j_max.deinit();
@@ -517,15 +503,15 @@ pub const O4H = struct {
             boundary.Connection.init(.{
                 .{ .block = upstream_id, .side = boundary.Side.i_min, .start = 0, .end = self.num_cells.upstream_i },
                 .{ .block = upstream_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.upstream_i },
-            }, .{ .data = .{ 0, self.pitch } }),
+            }, .{ .data = .{ 0, geom.pitch } }),
             boundary.Connection.init(.{
                 .{ .block = down_id, .side = boundary.Side.i_max, .start = 0, .end = down_i_max.points.len - 1 },
                 .{ .block = up_id, .side = boundary.Side.i_max, .start = up_i_max.points.len - 1, .end = up_i_max.points.len - down_i_max.points.len },
-            }, .{ .data = .{ 0, self.pitch } }),
+            }, .{ .data = .{ 0, geom.pitch } }),
             boundary.Connection.init(.{
                 .{ .block = downstream_id, .side = boundary.Side.i_min, .start = 0, .end = self.num_cells.downstream_i },
                 .{ .block = downstream_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.downstream_i },
-            }, .{ .data = .{ 0, self.pitch } }),
+            }, .{ .data = .{ 0, geom.pitch } }),
         });
 
         // Boundary conditions
@@ -587,13 +573,16 @@ fn projectNormal(allocator: std.mem.Allocator, edge: []Vec2d, distance: Float) !
 }
 
 test "O4H template" {
+    const input = @import("../input.zig");
+
     const allocator = std.testing.allocator;
+    const pitch = 0.08836; // m
+    var profile = try input.create_profile(allocator, .{ .csv = .{ .up_csv_path = "./examples/T106/T106_ss.dat", .down_csv_path = "./examples/T106/T106_ps.dat" } });
+    defer profile.deinit();
+    const geom = machine.Geometry.init(pitch, profile);
     const template = O4H{
         .inlet_axial_position = 0.998,
         .outlet_axial_position = 0.02,
-        .down_csv_path = "./examples/T106/T106_ps.dat",
-        .up_csv_path = "./examples/T106/T106_ss.dat",
-        .pitch = 0.08836, // m
         .blade_clustering = .{ .roberts = .{ .alpha = 0.5, .beta = 1.03 } },
         .num_cells = .{
             .o_grid = 40,
@@ -611,7 +600,7 @@ test "O4H template" {
         },
     };
 
-    var mesh = try template.run(allocator);
+    var mesh = try template.run(allocator, geom);
     defer mesh.deinit();
 
     // try mesh.write(allocator, "o4h_linear.cgns");

@@ -2,11 +2,11 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 const std = @import("std");
+const config = @import("config");
 const types = @import("types.zig");
 const cluster = @import("clustering.zig");
 const geometry = @import("geometry.zig");
 const tfi = @import("tfi.zig");
-const cgns = @import("cgns.zig");
 const boundary = @import("boundary.zig");
 
 pub const Edge = struct {
@@ -195,21 +195,24 @@ pub const Mesh = struct {
     }
 
     pub fn write(self: Mesh, allocator: std.mem.Allocator, filename: [:0]const u8) !void {
+        if (config.use_cgns) {
+            const cgns = @import("cgns.zig");
 
-        // buffer
-        var size: usize = 0;
-        for (self.blocks.items) |b| {
-            size = @max(size, b.points.data.len);
-        }
-        var buffer = try allocator.alloc(types.Float, size);
-        defer allocator.free(buffer);
+            // buffer
+            var size: usize = 0;
+            for (self.blocks.items) |b| {
+                size = @max(size, b.points.data.len);
+            }
+            var buffer = try allocator.alloc(types.Float, size);
+            defer allocator.free(buffer);
 
-        // block data
-        var block_points = try allocator.alloc(types.Mat2d, self.blocks.items.len);
-        defer allocator.free(block_points);
-        for (self.blocks.items, block_points[0..]) |b, *data| data.* = b.points;
+            // block data
+            var block_points = try allocator.alloc(types.Mat2d, self.blocks.items.len);
+            defer allocator.free(block_points);
+            for (self.blocks.items, block_points[0..]) |b, *data| data.* = b.points;
 
-        try cgns.write(filename, self.names.items, block_points, buffer[0..], null);
+            try cgns.write(filename, self.names.items, block_points, buffer[0..], null);
+        } else return error.OutputFormatNotEnabled;
     }
 };
 

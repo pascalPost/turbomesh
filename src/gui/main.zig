@@ -13,12 +13,16 @@ const templates = core.templates;
 
 var gl_proc_table: gl.ProcTable = undefined;
 
-const Config = struct {
+const Input = struct {
     template: templates.Template,
     smoothing: struct {
         iterations: usize = 0,
         solver: core.smoothing.solver.Option,
         wall_control_function: core.smoothing.wall_control_function.Algorithm = .{ .laplace = {} },
+    },
+    geometry: struct {
+        pitch: core.types.Float,
+        profile: core.input.ProfileInput,
     },
     output: ?[:0]const u8 = null,
     gui: ?bool = null,
@@ -38,10 +42,10 @@ pub fn main() !void {
     var json_reader = std.json.Reader.init(allocator, &config_file_reader.interface);
     defer json_reader.deinit();
 
-    const parsed = try std.json.parseFromTokenSource(Config, allocator, &json_reader, .{});
+    const parsed = try std.json.parseFromTokenSource(Input, allocator, &json_reader, .{});
     defer parsed.deinit();
 
-    const config = parsed.value;
+    const input = parsed.value;
 
     // TODO: re-parse file on modification
     // TODO: add boundary layer thickness
@@ -50,17 +54,23 @@ pub fn main() !void {
 
     // TODO: add ini, toml, yaml config files to allow comments!
 
-    var mesh = try config.template.run(allocator);
+    // geometry
+    const profile = try core.input.create_profile(allocator, input.geometry.profile);
+    defer profile.deinit();
+    const geometry = core.machine.Geometry.init(input.geometry.pitch, profile);
+
+    // blocking
+    var mesh = try input.template.run(allocator, geometry);
     defer mesh.deinit();
 
     // smoothing
-    try core.smoothing.smooth.mesh(allocator, &mesh, config.smoothing.iterations, config.smoothing.solver, config.smoothing.wall_control_function);
+    try core.smoothing.smooth.mesh(allocator, &mesh, input.smoothing.iterations, input.smoothing.solver, input.smoothing.wall_control_function);
 
-    if (config.output) |filename| {
+    if (input.output) |filename| {
         try mesh.write(allocator, filename);
     }
 
-    if (config.gui == null or !config.gui.?) std.process.exit(0);
+    if (input.gui == null or !input.gui.?) std.process.exit(0);
 
     try glfw.init();
     defer glfw.terminate();

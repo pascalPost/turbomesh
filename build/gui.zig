@@ -2,26 +2,14 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 const std = @import("std");
+const core = @import("core.zig");
 
 pub fn addDesktopGui(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    core_mod: *std.Build.Module,
+    cfg: core.Config,
 ) void {
-    const gl_bindings = @import("zigglgen").generateBindingsModule(b, .{
-        .api = .gl,
-        .version = .@"4.5",
-        .profile = .core,
-        .extensions = &.{},
-    });
-
-    const zglfw = b.dependency("zglfw", .{
-        .target = target,
-        .optimize = optimize,
-        .shared = true,
-    });
-
     const lib = b.addLibrary(.{
         .name = "turbomesh",
         .linkage = .dynamic,
@@ -33,8 +21,22 @@ pub fn addDesktopGui(
         .use_llvm = true,
     });
 
+    const core_mod = core.addCoreModule(b, target, optimize, cfg);
     lib.root_module.addImport("core", core_mod);
+
+    const gl_bindings = @import("zigglgen").generateBindingsModule(b, .{
+        .api = .gl,
+        .version = .@"4.5",
+        .profile = .core,
+        .extensions = &.{},
+    });
     lib.root_module.addImport("gl", gl_bindings);
+
+    const zglfw = b.dependency("zglfw", .{
+        .target = target,
+        .optimize = optimize,
+        .shared = true,
+    });
     lib.root_module.addImport("zglfw", zglfw.module("root"));
 
     if (target.result.os.tag != .emscripten) {

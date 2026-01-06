@@ -2,13 +2,28 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 const std = @import("std");
+const RowCompressedMatrixSystem2d = @import("smooth.zig").RowCompressedMatrixSystem2d;
+
 const c = @cImport({
     @cInclude("umfpack.h");
 });
 
+pub const UmfpackSolver = struct {
+    system: RowCompressedMatrixSystem2d,
+
+    pub fn init(system: RowCompressedMatrixSystem2d) UmfpackSolver {
+        return .{ .system = system };
+    }
+
+    pub fn solve(self: UmfpackSolver) !void {
+        const dof = self.system.rhs_x.len;
+        try solve_system(@intCast(dof), @intCast(dof), self.system.lhs_p, self.system.lhs_i, self.system.lhs_values, self.system.rhs_x, self.system.x_new, self.system.rhs_y, self.system.y_new);
+    }
+};
+
 // UMFPACK docs: https://github.com/PetterS/SuiteSparse/tree/master/UMFPACK/Doc
 
-pub fn solve(
+fn solve_system(
     n_row: i32,
     n_col: i32,
     ap: []const i32,

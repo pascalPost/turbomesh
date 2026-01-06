@@ -2,10 +2,10 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 const std = @import("std");
+const config = @import("config");
 const discrete = @import("../discrete.zig");
 const types = @import("../types.zig");
 const boundary = @import("../boundary.zig");
-const cgns = @import("../cgns.zig");
 const wall_control_function = @import("wall_control_function.zig");
 const solver = @import("solver.zig");
 
@@ -66,7 +66,7 @@ pub fn mesh(
     var system = try RowCompressedMatrixSystem2d.init(allocator, mesh_data, control_function_algorithm);
     defer system.deinit();
 
-    var s = solver.Solver.init(solver_option, system);
+    var s = try solver.Solver.init(solver_option, system);
     defer s.deinit();
 
     // iterate and fill matrix values
@@ -125,7 +125,9 @@ pub fn mesh(
     std.debug.print("elapsed time for smoothing: {d:.2} s\n", .{time_delta / std.time.ns_per_s});
 
     // TODO: remove asap (e.g. with an option)
-    try system.write("smooth.cgns");
+    if (config.use_cgns) {
+        try system.write("smooth.cgns");
+    }
 }
 
 /// The 9 point stencil data for the point (i,j). The values are stored in an array where the index in
@@ -349,20 +351,23 @@ pub const RowCompressedMatrixSystem2d = struct {
     }
 
     fn write(self: RowCompressedMatrixSystem2d, filename: [:0]const u8) !void {
-        // buffer
-        var size: usize = 0;
-        for (self.mesh.blocks.items) |b| {
-            size = @max(size, b.points.data.len);
-        }
-        var buffer = try self.allocator.alloc(types.Float, size);
-        defer self.allocator.free(buffer);
+        if (config.use_cgns) {
+            const cgns = @import("../cgns.zig");
+            // buffer
+            var size: usize = 0;
+            for (self.mesh.blocks.items) |b| {
+                size = @max(size, b.points.data.len);
+            }
+            var buffer = try self.allocator.alloc(types.Float, size);
+            defer self.allocator.free(buffer);
 
-        // block data
-        var block_points = try self.allocator.alloc(types.Mat2d, self.mesh.blocks.items.len);
-        defer self.allocator.free(block_points);
-        for (self.mesh.blocks.items, block_points[0..]) |b, *data| data.* = b.points;
+            // block data
+            var block_points = try self.allocator.alloc(types.Mat2d, self.mesh.blocks.items.len);
+            defer self.allocator.free(block_points);
+            for (self.mesh.blocks.items, block_points[0..]) |b, *data| data.* = b.points;
 
-        try cgns.write(filename, self.mesh.names.items, block_points, buffer[0..], self.control_function.data);
+            try cgns.write(filename, self.mesh.names.items, block_points, buffer[0..], self.control_function.data);
+        } else return error.OutputFormatNotEnabled;
     }
 
     /// returns the non zero entries range for the given row (the row index range start for each block can be retrieved from an array in the struct)
