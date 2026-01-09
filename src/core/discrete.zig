@@ -44,7 +44,7 @@ pub const Edge = struct {
         {
             for (edges[0 .. edges.len - 1], edges[1..], 1..) |edge, edge_next, i| {
                 if (!types.eqlApprox(edge.edge.points[edge.end], edge_next.edge.points[edge_next.start], tol)) {
-                    std.debug.print("edges {} and {} cannot be combined as end points do not match: ({}, {}) and ({}, {})\n", .{
+                    std.log.err("edges {} and {} cannot be combined as end points do not match: ({}, {}) and ({}, {})", .{
                         i,                                              i + 1,
                         edge.edge.points[edge.end].data[0],             edge.edge.points[edge.end].data[1],
                         edge_next.edge.points[edge_next.start].data[0], edge_next.edge.points[edge_next.start].data[1],

@@ -2,6 +2,7 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 const std = @import("std");
+const builtin = @import("builtin");
 const config = @import("config");
 const discrete = @import("../discrete.zig");
 const types = @import("../types.zig");
@@ -54,6 +55,8 @@ const solver = @import("solver.zig");
 // }
 // TODO: rework w.r.t. new handling of block connections.
 
+const log = std.log.scoped(.smoothing);
+
 pub fn mesh(
     allocator: std.mem.Allocator,
     mesh_data: *discrete.Mesh,
@@ -61,7 +64,11 @@ pub fn mesh(
     solver_option: solver.Option,
     control_function_algorithm: wall_control_function.Algorithm,
 ) !void {
-    const time_start = try std.time.Instant.now();
+    const time_start =
+        if (comptime builtin.cpu.arch != .wasm32)
+            try std.time.Instant.now()
+        else
+            void;
 
     var system = try RowCompressedMatrixSystem2d.init(allocator, mesh_data, control_function_algorithm);
     defer system.deinit();
@@ -71,7 +78,7 @@ pub fn mesh(
 
     // iterate and fill matrix values
     for (0..iterations) |n| {
-        std.debug.print("  iteration: {}\n", .{n});
+        log.info("iteration: {}", .{n});
 
         try system.fill(n);
         try s.solve();
@@ -101,7 +108,7 @@ pub fn mesh(
         }
 
         const norm = (x_norm_sqr + y_norm_sqr) * (x_norm_sqr + y_norm_sqr);
-        std.debug.print("\tresidual: {}\n", .{norm});
+        log.info("\tresidual: {}", .{norm});
 
         // copy into coordinate field
         {
@@ -120,9 +127,11 @@ pub fn mesh(
         }
     }
 
-    const time_end = try std.time.Instant.now();
-    const time_delta: f32 = @floatFromInt(time_end.since(time_start));
-    std.debug.print("elapsed time for smoothing: {d:.2} s\n", .{time_delta / std.time.ns_per_s});
+    if (comptime builtin.cpu.arch != .wasm32) {
+        const time_end = try std.time.Instant.now();
+        const time_delta: f32 = @floatFromInt(time_end.since(time_start));
+        log.info("elapsed time for smoothing: {d:.2} s\n", .{time_delta / std.time.ns_per_s});
+    }
 
     // TODO: remove asap (e.g. with an option)
     if (config.use_cgns) {
@@ -633,7 +642,7 @@ pub const RowCompressedMatrixSystem2d = struct {
                     std.debug.assert(blk: {
                         for (0..8) |i| {
                             if (non_zero_entries.items[row_non_zero_entries_start_idx + i] >= non_zero_entries.items[row_non_zero_entries_start_idx + i + 1]) {
-                                std.debug.print("wrong ordering of connection stencil data for point {d}: {any}\n", .{ connected_points_global_idx[0], non_zero_entries.items[row_non_zero_entries_start_idx .. row_non_zero_entries_start_idx + 9] });
+                                // std.debug.print("wrong ordering of connection stencil data for point {d}: {any}\n", .{ connected_points_global_idx[0], non_zero_entries.items[row_non_zero_entries_start_idx .. row_non_zero_entries_start_idx + 9] });
                                 break :blk false;
                             }
                         }

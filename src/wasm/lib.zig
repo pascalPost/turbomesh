@@ -1,6 +1,34 @@
 const std = @import("std");
 const core = @import("core");
 
+extern "env" fn console_log(ptr: [*]const u8, len: usize) void;
+
+fn wasmLog(
+    comptime level: std.log.Level,
+    comptime scope: @TypeOf(.enum_literal),
+    comptime format: []const u8,
+    args: anytype,
+) void {
+    var buf: [2048]u8 = undefined;
+
+    const level_txt = comptime level.asText();
+    const prefix2 = if (scope == .default) ": " else "(" ++ @tagName(scope) ++ "): ";
+    const full_fmt = level_txt ++ prefix2 ++ format ++ "\n";
+
+    const msg = std.fmt.bufPrint(&buf, full_fmt, args) catch {
+        const short = "[log message too long]\n";
+        console_log(short.ptr, short.len);
+        return;
+    };
+
+    console_log(msg.ptr, msg.len);
+}
+
+pub const std_options: std.Options = .{
+    // .log_level = .debug,
+    .logFn = wasmLog,
+};
+
 export fn run() void {
     const allocator = std.heap.wasm_allocator;
 
@@ -483,6 +511,7 @@ export fn run() void {
     for (ps, &ps_v) |source, *dest| {
         dest.* = .init(source[0], source[1]);
     }
+    std.mem.reverse(core.types.Vec2d, ps_v[0..]);
 
     var profile = core.input.create_profile(allocator, .{
         .data = .{ .up = ss_v[0..], .down = ps_v[0..] },
@@ -521,8 +550,8 @@ export fn run() void {
         .preconditioner = .ilu0,
     } };
     const wall_control_function = core.smoothing.wall_control_function.Algorithm{ .white = .{
-        .alpha = 0.5,
-        .beta = 1.03,
+        .ds_target = 1e-6,
+        .theta_target = 1.570796327,
     } };
     core.smoothing.smooth.mesh(allocator, &mesh, iterations, solver, wall_control_function) catch return;
 }

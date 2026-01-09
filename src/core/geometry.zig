@@ -25,7 +25,7 @@ pub const Line = struct {
 
     pub fn interpolate(self: *const Line, clustering: []const f64, values: []types.Vec2d) !void {
         if (clustering.len != values.len) {
-            std.debug.print("Mismatch of slice length ({} != {})", .{ clustering.len, values.len });
+            std.log.err("Mismatch of slice length ({} != {})", .{ clustering.len, values.len });
             return error.Mismatch;
         }
 
