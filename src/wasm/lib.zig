@@ -29,7 +29,19 @@ pub const std_options: std.Options = .{
     .logFn = wasmLog,
 };
 
+// state
+var mesh_global: ?core.discrete.Mesh = null;
+
+export fn freeMesh() void {
+    if (mesh_global) |m| {
+        m.deinit();
+        mesh_global = null;
+    }
+}
+
 export fn run() void {
+    freeMesh();
+
     const allocator = std.heap.wasm_allocator;
 
     const pitch = 0.08836; // m
@@ -542,7 +554,7 @@ export fn run() void {
     };
 
     var mesh = template.run(allocator, geom) catch return;
-    defer mesh.deinit();
+    mesh_global = mesh;
 
     // smoothing
     const iterations = 10;
@@ -554,4 +566,33 @@ export fn run() void {
         .theta_target = 1.570796327,
     } };
     core.smoothing.smooth.mesh(allocator, &mesh, iterations, solver, wall_control_function) catch return;
+}
+
+export fn blocksCount() usize {
+    return mesh_global.?.blocks.items.len;
+}
+
+export fn blockSizeI(block_idx: usize) u32 {
+    const sz = mesh_global.?.blocks.items[block_idx].points.size;
+    return @intCast(sz[0]); // i
+}
+
+export fn blockSizeJ(block_idx: usize) u32 {
+    const sz = mesh_global.?.blocks.items[block_idx].points.size;
+    return @intCast(sz[1]); // j
+}
+
+export fn blockSize(block_idx: usize, out: [*]u32) void {
+    const sz = mesh_global.?.blocks.items[block_idx].points.size;
+    out[0] = @intCast(sz[0]); // i
+    out[1] = @intCast(sz[1]); // j
+}
+
+export fn blockPointsPtr(block_idx: usize) [*]const f64 {
+    const pts = mesh_global.?.blocks.items[block_idx].points.data;
+    return @ptrCast(pts.ptr); // points packed as x0,y0,x1,y1,...
+}
+
+export fn blockPointsLen(block_idx: usize) usize {
+    return mesh_global.?.blocks.items[block_idx].points.data.len * 2; // f64 entries
 }
