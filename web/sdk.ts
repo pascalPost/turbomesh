@@ -10,9 +10,13 @@ export type BlockPoints = {
   values: Float64Array; // view into wasm memory; copy if you need to hold it after calling freeMesh
 };
 
+export type InputConfig = string | Record<string, unknown>;
+
 export interface TurbomeshWasmExports extends WebAssembly.Exports {
   memory: WebAssembly.Memory;
-  run(): void;
+  alloc(size: number): number;
+  dealloc(ptr: number, size: number): void;
+  run(inputPtr: number, inputLen: number): void;
   freeMesh(): void;
   blocksCount(): number;
   blockSizeI(blockIdx: number): number;
@@ -30,21 +34,25 @@ export type LoaderOptions = {
   onLog?: (message: string) => void;
   /** RequestInit forwarded to fetch; useful for credentials/custom headers. */
   fetchOptions?: RequestInit;
+  /** JSON config to pass to `run()` when autoInit is enabled. */
+  input?: InputConfig;
   /** Call `run()` immediately after instantiation. Defaults to true. */
   autoInit?: boolean;
 };
 
 const textDecoder = new TextDecoder("utf-8");
+const textEncoder = new TextEncoder();
 
 export class TurboMeshSDK {
   private constructor(private readonly exports: TurbomeshWasmExports) {}
 
   static async load(options: LoaderOptions): Promise<TurboMeshSDK> {
-    const { wasmUrl, fetchOptions, autoInit = true, onLog } = options;
+    const { wasmUrl, fetchOptions, onLog } = options;
     let memory: WebAssembly.Memory | undefined;
 
     const userImports = options.imports ?? {};
-    const userEnv = (userImports as { env?: Record<string, unknown> }).env ?? {};
+    const userEnv =
+      (userImports as { env?: Record<string, unknown> }).env ?? {};
     const logSink = onLog ?? ((message: string) => console.log(message));
 
     const defaultEnv = {
@@ -62,9 +70,15 @@ export class TurboMeshSDK {
 
     const response = await fetch(wasmUrl, fetchOptions);
     let instance: WebAssembly.Instance;
-    if ("instantiateStreaming" in WebAssembly && WebAssembly.instantiateStreaming) {
+    if (
+      "instantiateStreaming" in WebAssembly &&
+      WebAssembly.instantiateStreaming
+    ) {
       try {
-        const result = await WebAssembly.instantiateStreaming(response.clone(), imports);
+        const result = await WebAssembly.instantiateStreaming(
+          response.clone(),
+          imports,
+        );
         instance = result.instance;
       } catch {
         const buffer = await response.arrayBuffer();
@@ -81,12 +95,32 @@ export class TurboMeshSDK {
     memory = exports.memory;
 
     const sdk = new TurboMeshSDK(exports);
-    if (autoInit) sdk.run();
     return sdk;
   }
 
-  run(): void {
-    this.exports.run();
+  run(input: InputConfig): void {
+    if (input == null) {
+      throw new Error("Valid input is required to run turbomesh.");
+    }
+
+    const json = typeof input === "string" ? input : JSON.stringify(input);
+    const bytes = textEncoder.encode(json);
+    if (bytes.length === 0) {
+      throw new Error("Valid input is required to run turbomesh.");
+    }
+
+    const ptr = this.exports.alloc(bytes.length);
+    if (ptr === 0) {
+      throw new Error("Failed to allocate input buffer in wasm.");
+    }
+
+    const view = new Uint8Array(this.exports.memory.buffer, ptr, bytes.length);
+    view.set(bytes);
+    try {
+      this.exports.run(ptr, bytes.length);
+    } finally {
+      this.exports.dealloc(ptr, bytes.length);
+    }
   }
 
   free(): void {
