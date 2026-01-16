@@ -36,10 +36,8 @@ const abs = types.abs;
 /// | ->i           |           *                                      *           | ->i            |
 /// |_______________________________________________________________________________________________
 pub const O4H = struct {
-
-    // TODO: allow to determine inlet and outlet automatically from something like the default mesh size.
-    inlet_axial_position: types.Float,
-    outlet_axial_position: types.Float,
+    inlet_distance: ?types.Float,
+    outlet_distance: ?types.Float,
 
     // IDEA: add optional parameter for turbine or compressor to allow to define PS and SS
     // IDEA: allow to preset numbers based on single setting like low, mid, high or something...
@@ -75,6 +73,9 @@ pub const O4H = struct {
         const num_cells_down =
             self.num_cells.in_down_j + self.num_cells.middle_i + self.num_cells.out_down_j;
 
+        const profile_length = geom.profile.up_part.total_length + geom.profile.down_part.total_length;
+        const default_spacing = profile_length / @as(f64, @floatFromInt(num_cells_up + num_cells_down));
+
         var down_edge = try discrete.Edge.init(allocator, num_cells_down + 1, .{ .spline = geom.profile.down_part }, self.blade_clustering);
         defer down_edge.deinit();
 
@@ -88,6 +89,9 @@ pub const O4H = struct {
 
         const trailing_edge = up_edge.points[up_edge.points.len - 1];
         down_edge.points[down_edge.points.len - 1] = trailing_edge;
+
+        const inlet_distance = if (self.inlet_distance) |d| d else default_spacing * @as(f64, @floatFromInt(self.num_cells.upstream_i));
+        const outlet_distance = if (self.outlet_distance) |d| d else default_spacing * @as(f64, @floatFromInt(self.num_cells.downstream_i));
 
         // o - grid for viscous computations
 
@@ -362,9 +366,8 @@ pub const O4H = struct {
         const upstream_x_10 = upstream_j_max.points[0];
         const upstream_x_11 = upstream_j_max.points[upstream_j_max.points.len - 1];
 
-        // TODO: remove hard coding
-        const upstream_x_00 = Vec2d.init(self.inlet_axial_position, leading_edge.data[1] - 0.5 * geom.pitch);
-        const upstream_x_01 = Vec2d.init(self.inlet_axial_position, leading_edge.data[1] + 0.5 * geom.pitch);
+        const upstream_x_00 = Vec2d.init(leading_edge.data[0] - inlet_distance, leading_edge.data[1] - 0.5 * geom.pitch);
+        const upstream_x_01 = Vec2d.init(leading_edge.data[0] - inlet_distance, leading_edge.data[1] + 0.5 * geom.pitch);
 
         const upstream_j_min = try discrete.Edge.init(allocator, upstream_j_max.points.len, .{ .line = .{ .start = upstream_x_00, .end = upstream_x_01 } }, .{ .uniform = .{} });
         defer upstream_j_min.deinit();
@@ -401,8 +404,7 @@ pub const O4H = struct {
         const downstream_x_00 = downstream_j_min.points[0];
         const downstream_x_01 = downstream_j_min.points[downstream_j_min.points.len - 1];
 
-        // TODO: remove hard coding
-        const downstream_x_10 = add(downstream_x_00, Vec2d.init(self.outlet_axial_position, 0.00));
+        const downstream_x_10 = add(downstream_x_00, Vec2d.init(outlet_distance, 0.0));
         const downstream_x_11 = add(downstream_x_10, Vec2d.init(0.0, geom.pitch));
 
         const downstream_j_max = try discrete.Edge.init(allocator, downstream_j_min.points.len, .{ .line = .{ .start = downstream_x_10, .end = downstream_x_11 } }, .{ .uniform = .{} });
@@ -518,6 +520,8 @@ pub const O4H = struct {
         // TODO: add boundary conditions
 
         // TODO: consider removing the Side definition... Check if this eases the code.
+        //
+        // TODO: allow the inlet and outlet to move in y direction!
 
         // const solver =
 

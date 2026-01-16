@@ -1,8 +1,8 @@
 {
   "template": {
     "O4H": {
-      "inlet_axial_position": 0.998,
-      "outlet_axial_position": 0.02,
+      "inlet_distance": 0.05,
+      "outlet_distance": 0.02,
       "blade_clustering": {
         "roberts": {
           "alpha": 5e-1,
