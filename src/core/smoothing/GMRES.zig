@@ -77,13 +77,25 @@ pub const GMRESSolver = struct {
             .ilu0 => try self.updateIlu0(),
         }
 
-        self.system.lhs_values[189021] = 1;
-        self.system.lhs_values[189022] = 0;
+        {
+            var i: usize = 189021;
+            for (1720..1810) |_| {
+                self.system.lhs_values[i] = 1;
+                self.system.lhs_values[i + 1] = 0;
+                i += 2;
+            }
+        }
 
         self.solveSystem(self.system.rhs_x, self.system.x_new, work, "x");
 
-        self.system.lhs_values[189021] = 1;
-        self.system.lhs_values[189022] = -1;
+        {
+            var i: usize = 189021;
+            for (1720..1810) |_| {
+                self.system.lhs_values[i] = 1;
+                self.system.lhs_values[i + 1] = -1;
+                i += 2;
+            }
+        }
 
         self.solveSystem(self.system.rhs_y, self.system.y_new, work, "y");
     }

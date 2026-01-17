@@ -372,11 +372,11 @@ pub const RowCompressedMatrixSystem2d = struct {
         try system.initNonZeroMatrixEntries(dof, non_zero_entries_capacity, index_converter);
         system.initBoundaryData();
 
-        system.lhs_i[189112] = 21766;
-        system.lhs_i[189113] = 21856;
+        system.lhs_i[189201] = 21766;
+        system.lhs_i[189202] = 21856;
 
-        system.lhs_values[189112] = 1;
-        system.lhs_values[189113] = -1;
+        system.lhs_values[189201] = 1;
+        system.lhs_values[189202] = -1;
 
         system.rhs_x[21856] = 0;
         system.rhs_y[21856] = -8.836e-2;
@@ -451,7 +451,7 @@ pub const RowCompressedMatrixSystem2d = struct {
                 // _ = try non_zero_entries.addManyAsSlice(2);
                 try non_zero_entries.append(row_idx.*); // A[i, j]
                 try non_zero_entries.append(row_idx.* + 91); // A[i + 1 , j ] for inlet
-                std.debug.assert(row_idx.* + 91 == 21857);
+                // std.debug.assert(row_idx.* + 91 == 21857);
             },
         }
         boundary_point_id.* += 1;
@@ -815,7 +815,7 @@ pub const RowCompressedMatrixSystem2d = struct {
                 // For y we need 2 entries, for x we only need one entry.
                 // We have to update the coefficients for the x and y directions separately.
 
-                std.debug.assert(non_zero_entry_id.* == 189021);
+                // std.debug.assert(non_zero_entry_id.* == 189021);
 
                 // for x:
                 self.lhs_values[non_zero_entry_id.*] = 1;
@@ -827,7 +827,6 @@ pub const RowCompressedMatrixSystem2d = struct {
                 // self.lhs_values[non_zero_entry_id.* + 1] = -1;
 
                 self.rhs_x[row_id.*] = 0.9978959; // here we need the fixed inlet position
-                // self.rhs_y[row_id.*] = -0.044103405;
                 self.rhs_y[row_id.*] = 0.0;
             },
         }
@@ -1248,12 +1247,12 @@ const BlockBoundaryPoints = struct {
             boundary_points.kind.buffer[1810] = .connected;
         }
 
-        // // inner boundary points
-        // {
-        //     for (1721..1810) |buffer_id| {
-        //         boundary_points.kind.buffer[buffer_id] = .sliding_circ;
-        //     }
-        // }
+        // inner boundary points
+        {
+            for (1721..1810) |buffer_id| {
+                boundary_points.kind.buffer[buffer_id] = .sliding_circ;
+            }
+        }
 
         return boundary_points;
     }
