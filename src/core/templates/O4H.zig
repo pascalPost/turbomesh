@@ -523,10 +523,6 @@ pub const O4H = struct {
         //
         // TODO: allow the inlet and outlet to move in y direction!
 
-        // const solver =
-
-        // try smooth.mesh(allocator, &mesh, self.smoothing.iterations, self.smoothing.backend, self.smoothing.preconditioner, self.smoothing.wall_control_function);
-
         return mesh;
     }
 };

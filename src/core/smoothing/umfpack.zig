@@ -41,7 +41,6 @@ fn solve_system(
     // try writeFile("Ap.txt", ap, &buffer);
     // try writeFile("Ai.txt", ai, &buffer);
     // try writeFile("Ax.txt", ax, &buffer);
-    // try writeFile("Ax.txt", ax, &buffer);
     // try writeFile("rhs_x.txt", rhs_x, &buffer);
     // try writeFile("rhs_y.txt", rhs_y, &buffer);
 

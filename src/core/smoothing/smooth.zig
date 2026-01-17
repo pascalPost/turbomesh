@@ -57,6 +57,20 @@ const solver = @import("solver.zig");
 
 const log = std.log.scoped(.smoothing);
 
+fn writeFile(name: []const u8, field: anytype, buffer: []u8) !void {
+    var file = try std.fs.cwd().createFile(name, .{});
+    defer file.close();
+
+    var file_writer = file.writer(buffer);
+    var writer = &file_writer.interface;
+
+    for (field) |item| {
+        try writer.print("{}\n", .{item});
+    }
+
+    try writer.flush();
+}
+
 pub fn mesh(
     allocator: std.mem.Allocator,
     mesh_data: *discrete.Mesh,
@@ -72,6 +86,16 @@ pub fn mesh(
 
     var system = try RowCompressedMatrixSystem2d.init(allocator, mesh_data, control_function_algorithm);
     defer system.deinit();
+
+    // debug output
+    if (builtin.cpu.arch != .wasm32) {
+        var buffer: [1024]u8 = undefined;
+        try writeFile("Ap.txt", system.lhs_p, &buffer);
+        try writeFile("Ai.txt", system.lhs_i, &buffer);
+        try writeFile("Ax.txt", system.lhs_values, &buffer);
+        try writeFile("rhs_x.txt", system.rhs_x, &buffer);
+        try writeFile("rhs_y.txt", system.rhs_y, &buffer);
+    }
 
     var s = try solver.Solver.init(solver_option, system);
     defer s.deinit();
@@ -348,6 +372,15 @@ pub const RowCompressedMatrixSystem2d = struct {
         try system.initNonZeroMatrixEntries(dof, non_zero_entries_capacity, index_converter);
         system.initBoundaryData();
 
+        system.lhs_i[189112] = 21766;
+        system.lhs_i[189113] = 21856;
+
+        system.lhs_values[189112] = 1;
+        system.lhs_values[189113] = -1;
+
+        system.rhs_x[21856] = 0;
+        system.rhs_y[21856] = -8.836e-2;
+
         return system;
     }
 
@@ -411,6 +444,14 @@ pub const RowCompressedMatrixSystem2d = struct {
                 const stencil_ids = boundary_points.laplacian_points.items[laplacian_count.*].stencil_ids.slice();
                 try non_zero_entries.appendSlice(stencil_ids);
                 laplacian_count.* += 1;
+            },
+            .sliding_circ => {
+                // we need 2 entries for the sliding circular boundary points (for the fixed axial direction we only need 1)
+
+                // _ = try non_zero_entries.addManyAsSlice(2);
+                try non_zero_entries.append(row_idx.*); // A[i, j]
+                try non_zero_entries.append(row_idx.* + 91); // A[i + 1 , j ] for inlet
+                std.debug.assert(row_idx.* + 91 == 21857);
             },
         }
         boundary_point_id.* += 1;
@@ -770,6 +811,25 @@ pub const RowCompressedMatrixSystem2d = struct {
 
                 laplacian_count.* += 1;
             },
+            .sliding_circ => {
+                // For y we need 2 entries, for x we only need one entry.
+                // We have to update the coefficients for the x and y directions separately.
+
+                std.debug.assert(non_zero_entry_id.* == 189021);
+
+                // for x:
+                self.lhs_values[non_zero_entry_id.*] = 1;
+                self.lhs_values[non_zero_entry_id.* + 1] = 0;
+                non_zero_entry_id.* += 2;
+
+                // // for y:
+                // self.lhs_values[non_zero_entry_id.*] = 1;
+                // self.lhs_values[non_zero_entry_id.* + 1] = -1;
+
+                self.rhs_x[row_id.*] = 0.9978959; // here we need the fixed inlet position
+                // self.rhs_y[row_id.*] = -0.044103405;
+                self.rhs_y[row_id.*] = 0.0;
+            },
         }
 
         row_id.* += 1;
@@ -1031,6 +1091,7 @@ const BlockBoundaryPointKind = enum {
     smoothed,
     connected, // perhaps save the global id of the point that it is connected to?
     laplacian_smoothed, // id to access the neighbor info
+    sliding_circ,
 };
 
 fn BoundedArray(comptime T: type, comptime buffer_capacity: usize) type {
@@ -1167,6 +1228,32 @@ const BlockBoundaryPoints = struct {
                 }
             }
         }
+
+        // hard code inlet
+        {
+            const buffer_id = try boundary_points.index_converter.bufferIndex(.{
+                .block = 6,
+                .point = .{ 0, 0 },
+            });
+            std.debug.assert(buffer_id == 1720);
+            boundary_points.kind.buffer[1720] = .sliding_circ;
+        }
+
+        {
+            const buffer_id = try boundary_points.index_converter.bufferIndex(.{
+                .block = 6,
+                .point = .{ 0, 90 },
+            });
+            std.debug.assert(buffer_id == 1810);
+            boundary_points.kind.buffer[1810] = .connected;
+        }
+
+        // // inner boundary points
+        // {
+        //     for (1721..1810) |buffer_id| {
+        //         boundary_points.kind.buffer[buffer_id] = .sliding_circ;
+        //     }
+        // }
 
         return boundary_points;
     }
