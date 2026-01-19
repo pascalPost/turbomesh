@@ -100,12 +100,76 @@ pub fn mesh(
     var s = try solver.Solver.init(solver_option, system);
     defer s.deinit();
 
+    std.debug.assert(system.lhs_i[189201] == 21766);
+    std.debug.assert(system.lhs_i[189202] == 21856);
+    std.debug.assert(system.lhs_values[189201] == 1);
+    std.debug.assert(system.lhs_values[189202] == -1);
+    std.debug.assert(system.rhs_x[21856] == 0);
+    std.debug.assert(system.rhs_y[21856] == -8.836e-2);
+
     // iterate and fill matrix values
     for (0..iterations) |n| {
         log.info("iteration: {}", .{n});
 
+        // fill common parts of the matrix
         try system.fill(n);
-        try s.solve();
+
+        switch (s) {
+            .gmres => |*sol| {
+                const work = try sol.solveInit();
+
+                // fill x specific parts of the matrix
+                for (mesh_data.boundary_conditions.items) |bc| {
+                    switch (bc.kind) {
+                        .inlet => {
+                            var it = bc.range.iterate(mesh_data);
+                            while (it.next()) |local_id| {
+                                const block_and_local_id = BlockAndLocalIndex{ .block = bc.range.block, .local_idx = .{ .value = local_id } };
+                                const local_id_2d = system.index_converter.index2d(block_and_local_id);
+                                const boundary_id = try system.boundary_points.index_converter.bufferIndex(local_id_2d);
+                                if (system.boundary_points.kind.buffer[boundary_id] != .sliding_circ) continue;
+
+                                const global_id = system.index_converter.globalIndex(block_and_local_id).value;
+                                const non_zero_range_start = system.nonZeroEntriesRangeStart(@intCast(global_id));
+                                system.lhs_values[non_zero_range_start] = 1.0;
+                                system.lhs_values[non_zero_range_start + 1] = 0.0;
+                            }
+                        },
+                        else => unreachable,
+                    }
+                }
+
+                try sol.solveRunPreconditioner(work);
+                sol.solveComponent(work, system.rhs_x, system.x_new, "x");
+
+                // fill y specific parts of the matrix
+                for (mesh_data.boundary_conditions.items) |bc| {
+                    switch (bc.kind) {
+                        .inlet => {
+                            var it = bc.range.iterate(mesh_data);
+                            while (it.next()) |local_id| {
+                                const block_and_local_id = BlockAndLocalIndex{ .block = bc.range.block, .local_idx = .{ .value = local_id } };
+                                const local_id_2d = system.index_converter.index2d(block_and_local_id);
+                                const boundary_id = try system.boundary_points.index_converter.bufferIndex(local_id_2d);
+                                if (system.boundary_points.kind.buffer[boundary_id] != .sliding_circ) continue;
+
+                                const global_id = system.index_converter.globalIndex(block_and_local_id).value;
+                                const non_zero_range_start = system.nonZeroEntriesRangeStart(@intCast(global_id));
+                                system.lhs_values[non_zero_range_start] = 1.0;
+                                system.lhs_values[non_zero_range_start + 1] = -1.0;
+                            }
+                        },
+                        else => unreachable,
+                    }
+                }
+
+                try sol.solveRunPreconditioner(work);
+                sol.solveComponent(work, system.rhs_y, system.y_new, "y");
+            },
+            else => unreachable,
+        }
+
+        // try s.solve();
 
         var x_norm_sqr: f64 = 0.0;
         var y_norm_sqr: f64 = 0.0;
@@ -301,8 +365,8 @@ pub const RowCompressedMatrixSystem2d = struct {
     row_idx_range_start_for_each_block: []usize,
 
     boundary_points: BlockBoundaryPoints,
-
     control_function: wall_control_function.ControlFunction,
+    index_converter: IndexConverter,
 
     fn init(allocator: std.mem.Allocator, mesh_data: *discrete.Mesh, control_function_algorithm: wall_control_function.Algorithm) !RowCompressedMatrixSystem2d {
         connectionDataCheck(mesh_data);
@@ -350,7 +414,13 @@ pub const RowCompressedMatrixSystem2d = struct {
         const lhs_values = buffer_float[4 * dof ..];
 
         const index_converter = try IndexConverter.init(mesh_data, allocator);
-        defer index_converter.deinit();
+        errdefer index_converter.deinit();
+
+        const boundary_points = try BlockBoundaryPoints.init(allocator, index_converter, mesh_data);
+        errdefer boundary_points.deinit();
+
+        const control_function = try wall_control_function.ControlFunction.init(allocator, dof, mesh_data.*, control_function_algorithm);
+        errdefer control_function.deinit();
 
         var system = RowCompressedMatrixSystem2d{
             .mesh = mesh_data,
@@ -365,21 +435,13 @@ pub const RowCompressedMatrixSystem2d = struct {
             .x_new = x_new,
             .y_new = y_new,
             .row_idx_range_start_for_each_block = row_idx_range_start_for_each_block,
-            .boundary_points = try .init(allocator, index_converter, mesh_data),
-            .control_function = try .init(allocator, dof, mesh_data.*, control_function_algorithm),
+            .boundary_points = boundary_points,
+            .control_function = control_function,
+            .index_converter = index_converter,
         };
 
-        try system.initNonZeroMatrixEntries(dof, non_zero_entries_capacity, index_converter);
+        try system.initNonZeroMatrixEntries(dof, non_zero_entries_capacity);
         system.initBoundaryData();
-
-        system.lhs_i[189201] = 21766;
-        system.lhs_i[189202] = 21856;
-
-        system.lhs_values[189201] = 1;
-        system.lhs_values[189202] = -1;
-
-        system.rhs_x[21856] = 0;
-        system.rhs_y[21856] = -8.836e-2;
 
         return system;
     }
@@ -390,6 +452,7 @@ pub const RowCompressedMatrixSystem2d = struct {
         self.allocator.free(self.row_idx_range_start_for_each_block);
         self.boundary_points.deinit();
         self.control_function.deinit();
+        self.index_converter.deinit();
     }
 
     fn write(self: RowCompressedMatrixSystem2d, filename: [:0]const u8) !void {
@@ -446,12 +509,8 @@ pub const RowCompressedMatrixSystem2d = struct {
                 laplacian_count.* += 1;
             },
             .sliding_circ => {
-                // we need 2 entries for the sliding circular boundary points (for the fixed axial direction we only need 1)
-
-                // _ = try non_zero_entries.addManyAsSlice(2);
-                try non_zero_entries.append(row_idx.*); // A[i, j]
-                try non_zero_entries.append(row_idx.* + 91); // A[i + 1 , j ] for inlet
-                // std.debug.assert(row_idx.* + 91 == 21857);
+                // we need 2 entries for the sliding circular boundary points [Neumann BC] (for a fixed axial direction, i.e. Dirichlet BC, we only need 1)
+                _ = try non_zero_entries.addManyAsSlice(2);
             },
         }
         boundary_point_id.* += 1;
@@ -621,7 +680,6 @@ pub const RowCompressedMatrixSystem2d = struct {
     fn initNonZeroMatrixEntriesConnectionBased(
         self: @This(),
         non_zero_entries: *std.array_list.Managed(c_int),
-        index_converter: IndexConverter,
     ) !void {
         for (self.mesh.connections.items) |connection| {
             // NOTE: we rely on block 0 matrix entries to be ahead of the block 1 matrix entries,
@@ -640,14 +698,14 @@ pub const RowCompressedMatrixSystem2d = struct {
 
             const point_stencil_idx = computeConnectionStencilPositions(connection, it);
 
-            try self.initNonZeroMatrixForConnectionEndpoint(it.next().?, connection, non_zero_entries, index_converter);
+            try self.initNonZeroMatrixForConnectionEndpoint(it.next().?, connection, non_zero_entries);
 
             // middle of the connection
             for (0..it.count - 1) |_| {
                 const connected_points_local_idx = it.next().?;
                 const connected_points_global_idx = [2]c_int{
-                    @intCast(index_converter.globalIndex(.{ .block = connection.ranges[0].block, .local_idx = connected_points_local_idx[0] }).value),
-                    @intCast(index_converter.globalIndex(.{ .block = connection.ranges[1].block, .local_idx = connected_points_local_idx[1] }).value),
+                    @intCast(self.index_converter.globalIndex(.{ .block = connection.ranges[0].block, .local_idx = connected_points_local_idx[0] }).value),
+                    @intCast(self.index_converter.globalIndex(.{ .block = connection.ranges[1].block, .local_idx = connected_points_local_idx[1] }).value),
                 };
 
                 // connect 2nd point to 1st
@@ -692,7 +750,7 @@ pub const RowCompressedMatrixSystem2d = struct {
                 }
             }
 
-            try self.initNonZeroMatrixForConnectionEndpoint(it.position, connection, non_zero_entries, index_converter);
+            try self.initNonZeroMatrixForConnectionEndpoint(it.position, connection, non_zero_entries);
         }
     }
 
@@ -701,17 +759,16 @@ pub const RowCompressedMatrixSystem2d = struct {
         local_ids: [2]LocalIndex,
         connection: boundary.Connection,
         non_zero_entries: *std.array_list.Managed(c_int),
-        index_converter: IndexConverter,
     ) !void {
-        const local_id_2d = index_converter.index2d(.{ .block = connection.ranges[0].block, .local_idx = local_ids[0] });
+        const local_id_2d = self.index_converter.index2d(.{ .block = connection.ranges[0].block, .local_idx = local_ids[0] });
         const buffer_id = try self.boundary_points.index_converter.bufferIndex(local_id_2d);
 
         switch (self.boundary_points.kind.buffer[buffer_id]) {
-            .fixed => {
+            .fixed, .sliding_circ => {
                 // connect the 2nd point to the 1st
                 const connected_points_global_idx = [2]c_int{
-                    @intCast(index_converter.globalIndex(.{ .block = connection.ranges[0].block, .local_idx = local_ids[0] }).value),
-                    @intCast(index_converter.globalIndex(.{ .block = connection.ranges[1].block, .local_idx = local_ids[1] }).value),
+                    @intCast(self.index_converter.globalIndex(.{ .block = connection.ranges[0].block, .local_idx = local_ids[0] }).value),
+                    @intCast(self.index_converter.globalIndex(.{ .block = connection.ranges[1].block, .local_idx = local_ids[1] }).value),
                 };
 
                 std.debug.assert(connected_points_global_idx[0] < connected_points_global_idx[1]);
@@ -720,7 +777,8 @@ pub const RowCompressedMatrixSystem2d = struct {
                 non_zero_entries.items[row_non_zero_entries_start_idx + 1] = connected_points_global_idx[1];
             },
             .laplacian_smoothed => {}, // already set
-            else => undefined,
+            .connected => {},
+            else => unreachable,
         }
     }
 
@@ -728,7 +786,6 @@ pub const RowCompressedMatrixSystem2d = struct {
         self: *RowCompressedMatrixSystem2d,
         dof: usize,
         non_zero_entries_capacity: usize,
-        index_converter: IndexConverter,
     ) !void {
         var fba_count = std.heap.FixedBufferAllocator.init(std.mem.sliceAsBytes(self.lhs_p[1..]));
         var row_count = try std.array_list.Managed(c_int).initCapacity(fba_count.allocator(), dof);
@@ -751,7 +808,52 @@ pub const RowCompressedMatrixSystem2d = struct {
             }
         }
 
-        try self.initNonZeroMatrixEntriesConnectionBased(&non_zero_entries, index_converter);
+        try self.initNonZeroMatrixEntriesConnectionBased(&non_zero_entries);
+
+        for (self.mesh.boundary_conditions.items) |bc| {
+            switch (bc.kind) {
+                .inlet => {
+                    const first_internal_point_shift = bc.range.firstInternalPointShift(self.mesh);
+
+                    var it = bc.range.iterate(self.mesh);
+                    while (it.next()) |local_id| {
+                        const block_and_local_id = BlockAndLocalIndex{ .block = bc.range.block, .local_idx = .{ .value = local_id } };
+                        const local_id_2d = self.index_converter.index2d(block_and_local_id);
+                        const boundary_id = try self.boundary_points.index_converter.bufferIndex(local_id_2d);
+                        if (self.boundary_points.kind.buffer[boundary_id] != .sliding_circ) continue;
+
+                        const global_id = self.index_converter.globalIndex(block_and_local_id).value;
+                        const non_zero_entries_range_start = self.nonZeroEntriesRangeStart(@intCast(global_id));
+
+                        if (first_internal_point_shift > 0) {
+                            non_zero_entries.items[non_zero_entries_range_start] = @intCast(global_id);
+                            non_zero_entries.items[non_zero_entries_range_start + 1] = @as(c_int, @intCast(global_id)) + first_internal_point_shift;
+                        } else {
+                            non_zero_entries.items[non_zero_entries_range_start] = @as(c_int, @intCast(global_id)) + first_internal_point_shift;
+                            non_zero_entries.items[non_zero_entries_range_start + 1] = @intCast(global_id);
+                        }
+                    }
+                },
+                else => unreachable,
+            }
+        }
+
+        // TODO: remove check
+        for (self.mesh.boundary_conditions.items) |boundary_condition| {
+            switch (boundary_condition.kind) {
+                .inlet => {
+                    var it = boundary_condition.range.iterate(self.mesh);
+                    it.count -= 1; // remove end point
+                    while (it.next()) |local_id| {
+                        const global_id = self.index_converter.globalIndex(.{ .block = boundary_condition.range.block, .local_idx = .{ .value = local_id } }).value;
+                        const non_zero_entries_range_start = self.nonZeroEntriesRangeStart(@intCast(global_id));
+                        std.debug.assert(non_zero_entries.items[non_zero_entries_range_start] == @as(c_int, @intCast(global_id)));
+                        std.debug.assert(non_zero_entries.items[non_zero_entries_range_start + 1] == @as(c_int, @intCast(global_id + 91)));
+                    }
+                },
+                else => unreachable,
+            }
+        }
     }
 
     fn initBoundaryPointData(
@@ -815,18 +917,23 @@ pub const RowCompressedMatrixSystem2d = struct {
                 // For y we need 2 entries, for x we only need one entry.
                 // We have to update the coefficients for the x and y directions separately.
 
-                // std.debug.assert(non_zero_entry_id.* == 189021);
-
-                // for x:
-                self.lhs_values[non_zero_entry_id.*] = 1;
-                self.lhs_values[non_zero_entry_id.* + 1] = 0;
                 non_zero_entry_id.* += 2;
 
-                // // for y:
+                // NOTE the matrix needs to be changed for x and for y; this is done in the iteration loop.
+
+                // for x:
+                // self.lhs_values[non_zero_entry_id.*] = 1;
+                // self.lhs_values[non_zero_entry_id.* + 1] = 0;
+                //
+                // for y:
                 // self.lhs_values[non_zero_entry_id.*] = 1;
                 // self.lhs_values[non_zero_entry_id.* + 1] = -1;
 
-                self.rhs_x[row_id.*] = 0.9978959; // here we need the fixed inlet position
+                const global_id = row_id.*;
+                const local = self.index_converter.localIndex(.{ .value = global_id });
+                const x = self.mesh.blocks.items[local.block].points.data[local.local_idx.value].data[0];
+
+                self.rhs_x[row_id.*] = x;
                 self.rhs_y[row_id.*] = 0.0;
             },
         }
@@ -1182,11 +1289,25 @@ const BlockBoundaryPoints = struct {
             }
         }
 
+        for (mesh_data.boundary_conditions.items) |boundary_condition| {
+            switch (boundary_condition.kind) {
+                .inlet, .outlet => {
+                    var range_iterator = boundary_condition.range.iterate(mesh_data);
+                    while (range_iterator.next()) |local_id| {
+                        const local_id_2d = index_converter.index2d(.{ .block = boundary_condition.range.block, .local_idx = .{ .value = local_id } });
+                        const buffer_id = try boundary_points.index_converter.bufferIndex(local_id_2d);
+                        boundary_points.kind.buffer[buffer_id] = .sliding_circ;
+                    }
+                },
+                .wall => {},
+            }
+        }
+
         // set other connections
         for (mesh_data.connections.items) |connection| {
             var connected_points = connection.iterate(mesh_data);
 
-            // NOTE: endpoints are either laplacian smoothed or fixed.
+            // NOTE: endpoints are either laplacian smoothed fixed or sliding.
 
             // check 1st endpoint
             {
@@ -1196,9 +1317,12 @@ const BlockBoundaryPoints = struct {
                     .{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1] } },
                 }, index_converter, boundary_points.index_converter);
 
-                // set 2nd point to connect if the 1st point is fixed (laplacian points are already set!)
-                if (boundary_points.kind.buffer[buffer_ids[0]] == .fixed) {
-                    boundary_points.kind.buffer[buffer_ids[1]] = .connected;
+                // set 2nd point to connect if the 1st point is fixed or sliding (laplacian points are already set!)
+                switch (boundary_points.kind.buffer[buffer_ids[0]]) {
+                    .fixed, .sliding_circ => {
+                        boundary_points.kind.buffer[buffer_ids[1]] = .connected;
+                    },
+                    else => {},
                 }
             }
 
@@ -1221,38 +1345,23 @@ const BlockBoundaryPoints = struct {
                     .{ .block = connection.ranges[1].block, .local_idx = .{ .value = local_ids[1] } },
                 }, index_converter, boundary_points.index_converter);
 
-                // set 2nd point to connect if the 1st point is fixed (laplacian points are already set!)
-                if (boundary_points.kind.buffer[buffer_ids[0]] == .fixed) {
-                    boundary_points.kind.buffer[buffer_ids[1]] = .connected;
+                // set 2nd point to connect if the 1st point is fixed or sliding (laplacian points are already set!)
+                switch (boundary_points.kind.buffer[buffer_ids[0]]) {
+                    .fixed, .sliding_circ => {
+                        boundary_points.kind.buffer[buffer_ids[1]] = .connected;
+                    },
+                    else => {},
                 }
             }
         }
 
-        // hard code inlet
+        // TODO: remove
         {
-            const buffer_id = try boundary_points.index_converter.bufferIndex(.{
-                .block = 6,
-                .point = .{ 0, 0 },
-            });
-            std.debug.assert(buffer_id == 1720);
-            boundary_points.kind.buffer[1720] = .sliding_circ;
-        }
-
-        {
-            const buffer_id = try boundary_points.index_converter.bufferIndex(.{
-                .block = 6,
-                .point = .{ 0, 90 },
-            });
-            std.debug.assert(buffer_id == 1810);
-            boundary_points.kind.buffer[1810] = .connected;
-        }
-
-        // inner boundary points
-        {
-            for (1721..1810) |buffer_id| {
-                boundary_points.kind.buffer[buffer_id] = .sliding_circ;
+            for (1720..1810) |buffer_id| {
+                std.debug.assert(boundary_points.kind.buffer[buffer_id] == .sliding_circ);
             }
         }
+        std.debug.assert(boundary_points.kind.buffer[1810] == .connected);
 
         return boundary_points;
     }

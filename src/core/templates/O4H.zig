@@ -517,11 +517,14 @@ pub const O4H = struct {
         });
 
         // Boundary conditions
-        // TODO: add boundary conditions
+        try mesh.boundary_conditions.appendSlice(&.{
+            .{ .range = .{ .block = upstream_id, .side = boundary.Side.j_min, .start = 0, .end = upstream_j_min.points.len - 1 }, .kind = .inlet },
+            // .{ .range = .{ .block = downstream_id, .side = boundary.Side.j_max, .start = 0, .end = downstream_j_max.points.len - 1 }, .kind = .outlet },
+        });
+
+        // TODO: add wall boundary condition
 
         // TODO: consider removing the Side definition... Check if this eases the code.
-        //
-        // TODO: allow the inlet and outlet to move in y direction!
 
         return mesh;
     }

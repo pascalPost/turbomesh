@@ -73,6 +73,28 @@ pub const Range = struct {
             .j_min => .{ self.start, self.end }, // (0, self.start) & (0, self.end)
         };
     }
+
+    /// returns the shift to the first internal point of the boundary range.
+    pub fn firstInternalPointShift(self: Range, mesh: *const discrete.Mesh) c_int {
+        const block_idx = self.block;
+        const points = mesh.blocks.items[block_idx].points;
+        var first_internal_point_shift: c_int = undefined;
+        switch (self.side) {
+            .i_min => {
+                first_internal_point_shift = 1;
+            },
+            .i_max => {
+                first_internal_point_shift = -1;
+            },
+            .j_min => {
+                first_internal_point_shift = @intCast(points.size[1]);
+            },
+            .j_max => {
+                first_internal_point_shift = -@as(c_int, @intCast(points.size[1]));
+            },
+        }
+        return first_internal_point_shift;
+    }
 };
 
 const RangeIterator = struct {

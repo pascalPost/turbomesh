@@ -72,9 +72,9 @@ pub const Solver = union(Tag) {
     }
 
     pub fn solve(self: *Solver) !void {
-        try switch (self.*) {
-            .bicgstab => |*s| s.solve(),
-            .gmres => |*s| s.solve(),
+        switch (self.*) {
+            .bicgstab => unreachable,
+            .gmres => |*s| try s.solve(),
             .umfpack => |s| {
                 if (config.use_umfpack) {
                     try s.solve();
@@ -89,6 +89,6 @@ pub const Solver = union(Tag) {
                     return error.ExternalSolverNotEnabled;
                 }
             },
-        };
+        }
     }
 };

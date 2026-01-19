@@ -66,6 +66,26 @@ pub const GMRESSolver = struct {
         self.ilu_marker = null;
     }
 
+    pub fn solveInit(self: *GMRESSolver) !Work {
+        if (!self.seeded_initial_guess) {
+            self.seedInitialGuess();
+        }
+
+        const work = try self.ensureWorkspace();
+        return work;
+    }
+
+    pub fn solveRunPreconditioner(self: *GMRESSolver, work: Work) !void {
+        switch (self.preconditioner) {
+            .diagonal => self.updateDiagonalInverse(work.diag_inv),
+            .ilu0 => try self.updateIlu0(),
+        }
+    }
+
+    pub fn solveComponent(self: *GMRESSolver, work: Work, rhs: []f64, dest: []f64, label: []const u8) void {
+        self.solveSystem(rhs, dest, work, label);
+    }
+
     pub fn solve(self: *GMRESSolver) !void {
         if (!self.seeded_initial_guess) {
             self.seedInitialGuess();

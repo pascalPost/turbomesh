@@ -61,19 +61,39 @@ pub const BiCGStabSolver = struct {
         self.ilu_marker = null;
     }
 
-    pub fn solve(self: *BiCGStabSolver) !void {
+    pub fn solveInit(self: *BiCGStabSolver) !Work {
         if (!self.seeded_initial_guess) {
             self.seedInitialGuess();
         }
 
         const work = try self.ensureWorkspace();
+        return work;
+    }
+
+    pub fn solveRunPreconditioner(self: *BiCGStabSolver, work: Work) !void {
         switch (self.preconditioner) {
             .diagonal => self.updateDiagonalInverse(work.diag_inv),
             .ilu0 => try self.updateIlu0(),
         }
-        self.solveSystem(self.system.rhs_x, self.system.x_new, work, "x");
-        self.solveSystem(self.system.rhs_y, self.system.y_new, work, "y");
     }
+
+    pub fn solveComponent(self: *BiCGStabSolver, work: Work, rhs: []f64, dest: []f64, label: []const u8) !void {
+        self.solveSystem(rhs, dest, work, label);
+    }
+
+    // pub fn solve(self: *BiCGStabSolver) !void {
+    //     if (!self.seeded_initial_guess) {
+    //         self.seedInitialGuess();
+    //     }
+
+    //     const work = try self.ensureWorkspace();
+    //     switch (self.preconditioner) {
+    //         .diagonal => self.updateDiagonalInverse(work.diag_inv),
+    //         .ilu0 => try self.updateIlu0(),
+    //     }
+    //     self.solveSystem(self.system.rhs_x, self.system.x_new, work, "x");
+    //     self.solveSystem(self.system.rhs_y, self.system.y_new, work, "y");
+    // }
 
     fn ensureWorkspace(self: *BiCGStabSolver) !Work {
         const lanes = 8;
