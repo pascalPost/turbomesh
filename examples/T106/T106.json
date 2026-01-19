@@ -26,7 +26,7 @@
     }
   },
   "smoothing": {
-    "iterations": 50,
+    "iterations": 10,
     "solver": {
       "gmres": {
         "preconditioner": "ilu0"

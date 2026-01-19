@@ -15,9 +15,12 @@ pub const UmfpackSolver = struct {
         return .{ .system = system };
     }
 
-    pub fn solve(self: UmfpackSolver) !void {
+    pub fn solve(self: *UmfpackSolver) !void {
         const dof = self.system.rhs_x.len;
-        try solve_system(@intCast(dof), @intCast(dof), self.system.lhs_p, self.system.lhs_i, self.system.lhs_values, self.system.rhs_x, self.system.x_new, self.system.rhs_y, self.system.y_new);
+        try self.system.fillXSpecific();
+        try solve_system(@intCast(dof), @intCast(dof), self.system.lhs_p, self.system.lhs_i, self.system.lhs_values, self.system.rhs_x, self.system.x_new);
+        try self.system.fillYSpecific();
+        try solve_system(@intCast(dof), @intCast(dof), self.system.lhs_p, self.system.lhs_i, self.system.lhs_values, self.system.rhs_y, self.system.y_new);
     }
 };
 
@@ -29,20 +32,11 @@ fn solve_system(
     ap: []const i32,
     ai: []const i32,
     ax: []const f64,
-    rhs_x: []const f64,
+    rhs: []const f64,
     x: []f64,
-    rhs_y: []const f64,
-    y: []f64,
 ) !void {
     var symbolic: ?*anyopaque = undefined;
     var numeric: ?*anyopaque = undefined;
-
-    // var buffer: [1024]u8 = undefined;
-    // try writeFile("Ap.txt", ap, &buffer);
-    // try writeFile("Ai.txt", ai, &buffer);
-    // try writeFile("Ax.txt", ax, &buffer);
-    // try writeFile("rhs_x.txt", rhs_x, &buffer);
-    // try writeFile("rhs_y.txt", rhs_y, &buffer);
 
     {
         const res = c.umfpack_di_symbolic(n_row, n_col, ap[0..].ptr, ai[0..].ptr, ax[0..].ptr, &symbolic, null, null);
@@ -56,8 +50,7 @@ fn solve_system(
 
     _ = c.umfpack_di_numeric(ap[0..].ptr, ai[0..].ptr, ax[0..].ptr, symbolic, &numeric, null, null);
     c.umfpack_di_free_symbolic(&symbolic);
-    _ = c.umfpack_di_solve(c.UMFPACK_Aat, ap[0..].ptr, ai[0..].ptr, ax[0..].ptr, x[0..].ptr, rhs_x[0..].ptr, numeric, null, null);
-    _ = c.umfpack_di_solve(c.UMFPACK_Aat, ap[0..].ptr, ai[0..].ptr, ax[0..].ptr, y[0..].ptr, rhs_y[0..].ptr, numeric, null, null);
+    _ = c.umfpack_di_solve(c.UMFPACK_Aat, ap[0..].ptr, ai[0..].ptr, ax[0..].ptr, x[0..].ptr, rhs[0..].ptr, numeric, null, null);
     c.umfpack_di_free_numeric(&numeric);
 }
 

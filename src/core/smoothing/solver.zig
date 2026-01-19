@@ -75,7 +75,7 @@ pub const Solver = union(Tag) {
         switch (self.*) {
             .bicgstab => |*s| try s.solve(),
             .gmres => |*s| try s.solve(),
-            .umfpack => |s| {
+            .umfpack => |*s| {
                 if (config.use_umfpack) {
                     try s.solve();
                 } else {

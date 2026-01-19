@@ -88,24 +88,17 @@ pub fn mesh(
     defer system.deinit();
 
     // debug output
-    if (builtin.cpu.arch != .wasm32) {
-        var buffer: [1024]u8 = undefined;
-        try writeFile("Ap.txt", system.lhs_p, &buffer);
-        try writeFile("Ai.txt", system.lhs_i, &buffer);
-        try writeFile("Ax.txt", system.lhs_values, &buffer);
-        try writeFile("rhs_x.txt", system.rhs_x, &buffer);
-        try writeFile("rhs_y.txt", system.rhs_y, &buffer);
-    }
+    // if (builtin.cpu.arch != .wasm32) {
+    //     var buffer: [1024]u8 = undefined;
+    //     try writeFile("Ap.txt", system.lhs_p, &buffer);
+    //     try writeFile("Ai.txt", system.lhs_i, &buffer);
+    //     try writeFile("Ax.txt", system.lhs_values, &buffer);
+    //     try writeFile("rhs_x.txt", system.rhs_x, &buffer);
+    //     try writeFile("rhs_y.txt", system.rhs_y, &buffer);
+    // }
 
     var s = try solver.Solver.init(solver_option, system);
     defer s.deinit();
-
-    std.debug.assert(system.lhs_i[189201] == 21766);
-    std.debug.assert(system.lhs_i[189202] == 21856);
-    std.debug.assert(system.lhs_values[189201] == 1);
-    std.debug.assert(system.lhs_values[189202] == -1);
-    std.debug.assert(system.rhs_x[21856] == 0);
-    std.debug.assert(system.rhs_y[21856] == -8.836e-2);
 
     // iterate and fill matrix values
     for (0..iterations) |n| {
@@ -1334,14 +1327,6 @@ const BlockBoundaryPoints = struct {
                 }
             }
         }
-
-        // TODO: remove
-        {
-            for (1720..1810) |buffer_id| {
-                std.debug.assert(boundary_points.kind.buffer[buffer_id] == .sliding_circ);
-            }
-        }
-        std.debug.assert(boundary_points.kind.buffer[1810] == .connected);
 
         return boundary_points;
     }

@@ -82,11 +82,11 @@ pub const GMRESSolver = struct {
 
         try self.system.fillXSpecific();
         try self.precondition(work);
-        self.solveComponent(work, self.system.rhs_x, self.system.x_new, "x");
+        self.solveSystem(self.system.rhs_x, self.system.x_new, work, "x");
 
         try self.system.fillYSpecific();
         try self.precondition(work);
-        self.solveComponent(work, self.system.rhs_y, self.system.y_new, "y");
+        self.solveSystem(self.system.rhs_y, self.system.y_new, work, "y");
     }
 
     fn ensureWorkspace(self: *GMRESSolver) !Work {

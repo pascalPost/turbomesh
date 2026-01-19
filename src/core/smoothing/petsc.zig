@@ -79,26 +79,31 @@ pub const PetscSolver = struct {
         _ = petsc.PetscFinalize();
     }
 
-    pub fn solve(self: *PetscSolver) !void {
-        _ = petsc.KSPSetOperators(self.ksp, self.A, self.A);
-        _ = petsc.KSPSolve(self.ksp, self.rhs_x, self.x_new);
-        _ = petsc.KSPSolve(self.ksp, self.rhs_y, self.y_new);
+    fn updateMatrixValues(self: *PetscSolver) void {
+        _ = petsc.MatAssemblyBegin(self.A, petsc.MAT_FINAL_ASSEMBLY);
+        _ = petsc.MatAssemblyEnd(self.A, petsc.MAT_FINAL_ASSEMBLY);
+    }
 
-        // Check convergence reason
+    fn warnIfNotConverged(self: *PetscSolver, label: []const u8) void {
         var reason: petsc.KSPConvergedReason = undefined;
         _ = petsc.KSPGetConvergedReason(self.ksp, &reason);
         if (reason < 0) {
-            std.debug.print("Warning: KSP did not converge. Reason: {}\n", .{reason});
+            std.debug.print("Warning: KSP did not converge for {s}. Reason: {}\n", .{ label, reason });
         }
+    }
 
-        _ = petsc.MatDestroy(&self.A);
-        const dof = self.system.rhs_x.len;
-        const num_rows: petsc.PetscInt = @intCast(dof);
-        const num_cols: petsc.PetscInt = @intCast(dof);
-        const rows = self.system.lhs_p;
-        const cols = self.system.lhs_i;
-        const values = self.system.lhs_values;
-        _ = petsc.MatCreateSeqAIJWithArrays(petsc.get_petsc_comm_self(), num_rows, num_cols, rows.ptr, cols.ptr, values.ptr, &self.A);
+    pub fn solve(self: *PetscSolver) !void {
+        try self.system.fillXSpecific();
+        self.updateMatrixValues();
+        _ = petsc.KSPSetOperators(self.ksp, self.A, self.A);
+        _ = petsc.KSPSolve(self.ksp, self.rhs_x, self.x_new);
+        self.warnIfNotConverged("x");
+
+        try self.system.fillYSpecific();
+        self.updateMatrixValues();
+        _ = petsc.KSPSetOperators(self.ksp, self.A, self.A);
+        _ = petsc.KSPSolve(self.ksp, self.rhs_y, self.y_new);
+        self.warnIfNotConverged("y");
     }
 };
 
