@@ -66,24 +66,11 @@ pub const GMRESSolver = struct {
         self.ilu_marker = null;
     }
 
-    pub fn solveInit(self: *GMRESSolver) !Work {
-        if (!self.seeded_initial_guess) {
-            self.seedInitialGuess();
-        }
-
-        const work = try self.ensureWorkspace();
-        return work;
-    }
-
-    pub fn solveRunPreconditioner(self: *GMRESSolver, work: Work) !void {
+    fn precondition(self: *GMRESSolver, work: Work) !void {
         switch (self.preconditioner) {
             .diagonal => self.updateDiagonalInverse(work.diag_inv),
             .ilu0 => try self.updateIlu0(),
         }
-    }
-
-    pub fn solveComponent(self: *GMRESSolver, work: Work, rhs: []f64, dest: []f64, label: []const u8) void {
-        self.solveSystem(rhs, dest, work, label);
     }
 
     pub fn solve(self: *GMRESSolver) !void {
@@ -92,32 +79,14 @@ pub const GMRESSolver = struct {
         }
 
         const work = try self.ensureWorkspace();
-        switch (self.preconditioner) {
-            .diagonal => self.updateDiagonalInverse(work.diag_inv),
-            .ilu0 => try self.updateIlu0(),
-        }
 
-        {
-            var i: usize = 189021;
-            for (1720..1810) |_| {
-                self.system.lhs_values[i] = 1;
-                self.system.lhs_values[i + 1] = 0;
-                i += 2;
-            }
-        }
+        try self.system.fillXSpecific();
+        try self.precondition(work);
+        self.solveComponent(work, self.system.rhs_x, self.system.x_new, "x");
 
-        self.solveSystem(self.system.rhs_x, self.system.x_new, work, "x");
-
-        {
-            var i: usize = 189021;
-            for (1720..1810) |_| {
-                self.system.lhs_values[i] = 1;
-                self.system.lhs_values[i + 1] = -1;
-                i += 2;
-            }
-        }
-
-        self.solveSystem(self.system.rhs_y, self.system.y_new, work, "y");
+        try self.system.fillYSpecific();
+        try self.precondition(work);
+        self.solveComponent(work, self.system.rhs_y, self.system.y_new, "y");
     }
 
     fn ensureWorkspace(self: *GMRESSolver) !Work {

@@ -73,7 +73,7 @@ pub const Solver = union(Tag) {
 
     pub fn solve(self: *Solver) !void {
         switch (self.*) {
-            .bicgstab => unreachable,
+            .bicgstab => |*s| try s.solve(),
             .gmres => |*s| try s.solve(),
             .umfpack => |s| {
                 if (config.use_umfpack) {

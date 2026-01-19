@@ -114,69 +114,7 @@ pub fn mesh(
         // fill common parts of the matrix
         try system.fill(n);
 
-        switch (s) {
-            .gmres => |*sol| {
-                const work = try sol.solveInit();
-
-                // fill x specific parts of the matrix
-                for (mesh_data.boundary_conditions.items) |bc| {
-                    switch (bc.kind) {
-                        .inlet, .outlet => {
-                            const first_internal_point_shift = bc.range.firstInternalPointShift(mesh_data);
-                            var it = bc.range.iterate(mesh_data);
-                            while (it.next()) |local_id| {
-                                const block_and_local_id = BlockAndLocalIndex{ .block = bc.range.block, .local_idx = .{ .value = local_id } };
-                                const local_id_2d = system.index_converter.index2d(block_and_local_id);
-                                const boundary_id = try system.boundary_points.index_converter.bufferIndex(local_id_2d);
-                                if (system.boundary_points.kind.buffer[boundary_id] != .sliding_circ) continue;
-
-                                const global_id = system.index_converter.globalIndex(block_and_local_id).value;
-                                const non_zero_range_start = system.nonZeroEntriesRangeStart(@intCast(global_id));
-
-                                if (first_internal_point_shift > 0) {
-                                    system.lhs_values[non_zero_range_start] = 1.0; // A[i,j]
-                                    system.lhs_values[non_zero_range_start + 1] = 0.0;
-                                } else {
-                                    system.lhs_values[non_zero_range_start] = 0.0;
-                                    system.lhs_values[non_zero_range_start + 1] = 1.0; // A[i,j]
-                                }
-                            }
-                        },
-                        else => unreachable,
-                    }
-                }
-
-                try sol.solveRunPreconditioner(work);
-                sol.solveComponent(work, system.rhs_x, system.x_new, "x");
-
-                // fill y specific parts of the matrix
-                for (mesh_data.boundary_conditions.items) |bc| {
-                    switch (bc.kind) {
-                        .inlet, .outlet => {
-                            var it = bc.range.iterate(mesh_data);
-                            while (it.next()) |local_id| {
-                                const block_and_local_id = BlockAndLocalIndex{ .block = bc.range.block, .local_idx = .{ .value = local_id } };
-                                const local_id_2d = system.index_converter.index2d(block_and_local_id);
-                                const boundary_id = try system.boundary_points.index_converter.bufferIndex(local_id_2d);
-                                if (system.boundary_points.kind.buffer[boundary_id] != .sliding_circ) continue;
-
-                                const global_id = system.index_converter.globalIndex(block_and_local_id).value;
-                                const non_zero_range_start = system.nonZeroEntriesRangeStart(@intCast(global_id));
-                                system.lhs_values[non_zero_range_start] = 1.0;
-                                system.lhs_values[non_zero_range_start + 1] = -1.0;
-                            }
-                        },
-                        else => unreachable,
-                    }
-                }
-
-                try sol.solveRunPreconditioner(work);
-                sol.solveComponent(work, system.rhs_y, system.y_new, "y");
-            },
-            else => unreachable,
-        }
-
-        // try s.solve();
+        try s.solve();
 
         var x_norm_sqr: f64 = 0.0;
         var y_norm_sqr: f64 = 0.0;
@@ -1179,6 +1117,58 @@ pub const RowCompressedMatrixSystem2d = struct {
         }
         self.fillBlockInternalPointData();
         self.fillBlockConnectionData();
+    }
+
+    pub fn fillXSpecific(self: *RowCompressedMatrixSystem2d) !void {
+        for (self.mesh.boundary_conditions.items) |bc| {
+            switch (bc.kind) {
+                .inlet, .outlet => {
+                    const first_internal_point_shift = bc.range.firstInternalPointShift(self.mesh);
+
+                    var it = bc.range.iterate(self.mesh);
+                    while (it.next()) |local_id| {
+                        const block_and_local_id = BlockAndLocalIndex{ .block = bc.range.block, .local_idx = .{ .value = local_id } };
+                        const local_id_2d = self.index_converter.index2d(block_and_local_id);
+                        const boundary_id = try self.boundary_points.index_converter.bufferIndex(local_id_2d);
+                        if (self.boundary_points.kind.buffer[boundary_id] != .sliding_circ) continue;
+
+                        const global_id = self.index_converter.globalIndex(block_and_local_id).value;
+                        const non_zero_range_start = self.nonZeroEntriesRangeStart(@intCast(global_id));
+
+                        if (first_internal_point_shift > 0) {
+                            self.lhs_values[non_zero_range_start] = 1.0;
+                            self.lhs_values[non_zero_range_start + 1] = 0.0;
+                        } else {
+                            self.lhs_values[non_zero_range_start] = 0.0;
+                            self.lhs_values[non_zero_range_start + 1] = 1.0;
+                        }
+                    }
+                },
+                else => unreachable,
+            }
+        }
+    }
+
+    pub fn fillYSpecific(self: *RowCompressedMatrixSystem2d) !void {
+        for (self.mesh.boundary_conditions.items) |bc| {
+            switch (bc.kind) {
+                .inlet, .outlet => {
+                    var it = bc.range.iterate(self.mesh);
+                    while (it.next()) |local_id| {
+                        const block_and_local_id = BlockAndLocalIndex{ .block = bc.range.block, .local_idx = .{ .value = local_id } };
+                        const local_id_2d = self.index_converter.index2d(block_and_local_id);
+                        const boundary_id = try self.boundary_points.index_converter.bufferIndex(local_id_2d);
+                        if (self.boundary_points.kind.buffer[boundary_id] != .sliding_circ) continue;
+
+                        const global_id = self.index_converter.globalIndex(block_and_local_id).value;
+                        const non_zero_range_start = self.nonZeroEntriesRangeStart(@intCast(global_id));
+                        self.lhs_values[non_zero_range_start] = 1.0;
+                        self.lhs_values[non_zero_range_start + 1] = -1.0;
+                    }
+                },
+                else => unreachable,
+            }
+        }
     }
 };
 
