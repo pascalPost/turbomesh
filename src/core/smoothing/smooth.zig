@@ -121,7 +121,8 @@ pub fn mesh(
                 // fill x specific parts of the matrix
                 for (mesh_data.boundary_conditions.items) |bc| {
                     switch (bc.kind) {
-                        .inlet => {
+                        .inlet, .outlet => {
+                            const first_internal_point_shift = bc.range.firstInternalPointShift(mesh_data);
                             var it = bc.range.iterate(mesh_data);
                             while (it.next()) |local_id| {
                                 const block_and_local_id = BlockAndLocalIndex{ .block = bc.range.block, .local_idx = .{ .value = local_id } };
@@ -131,8 +132,14 @@ pub fn mesh(
 
                                 const global_id = system.index_converter.globalIndex(block_and_local_id).value;
                                 const non_zero_range_start = system.nonZeroEntriesRangeStart(@intCast(global_id));
-                                system.lhs_values[non_zero_range_start] = 1.0;
-                                system.lhs_values[non_zero_range_start + 1] = 0.0;
+
+                                if (first_internal_point_shift > 0) {
+                                    system.lhs_values[non_zero_range_start] = 1.0; // A[i,j]
+                                    system.lhs_values[non_zero_range_start + 1] = 0.0;
+                                } else {
+                                    system.lhs_values[non_zero_range_start] = 0.0;
+                                    system.lhs_values[non_zero_range_start + 1] = 1.0; // A[i,j]
+                                }
                             }
                         },
                         else => unreachable,
@@ -145,7 +152,7 @@ pub fn mesh(
                 // fill y specific parts of the matrix
                 for (mesh_data.boundary_conditions.items) |bc| {
                     switch (bc.kind) {
-                        .inlet => {
+                        .inlet, .outlet => {
                             var it = bc.range.iterate(mesh_data);
                             while (it.next()) |local_id| {
                                 const block_and_local_id = BlockAndLocalIndex{ .block = bc.range.block, .local_idx = .{ .value = local_id } };
@@ -812,7 +819,7 @@ pub const RowCompressedMatrixSystem2d = struct {
 
         for (self.mesh.boundary_conditions.items) |bc| {
             switch (bc.kind) {
-                .inlet => {
+                .inlet, .outlet => {
                     const first_internal_point_shift = bc.range.firstInternalPointShift(self.mesh);
 
                     var it = bc.range.iterate(self.mesh);
@@ -832,23 +839,6 @@ pub const RowCompressedMatrixSystem2d = struct {
                             non_zero_entries.items[non_zero_entries_range_start] = @as(c_int, @intCast(global_id)) + first_internal_point_shift;
                             non_zero_entries.items[non_zero_entries_range_start + 1] = @intCast(global_id);
                         }
-                    }
-                },
-                else => unreachable,
-            }
-        }
-
-        // TODO: remove check
-        for (self.mesh.boundary_conditions.items) |boundary_condition| {
-            switch (boundary_condition.kind) {
-                .inlet => {
-                    var it = boundary_condition.range.iterate(self.mesh);
-                    it.count -= 1; // remove end point
-                    while (it.next()) |local_id| {
-                        const global_id = self.index_converter.globalIndex(.{ .block = boundary_condition.range.block, .local_idx = .{ .value = local_id } }).value;
-                        const non_zero_entries_range_start = self.nonZeroEntriesRangeStart(@intCast(global_id));
-                        std.debug.assert(non_zero_entries.items[non_zero_entries_range_start] == @as(c_int, @intCast(global_id)));
-                        std.debug.assert(non_zero_entries.items[non_zero_entries_range_start + 1] == @as(c_int, @intCast(global_id + 91)));
                     }
                 },
                 else => unreachable,
