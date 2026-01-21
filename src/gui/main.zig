@@ -21,6 +21,7 @@ const Input = struct {
         wall_control_function: core.smoothing.wall_control_function.Algorithm = .{ .laplace = {} },
     },
     geometry: struct {
+        scale: core.types.Float = 1.0,
         pitch: core.types.Float,
         profile: core.input.ProfileInput,
     },
@@ -55,9 +56,9 @@ pub fn main() !void {
     // TODO: add ini, toml, yaml config files to allow comments!
 
     // geometry
-    const profile = try core.input.create_profile(allocator, input.geometry.profile);
+    const profile = try core.input.create_profile(allocator, input.geometry.profile, input.geometry.scale);
     defer profile.deinit();
-    const geometry = core.machine.Geometry.init(input.geometry.pitch, profile);
+    const geometry = core.machine.Geometry.init(input.geometry.scale * input.geometry.pitch, profile);
 
     // blocking
     var mesh = try input.template.run(allocator, geometry);

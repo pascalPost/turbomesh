@@ -48,6 +48,7 @@ const WasmInput = struct {
         wall_control_function: core.smoothing.wall_control_function.Algorithm = .{ .laplace = {} },
     },
     geometry: struct {
+        scale: core.types.Float = 1.0,
         pitch: core.types.Float,
         profile: WasmProfileInput,
     },
@@ -57,10 +58,10 @@ fn create_profile(allocator: std.mem.Allocator, input: WasmProfileInput) !core.m
     switch (input) {
         .data => |d| {
             // [2]f64 to Vec2d
-            const up = try allocVec2dFromTuples(allocator, d.up);
+            const up = try core.input.allocVec2dFromTuples(allocator, d.up);
             defer allocator.free(up);
             errdefer allocator.free(up);
-            const down = try allocVec2dFromTuples(allocator, d.down);
+            const down = try core.input.allocVec2dFromTuples(allocator, d.down);
             defer allocator.free(down);
             errdefer allocator.free(down);
 
@@ -71,14 +72,6 @@ fn create_profile(allocator: std.mem.Allocator, input: WasmProfileInput) !core.m
 
 // state
 var mesh_global: ?core.discrete.Mesh = null;
-
-fn allocVec2dFromTuples(allocator: std.mem.Allocator, tuples: []const [2]f64) ![]core.types.Vec2d {
-    const out = try allocator.alloc(core.types.Vec2d, tuples.len);
-    for (tuples, out) |source, *dest| {
-        dest.* = core.types.Vec2d.init(source[0], source[1]);
-    }
-    return out;
-}
 
 fn runFromWasmInput(allocator: std.mem.Allocator, input: WasmInput) !void {
     freeMesh();

@@ -36,8 +36,8 @@ const abs = types.abs;
 /// | ->i           |           *                                      *           | ->i            |
 /// |_______________________________________________________________________________________________
 pub const O4H = struct {
-    inlet_distance: ?types.Float,
-    outlet_distance: ?types.Float,
+    inlet_distance: ?types.Float = null,
+    outlet_distance: ?types.Float = null,
 
     // IDEA: add optional parameter for turbine or compressor to allow to define PS and SS
     // IDEA: allow to preset numbers based on single setting like low, mid, high or something...
@@ -177,8 +177,6 @@ pub const O4H = struct {
         // |---------- x_10
         // x_11
 
-        // TODO: remove hard coded positions for block
-
         const in_j_min = try discrete.Edge.combine(allocator, &.{ .{
             .edge = &blade_up_i_max,
             .start = self.num_cells.in_up_j,
@@ -194,9 +192,9 @@ pub const O4H = struct {
         const in_x_00 = in_j_min.points[0];
         const in_x_01 = in_j_min.points[in_j_min.points.len - 1];
 
-        // TODO: remove this hardcoded distance
-        const in_x_10 = sub(in_x_00, Vec2d.init(0.02, -0.001));
-        const in_x_11 = sub(in_x_01, Vec2d.init(0.02, 0.02));
+        const in_x_start = leading_edge.data[0] - inlet_distance * 0.5;
+        const in_x_10 = Vec2d.init(in_x_start, leading_edge.data[1] + geom.pitch * 0.25);
+        const in_x_11 = Vec2d.init(in_x_start, leading_edge.data[1] - geom.pitch * 0.25);
 
         const in_j_max = try discrete.Edge.init(allocator, in_j_min.points.len, .{ .line = .{ .start = in_x_10, .end = in_x_11 } }, .{ .uniform = .{} });
         defer in_j_max.deinit();
@@ -229,9 +227,9 @@ pub const O4H = struct {
         const out_x_00 = out_j_min.points[0];
         const out_x_01 = out_j_min.points[out_j_min.points.len - 1];
 
-        // TODO: remove hard coded coordinate
-        const out_x_10 = add(out_x_00, Vec2d.init(0.01, -0.02));
-        const out_x_11 = add(out_x_01, Vec2d.init(0.02, -0.01));
+        const out_x_end = outlet_distance * 0.5 + trailing_edge.data[0];
+        const out_x_10 = Vec2d.init(out_x_end, trailing_edge.data[1] - geom.pitch * 0.25);
+        const out_x_11 = Vec2d.init(out_x_end, trailing_edge.data[1] + geom.pitch * 0.25);
 
         const out_j_max = try discrete.Edge.init(allocator, out_j_min.points.len, .{ .line = .{ .start = out_x_10, .end = out_x_11 } }, .{ .uniform = .{} });
         defer out_j_max.deinit();
@@ -434,11 +432,11 @@ pub const O4H = struct {
 
             boundary.Connection.init(.{
                 .{ .block = down_id, .side = boundary.Side.j_min, .start = self.num_cells.down_j, .end = 0 },
-                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.bulge },
+                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.down_j },
             }, null),
             boundary.Connection.init(.{
                 .{ .block = in_id, .side = boundary.Side.j_max, .start = in_j_min.points.len - 1, .end = 0 },
-                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.bulge, .end = self.num_cells.bulge + in_j_min.points.len - 1 },
+                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j, .end = self.num_cells.down_j + in_j_min.points.len - 1 },
             }, null),
             boundary.Connection.init(.{
                 .{ .block = in_id, .side = boundary.Side.i_max, .start = 0, .end = self.num_cells.in_i },
@@ -447,7 +445,7 @@ pub const O4H = struct {
 
             boundary.Connection.init(.{
                 .{ .block = up_id, .side = boundary.Side.j_max, .start = 0, .end = self.num_cells.out_i },
-                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.bulge + in_j_min.points.len - 1, .end = upstream_j_max.points.len - 1 },
+                .{ .block = upstream_id, .side = boundary.Side.j_max, .start = self.num_cells.down_j + in_j_min.points.len - 1, .end = upstream_j_max.points.len - 1 },
             }, null),
             boundary.Connection.init(.{
                 .{ .block = in_id, .side = boundary.Side.i_min, .start = 0, .end = self.num_cells.in_i },

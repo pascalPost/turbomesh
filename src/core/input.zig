@@ -13,8 +13,8 @@ pub const ProfileInputTag = enum {
 
 pub const ProfileInput = union(ProfileInputTag) {
     data: struct {
-        down: []types.Vec2d,
-        up: []types.Vec2d,
+        down: []const [2]f64,
+        up: []const [2]f64,
     },
     csv: struct {
         down_csv_path: []const u8,
@@ -35,10 +35,28 @@ const Input = struct {
     },
 };
 
-pub fn create_profile(allocator: std.mem.Allocator, input: ProfileInput) !machine.Profile {
+pub fn create_profile(allocator: std.mem.Allocator, input: ProfileInput, scale: types.Float) !machine.Profile {
     switch (input) {
-        .data => {
-            return try machine.Profile.init(allocator, input.data.down, input.data.up);
+        .data => |d| {
+            const up = try allocVec2dFromTuples(allocator, d.up);
+            defer allocator.free(up);
+            errdefer allocator.free(up);
+            const down = try allocVec2dFromTuples(allocator, d.down);
+            defer allocator.free(down);
+            errdefer allocator.free(down);
+
+            if (scale != 1.0) {
+                for (down) |*point| {
+                    point.data[0] *= scale;
+                    point.data[1] *= scale;
+                }
+                for (up) |*point| {
+                    point.data[0] *= scale;
+                    point.data[1] *= scale;
+                }
+            }
+
+            return try machine.Profile.init(allocator, down, up);
         },
         .csv => |csv| {
             if (native_arch == .wasm32) {
@@ -48,10 +66,30 @@ pub fn create_profile(allocator: std.mem.Allocator, input: ProfileInput) !machin
                 defer down.deinit();
                 const up = try readSide(allocator, csv.up_csv_path);
                 defer up.deinit();
+
+                if (scale != 1.0) {
+                    for (down.items) |*point| {
+                        point.data[0] *= scale;
+                        point.data[1] *= scale;
+                    }
+                    for (up.items) |*point| {
+                        point.data[0] *= scale;
+                        point.data[1] *= scale;
+                    }
+                }
+
                 return try machine.Profile.init(allocator, down.items, up.items);
             }
         },
     }
+}
+
+pub fn allocVec2dFromTuples(allocator: std.mem.Allocator, tuples: []const [2]f64) ![]types.Vec2d {
+    const out = try allocator.alloc(types.Vec2d, tuples.len);
+    for (tuples, out) |source, *dest| {
+        dest.* = types.Vec2d.init(source[0], source[1]);
+    }
+    return out;
 }
 
 fn readSide(allocator: std.mem.Allocator, csv_path: []const u8) !std.array_list.Managed(types.Vec2d) { //     const side = try csv.parseCsvIntoVec2d(allocator, csv_path);
