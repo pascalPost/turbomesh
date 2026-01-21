@@ -13,22 +13,6 @@ const templates = core.templates;
 
 var gl_proc_table: gl.ProcTable = undefined;
 
-const Input = struct {
-    template: templates.Template,
-    smoothing: struct {
-        iterations: usize = 0,
-        solver: core.smoothing.solver.Option,
-        wall_control_function: core.smoothing.wall_control_function.Algorithm = .{ .laplace = {} },
-    },
-    geometry: struct {
-        scale: core.types.Float = 1.0,
-        pitch: core.types.Float,
-        profile: core.input.ProfileInput,
-    },
-    output: ?[:0]const u8 = null,
-    gui: ?bool = null,
-};
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
@@ -43,7 +27,7 @@ pub fn main() !void {
     var json_reader = std.json.Reader.init(allocator, &config_file_reader.interface);
     defer json_reader.deinit();
 
-    const parsed = try std.json.parseFromTokenSource(Input, allocator, &json_reader, .{});
+    const parsed = try std.json.parseFromTokenSource(core.input.Input, allocator, &json_reader, .{});
     defer parsed.deinit();
 
     const input = parsed.value;

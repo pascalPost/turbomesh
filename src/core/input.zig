@@ -22,7 +22,7 @@ pub const ProfileInput = union(ProfileInputTag) {
     },
 };
 
-const Input = struct {
+pub const Input = struct {
     template: templates.Template,
     smoothing: struct {
         iterations: usize = 0,
@@ -30,9 +30,14 @@ const Input = struct {
         wall_control_function: smoothing.wall_control_function.Algorithm = .{ .laplace = {} },
     },
     geometry: struct {
+        scale: types.Float = 1.0,
         pitch: types.Float,
         profile: ProfileInput,
     },
+
+    // input for current desktop app
+    output: ?[:0]const u8 = null,
+    gui: ?bool = null,
 };
 
 pub fn create_profile(allocator: std.mem.Allocator, input: ProfileInput, scale: types.Float) !machine.Profile {

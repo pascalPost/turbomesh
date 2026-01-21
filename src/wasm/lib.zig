@@ -29,54 +29,13 @@ pub const std_options: std.Options = .{
     .logFn = wasmLog,
 };
 
-const WasmProfileInputTag = enum {
-    data,
-};
-
-const WasmProfileInput = union(WasmProfileInputTag) {
-    data: struct {
-        down: []const [2]f64,
-        up: []const [2]f64,
-    },
-};
-
-const WasmInput = struct {
-    template: core.templates.Template,
-    smoothing: struct {
-        iterations: usize = 0,
-        solver: core.smoothing.solver.Option,
-        wall_control_function: core.smoothing.wall_control_function.Algorithm = .{ .laplace = {} },
-    },
-    geometry: struct {
-        scale: core.types.Float = 1.0,
-        pitch: core.types.Float,
-        profile: WasmProfileInput,
-    },
-};
-
-fn create_profile(allocator: std.mem.Allocator, input: WasmProfileInput) !core.machine.Profile {
-    switch (input) {
-        .data => |d| {
-            // [2]f64 to Vec2d
-            const up = try core.input.allocVec2dFromTuples(allocator, d.up);
-            defer allocator.free(up);
-            errdefer allocator.free(up);
-            const down = try core.input.allocVec2dFromTuples(allocator, d.down);
-            defer allocator.free(down);
-            errdefer allocator.free(down);
-
-            return try core.machine.Profile.init(allocator, down, up);
-        },
-    }
-}
-
 // state
 var mesh_global: ?core.discrete.Mesh = null;
 
-fn runFromWasmInput(allocator: std.mem.Allocator, input: WasmInput) !void {
+fn runFromInput(allocator: std.mem.Allocator, input: core.input.Input) !void {
     freeMesh();
 
-    const profile = try create_profile(allocator, input.geometry.profile);
+    const profile = try core.input.create_profile(allocator, input.geometry.profile, input.geometry.scale);
     defer profile.deinit();
 
     const geometry = core.machine.Geometry.init(input.geometry.pitch, profile);
@@ -124,13 +83,13 @@ export fn run(input_ptr: [*]const u8, input_len: usize) void {
     }
 
     const input_json = input_ptr[0..input_len];
-    var parsed = std.json.parseFromSlice(WasmInput, allocator, input_json, .{}) catch |err| {
-        std.log.err("failed to parse wasm input: {s}", .{@errorName(err)});
+    var parsed = std.json.parseFromSlice(core.input.Input, allocator, input_json, .{}) catch |err| {
+        std.log.err("failed to parse input: {s}", .{@errorName(err)});
         return;
     };
     defer parsed.deinit();
-    runFromWasmInput(allocator, parsed.value) catch |err| {
-        std.log.err("failed to run wasm input: {s}", .{@errorName(err)});
+    runFromInput(allocator, parsed.value) catch |err| {
+        std.log.err("failed to run input: {s}", .{@errorName(err)});
     };
     return;
 }
