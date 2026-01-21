@@ -2,7 +2,7 @@
 
 An open-source mesh generator for the CFD simulation of turbomachinery applications.
 
-Reimplementation of [turbomesh](https://github.com/pascalPost/turbomesh).
+Reimplementation of [turbomesh-legecy](https://github.com/pascalPost/turbomesh-legecy).
 
 
 ## Development Roadmap
@@ -11,9 +11,8 @@ Reimplementation of [turbomesh](https://github.com/pascalPost/turbomesh).
 - [x] elliptic block smoothing
 - [x] elliptic mesh smoothing (multiple blocks including inter-block boundaries)
 - [x] boundary layer meshes
-- [ ] automated blocking for turbomachinery (ongoing)
-- [ ] gui (ongoing)
-- [ ] WASM to run in browser
+- [x] automated blocking for turbomachinery
+- [x] WASM to run in browser
 - [ ] extension to 3D based on meshed 2d cuts
 - [ ] possible extension to radial configurations
 
@@ -41,8 +40,8 @@ Planned features:
 ### Dependencies
 
 - Zig (0.15.2)
-- PETSc (and all its dependencies, e.g. mpi), UMFPACK, MUMPS
-- CGNS
+- optional: PETSc (and all its dependencies, e.g. mpi), UMFPACK, MUMPS
+- optional: CGNS
 
 ### PETSc
 
