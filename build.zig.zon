@@ -2,9 +2,9 @@
 // This code is licensed under AGPL license (see LICENSE.txt for details)
 
 .{
-    .name = .turbomesh_zig,
-    .fingerprint = 0x222394d288467c4c,
-    .version = "0.0.0",
+    .name = .turbomesh,
+    .fingerprint = 0x4a74730641ce414c,
+    .version = "0.1.0",
 
     // This field is optional.
     // This is currently advisory only; Zig does not yet do anything
