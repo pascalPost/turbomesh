@@ -2,7 +2,7 @@
 
 An open-source mesh generator for the CFD simulation of turbomachinery applications.
 
-Reimplementation of [turbomesh-legecy](https://github.com/pascalPost/turbomesh-legecy).
+Reimplementation of [turbomesh-legacy](https://github.com/pascalPost/turbomesh-legacy).
 
 
 ## Development Roadmap
