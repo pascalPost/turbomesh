@@ -23,11 +23,13 @@ pub fn build(b: *std.Build) void {
         .use_petsc = use_petsc orelse true,
     });
 
-    gui.addDesktopGui(b, target, optimize, .{
-        .use_cgns = use_cgns orelse true,
-        .use_umfpack = use_umfpack orelse true,
-        .use_petsc = use_petsc orelse true,
-    });
+    if (target.result.cpu.arch != .wasm32) {
+        gui.addDesktopGui(b, target, optimize, .{
+            .use_cgns = use_cgns orelse true,
+            .use_umfpack = use_umfpack orelse true,
+            .use_petsc = use_petsc orelse true,
+        });
+    }
 
     wasm.addWasm(b, target, optimize, .{
         .use_cgns = use_cgns orelse false,
