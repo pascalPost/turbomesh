@@ -38,7 +38,7 @@ fn runFromInput(allocator: std.mem.Allocator, input: core.input.Input) !void {
     const profile = try core.input.create_profile(allocator, input.geometry.profile, input.geometry.scale);
     defer profile.deinit();
 
-    const geometry = core.machine.Geometry.init(input.geometry.pitch, profile);
+    const geometry = core.machine.Geometry.init(input.geometry.scale * input.geometry.pitch, profile);
 
     var mesh = try input.template.run(allocator, geometry);
     errdefer mesh.deinit();
